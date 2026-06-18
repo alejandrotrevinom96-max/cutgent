@@ -25,6 +25,10 @@ export function Onboarding() {
 
   if (!open) return null;
 
+  // El menú nativo «IA / MCP» solo existe en la app de escritorio (Electron).
+  // En navegador (dev) mostramos una alternativa basada en .mcp.json.
+  const isDesktop = typeof navigator !== "undefined" && /Electron/i.test(navigator.userAgent);
+
   const close = () => {
     try {
       localStorage.setItem(KEY, "1");
@@ -52,14 +56,34 @@ export function Onboarding() {
           <Step
             icon={<Bot size={18} />}
             n={1}
-            title="Conecta tu IA (MCP)"
-            body="Menú «IA / MCP → Copiar configuración para conectar mi IA» y pégala en tu cliente (Claude Desktop / Code). Reinícialo y deja Cutgent abierto: tu IA podrá editar por ti."
+            title="Conecta tu IA (MCP) — 1 sola vez"
+            body={
+              <ol className="mt-1 flex list-none flex-col gap-1.5">
+                {isDesktop ? (
+                  <SubStep>
+                    En el menú de Cutgent (arriba): <b className="text-text">IA / MCP → «Copiar configuración para conectar mi IA»</b>. Se copia al portapapeles.
+                  </SubStep>
+                ) : (
+                  <SubStep>
+                    Estás en el navegador (modo dev): la config MCP vive en <span className="font-mono text-[11px]">.mcp.json</span> en la raíz del proyecto. Cópiala.
+                  </SubStep>
+                )}
+                <SubStep>
+                  Abre tu cliente de IA. En <b className="text-text">Claude Desktop</b>: <b className="text-text">Settings ⚙ → Developer → Edit Config</b> (abre <span className="font-mono text-[11px]">claude_desktop_config.json</span>).
+                </SubStep>
+                <SubStep>
+                  Pégala: si el archivo está <b className="text-text">vacío</b>, pégala como TODO el contenido; si ya tienes <span className="font-mono text-[11px]">mcpServers</span>, añade dentro la entrada <span className="font-mono text-[11px]">&quot;cutgent&quot;</span>. Guarda.
+                </SubStep>
+                <SubStep><b className="text-text">Reinicia</b> Claude Desktop. (En Claude Code: ya queda registrado por <span className="font-mono text-[11px]">.mcp.json</span>, o pega el mismo bloque.)</SubStep>
+                <SubStep>Deja <b className="text-text">Cutgent abierto</b>: tu IA controla ESTA ventana. Pídele “conéctate a Cutgent y lista mis pistas”.</SubStep>
+              </ol>
+            }
           />
           <Step
             icon={<Upload size={18} />}
             n={2}
             title="Trae tus medios"
-            body="Sube archivos, pega una URL, o busca stock (Pexels/Pixabay) — para stock añade tus API keys gratuitas en «Ajustes»."
+            body="Sube archivos, pega una URL, o busca stock. En «Ajustes» pones tus API keys: Pexels/Pixabay para stock, y CUALQUIER proveedor de IA (Google AI Studio, Higgsfield, OpenAI…) para generar."
           />
           <Step
             icon={<Wand2 size={18} />}
@@ -83,7 +107,7 @@ export function Onboarding() {
   );
 }
 
-function Step({ icon, n, title, body }: { icon: React.ReactNode; n: number; title: string; body: string }) {
+function Step({ icon, n, title, body }: { icon: React.ReactNode; n: number; title: string; body: React.ReactNode }) {
   return (
     <li className="flex gap-3">
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-panel-2 text-accent">
@@ -95,6 +119,15 @@ function Step({ icon, n, title, body }: { icon: React.ReactNode; n: number; titl
         </div>
         <div className="text-xs leading-relaxed text-muted">{body}</div>
       </div>
+    </li>
+  );
+}
+
+function SubStep({ children }: { children: React.ReactNode }) {
+  return (
+    <li className="flex gap-2 text-xs leading-relaxed text-muted">
+      <span className="select-none text-accent">▸</span>
+      <span>{children}</span>
     </li>
   );
 }

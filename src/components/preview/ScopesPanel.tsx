@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useEditor } from "@/lib/store";
 import { findClip } from "@/lib/commands";
-import { clearScope, getScope, subscribeScope } from "@/lib/scopes";
+import { clearScope, getScope, subscribeScope, setScopesEnabled } from "@/lib/scopes";
 
 /**
  * Scopes de video (histograma RGB / waveform de luma / vectorscopio). Lee el
@@ -102,6 +102,9 @@ export function ScopesPanel() {
   }, [isSamplable]);
 
   useEffect(() => {
+    // El panel está montado ⇒ habilita el sampleo de scopes (caro: getImageData
+    // por frame). Al desmontar (panel cerrado) se apaga.
+    setScopesEnabled(true);
     let raf = 0;
     let dirty = true;
     const onUpdate = () => {
@@ -129,6 +132,7 @@ export function ScopesPanel() {
     };
     raf = requestAnimationFrame(loop);
     return () => {
+      setScopesEnabled(false);
       unsub();
       cancelAnimationFrame(raf);
     };

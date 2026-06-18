@@ -20,7 +20,16 @@ let canvas: HTMLCanvasElement | null = null;
 let ctx: CanvasRenderingContext2D | null = null;
 let latest: ImageData | null = null;
 let tainted = false;
+let enabled = false; // solo se samplea si el panel de Scopes está abierto
 const listeners = new Set<() => void>();
+
+/** Activa/desactiva el sampleo. Sin esto, sampleElement haría un getImageData
+ *  (lectura síncrona GPU→CPU) por CADA frame decodificado aunque el panel esté
+ *  cerrado (el caso por defecto), penalizando la reproducción. */
+export function setScopesEnabled(on: boolean): void {
+  enabled = on;
+  if (!on) latest = null;
+}
 
 function ensure(): void {
   if (canvas || typeof document === "undefined") return;
@@ -32,6 +41,7 @@ function ensure(): void {
 
 /** Samplea un <video>/<img>/canvas y publica su ImageData reducido. */
 export function sampleElement(el: CanvasImageSource): void {
+  if (!enabled) return; // no samplear si el panel de Scopes está cerrado
   ensure();
   if (!ctx) return;
   try {

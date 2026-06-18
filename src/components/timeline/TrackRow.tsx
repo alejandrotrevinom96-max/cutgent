@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import {
   Volume2,
   VolumeX,
@@ -154,8 +154,10 @@ interface TrackLaneProps {
   viewToFrame: number;
 }
 
-/** Carril de la pista: fondo + bloques de clips posicionados en el tiempo. */
-export function TrackLane({ track, width, viewFromFrame, viewToFrame }: TrackLaneProps) {
+/** Carril de la pista: fondo + bloques de clips posicionados en el tiempo.
+ *  Memoizado: durante la reproducción el playhead cambia ~30-60×/s pero sus props
+ *  (track/width/ventana) no, así que se evita re-renderizar todo el carril por tick. */
+export const TrackLane = memo(function TrackLane({ track, width, viewFromFrame, viewToFrame }: TrackLaneProps) {
   const selectClip = useEditor((s) => s.selectClip);
 
   // Virtualización: solo montamos los clips que intersecan la ventana visible.
@@ -186,4 +188,4 @@ export function TrackLane({ track, width, viewFromFrame, viewToFrame }: TrackLan
       ))}
     </div>
   );
-}
+});

@@ -21,17 +21,21 @@ const AUTH_TOKEN = crypto.randomBytes(24).toString("hex");
  * (endpoint.json), así que no hay nada que configurar a mano.
  */
 function buildMcpConfig() {
-  const isPkg = app.isPackaged;
-  const serverPath = isPkg
-    ? path.join(process.resourcesPath, "mcp", "cutgent-mcp.cjs")
-    : path.join(__dirname, "..", "mcp-server", "index.ts");
+  if (app.isPackaged) {
+    // Empaquetado: corre el MCP bundleado con el PROPIO Cutgent.exe como Node
+    // (sin instalar Node/tsx). Puerto+token se autodescubren vía endpoint.json.
+    const serverPath = path.join(process.resourcesPath, "mcp", "cutgent-mcp.cjs");
+    return {
+      mcpServers: {
+        cutgent: { command: process.execPath, args: [serverPath], env: { ELECTRON_RUN_AS_NODE: "1" } },
+      },
+    };
+  }
+  // Dev: misma receta que el .mcp.json del repo (npx tsx sobre el index.ts).
+  const serverPath = path.join(__dirname, "..", "mcp-server", "index.ts");
   return {
     mcpServers: {
-      cutgent: {
-        command: process.execPath,
-        args: isPkg ? [serverPath] : ["--import", "tsx", serverPath],
-        env: { ELECTRON_RUN_AS_NODE: "1" },
-      },
+      cutgent: { command: "npx", args: ["tsx", serverPath], env: { CUTGENT_URL: "http://localhost:3000" } },
     },
   };
 }
@@ -54,7 +58,12 @@ function setupMenu() {
               title: "Conectar tu IA a Cutgent",
               message: "Configuración MCP copiada al portapapeles.",
               detail:
-                "Pégala en la config de tu cliente de IA (p. ej. Claude Desktop → Developer → Edit Config, o claude_desktop_config.json) y reinícialo.\n\nCutgent debe estar ABIERTO para que tu IA lo controle.",
+                "Pásala a tu cliente de IA (1 sola vez):\n\n" +
+                "1) Claude Desktop → Settings ⚙ → Developer → Edit Config (abre claude_desktop_config.json).\n" +
+                '2) Si el archivo está vacío, pégala como TODO el contenido. Si ya tienes "mcpServers", añade dentro la entrada "cutgent". Guarda.\n' +
+                "3) Reinicia Claude Desktop.\n" +
+                "   (Claude Code: pega el mismo bloque en tu config MCP.)\n\n" +
+                "Deja Cutgent ABIERTO: tu IA controla esta ventana. Pruébalo pidiéndole «conéctate a Cutgent y lista mis pistas».",
             });
           },
         },

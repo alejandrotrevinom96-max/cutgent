@@ -17,8 +17,8 @@
     "predownload:model": "node scripts/predownload-model.mjs",
     "predownload:browser": "node scripts/predownload-browser.mjs",
     "predownload:all": "npm run predownload:model && npm run predownload:browser",
-    "dist:win": "next build && npm run mcp:bundle && npm run predownload:browser && electron-builder --win",
-    "dist:mac": "next build && npm run mcp:bundle && npm run predownload:browser && electron-builder --mac"
+    "dist:win": "next build && npm run mcp:bundle && npm run predownload:all && electron-builder --win",
+    "dist:mac": "next build && npm run mcp:bundle && npm run predownload:all && electron-builder --mac"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.2.0",
