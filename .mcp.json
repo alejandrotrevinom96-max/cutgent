@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "claudit": {
+      "command": "npx",
+      "args": ["tsx", "mcp-server/index.ts"],
+      "env": {
+        "CLAUDIT_URL": "http://localhost:3000"
+      }
+    }
+  }
+}

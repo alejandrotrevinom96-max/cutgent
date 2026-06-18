@@ -1,0 +1,146 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap");
+@import "tailwindcss";
+
+/* =========================================================================
+ * Themes (4 direcciones de Claude Design). El theme activo se elige con el
+ * atributo data-theme en :root. Default = Refined Dark (también en :root para
+ * que el primer paint sin JS ya sea correcto).
+ * ========================================================================= */
+
+:root,
+[data-theme="refined-dark"] {
+  --bg: #0c0d13;
+  --panel: #11121b;
+  --panel-2: #161823;
+  --border: #20212c;
+  --text: #e8eaf2;
+  --muted: #8b8fa3;
+  --accent: #818cf8;
+  --accent-2: #a78bfa;
+  --danger: #ef4444;
+  --track: #11121b;
+  --ok: #34d399;
+  --info: #38bdf8;
+  --warning: #f59e0b;
+}
+
+[data-theme="liquid-glass"] {
+  /* Fondo colorido (Dark Violet del diseño). Como gradiente: body lo pinta vía
+     `background: var(--bg)`; los bg-bg (background-color) caen a transparente y
+     dejan ver el gradiente detrás de los paneles translúcidos. */
+  --bg:
+    radial-gradient(700px 500px at 12% 110%, rgba(124, 92, 246, 0.42), transparent 60%),
+    radial-gradient(620px 460px at 88% -10%, rgba(236, 123, 72, 0.26), transparent 58%),
+    radial-gradient(540px 520px at 60% 50%, rgba(168, 85, 247, 0.28), transparent 62%),
+    linear-gradient(140deg, #0d0a17, #130f1f 52%, #07060d);
+  --panel: rgba(255, 255, 255, 0.06);
+  --panel-2: rgba(255, 255, 255, 0.1);
+  --border: rgba(255, 255, 255, 0.14);
+  --text: #f4f2ff;
+  --muted: #c4c1de;
+  --accent: #7c8cff;
+  --accent-2: #a855f7;
+  --danger: #fb7185;
+  --track: rgba(255, 255, 255, 0.06);
+  --ok: #6ee7b7;
+  --info: #7dd3fc;
+  --warning: #fcd34d;
+}
+
+[data-theme="light-airy"] {
+  --bg: #f4f2ee;
+  --panel: #fbfaf8;
+  --panel-2: #ecebe6;
+  --border: #e2e0da;
+  --text: #2b2a26;
+  --muted: #8a877f;
+  --accent: #6366f1;
+  --accent-2: #8b5cf6;
+  --danger: #dc2626;
+  --track: #ecebe6;
+  --ok: #059669;
+  --info: #0284c7;
+  --warning: #d97706;
+}
+
+[data-theme="contrast-pro"] {
+  --bg: #0a0a0b;
+  --panel: #0f0f12;
+  --panel-2: #141417;
+  --border: #26262a;
+  --text: #f2f2f4;
+  --muted: #8a8a92;
+  --accent: #f97316;
+  --accent-2: #fbbf24;
+  --danger: #ef4444;
+  --track: #141417;
+  --ok: #34d399;
+  --info: #38bdf8;
+  --warning: #f59e0b;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-panel-2: var(--panel-2);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  background: var(--bg);
+  background-attachment: fixed;
+  color: var(--text);
+  font-family: "Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Accesibilidad: foco visible por teclado en controles. */
+:where(button, a, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Liquid Glass: paneles translúcidos con desenfoque del fondo (frosted). */
+[data-theme="liquid-glass"] [class*="bg-panel"] {
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+
+button {
+  font-family: inherit;
+}
+
+input[type="range"] {
+  accent-color: var(--accent);
+}

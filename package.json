@@ -1,0 +1,111 @@
+{
+  "name": "claudit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Editor de video full-stack controlable 100% por Claude vía MCP",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "mcp": "tsx mcp-server/index.ts",
+    "mcp:build": "tsc -p mcp-server/tsconfig.json",
+    "mcp:bundle": "esbuild mcp-server/index.ts --bundle --platform=node --format=cjs --outfile=mcp-dist/claudit-mcp.cjs",
+    "electron": "electron .",
+    "predownload:model": "node scripts/predownload-model.mjs",
+    "predownload:browser": "node scripts/predownload-browser.mjs",
+    "predownload:all": "npm run predownload:model && npm run predownload:browser",
+    "dist:win": "next build && npm run mcp:bundle && npm run predownload:browser && electron-builder --win",
+    "dist:mac": "next build && npm run mcp:bundle && npm run predownload:browser && electron-builder --mac"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^4.2.0",
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "@remotion/bundler": "4.0.290",
+    "@remotion/cli": "4.0.290",
+    "@remotion/motion-blur": "^4.0.290",
+    "@remotion/player": "4.0.290",
+    "@remotion/renderer": "4.0.290",
+    "@remotion/shapes": "4.0.290",
+    "@remotion/transitions": "4.0.290",
+    "clsx": "^2.1.1",
+    "electron-updater": "^6.3.9",
+    "ffmpeg-static": "^5.3.0",
+    "lucide-react": "^0.456.0",
+    "nanoid": "^5.0.9",
+    "next": "15.1.6",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "remotion": "4.0.290",
+    "zod": "^3.24.1",
+    "zustand": "^5.0.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/node": "^22.10.5",
+    "@types/react": "19.0.7",
+    "@types/react-dom": "19.0.3",
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
+    "tailwindcss": "^4.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  },
+  "build": {
+    "appId": "com.claudit.app",
+    "productName": "Claudit",
+    "asar": false,
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "alejandrotrevinom96-max",
+        "repo": "claudit"
+      }
+    ],
+    "directories": {
+      "output": "dist-installers"
+    },
+    "files": [
+      "electron/**",
+      ".next/**",
+      "!.next/cache/**",
+      "public/**",
+      "src/**",
+      "next.config.ts",
+      "postcss.config.mjs",
+      "tsconfig.json",
+      "package.json",
+      "node_modules/**",
+      "node_modules/.remotion/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "models",
+        "to": "models"
+      },
+      {
+        "from": "mcp-dist",
+        "to": "mcp"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "artifactName": "Claudit-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.video",
+      "artifactName": "Claudit-${version}.${ext}"
+    }
+  }
+}

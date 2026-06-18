@@ -1,0 +1,36 @@
+name: Release (Windows + macOS)
+
+# Construye y PUBLICA los instaladores de Claudit en GitHub Releases.
+# Ese release (con latest.yml / latest-mac.yml) es el feed que consume la
+# auto-actualización (electron-updater) para llegar a todos los clientes.
+# Dispara al pushear un tag v* (p.ej. v0.1.1) o manualmente.
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write # necesario para publicar el Release
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Build de Next + bundle MCP
+        run: npm run build && npm run mcp:bundle
+      - name: Pre-descargar modelo de Whisper + Chrome (van en el instalador)
+        run: npm run predownload:all
+      - name: Empaquetar + publicar (sin firmar v1)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: npx electron-builder --publish always
