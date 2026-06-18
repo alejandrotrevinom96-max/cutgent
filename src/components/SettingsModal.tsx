@@ -66,7 +66,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
         </div>
 
         <p className="mb-4 text-[11px] leading-relaxed text-muted">
-          Claudit usa TUS cuentas. Pega tus API keys (gratuitas) para buscar stock. Se guardan solo
+          Cutgent usa TUS cuentas. Pega tus API keys (gratuitas) para buscar stock. Se guardan solo
           en tu equipo. Pexels: pexels.com/api · Pixabay: pixabay.com/api/docs.
         </p>
 

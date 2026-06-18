@@ -30,9 +30,9 @@ const DEFAULT_MODEL = "Xenova/whisper-base";
  * Modelo para el DICTADO de notas (clips cortos). En español `whisper-base` da
  * 11–18% WER y falla justo en números/timestamps; `whisper-small` baja a ~6–10%.
  * Por defecto reusa el modelo base (ya descargado, cero sorpresas); el dueño
- * puede subir calidad con CLAUDIT_DICTATION_MODEL=Xenova/whisper-small.
+ * puede subir calidad con CUTGENT_DICTATION_MODEL=Xenova/whisper-small.
  */
-const DICTATION_MODEL = process.env.CLAUDIT_DICTATION_MODEL || DEFAULT_MODEL;
+const DICTATION_MODEL = process.env.CUTGENT_DICTATION_MODEL || DEFAULT_MODEL;
 
 export interface TranscriptSegment {
   start: number; // segundos
@@ -49,36 +49,36 @@ export interface Transcript {
 
 // Cache del pipeline en globalThis (sobrevive hot-reload; cargar el modelo es caro).
 const g = globalThis as unknown as {
-  __claudit_asr?: Promise<unknown>;
-  __claudit_dictation_asr?: Promise<unknown>;
-  __claudit_detector?: Promise<{ processor: unknown; model: unknown }>;
+  __cutgent_asr?: Promise<unknown>;
+  __cutgent_dictation_asr?: Promise<unknown>;
+  __cutgent_detector?: Promise<{ processor: unknown; model: unknown }>;
 };
 function getAsr(): Promise<unknown> {
-  if (!g.__claudit_asr) {
-    g.__claudit_asr = pipeline("automatic-speech-recognition", DEFAULT_MODEL, { dtype: "q8" });
+  if (!g.__cutgent_asr) {
+    g.__cutgent_asr = pipeline("automatic-speech-recognition", DEFAULT_MODEL, { dtype: "q8" });
   }
-  return g.__claudit_asr;
+  return g.__cutgent_asr;
 }
 
 function getDictationAsr(): Promise<unknown> {
   if (DICTATION_MODEL === DEFAULT_MODEL) return getAsr();
-  if (!g.__claudit_dictation_asr) {
-    g.__claudit_dictation_asr = pipeline("automatic-speech-recognition", DICTATION_MODEL, {
+  if (!g.__cutgent_dictation_asr) {
+    g.__cutgent_dictation_asr = pipeline("automatic-speech-recognition", DICTATION_MODEL, {
       dtype: "q8",
     });
   }
-  return g.__claudit_dictation_asr;
+  return g.__cutgent_dictation_asr;
 }
 
 // Modelo + processor a bajo nivel para la detección de idioma (langid de Whisper).
 function getDetector(): Promise<{ processor: unknown; model: unknown }> {
-  if (!g.__claudit_detector) {
-    g.__claudit_detector = Promise.all([
+  if (!g.__cutgent_detector) {
+    g.__cutgent_detector = Promise.all([
       AutoProcessor.from_pretrained(DEFAULT_MODEL),
       WhisperForConditionalGeneration.from_pretrained(DEFAULT_MODEL, { dtype: "q8" }),
     ]).then(([processor, model]) => ({ processor, model }));
   }
-  return g.__claudit_detector;
+  return g.__cutgent_detector;
 }
 
 const resolveInput = (src: string) => resolveMediaInput(src, TRANSCRIPTS_DIR);
@@ -304,10 +304,10 @@ export interface TranscribeJob {
   language: string;
   error?: string;
 }
-const jobs = (globalThis as unknown as { __claudit_tjobs?: Map<string, TranscribeJob> });
+const jobs = (globalThis as unknown as { __cutgent_tjobs?: Map<string, TranscribeJob> });
 function jobMap(): Map<string, TranscribeJob> {
-  if (!jobs.__claudit_tjobs) jobs.__claudit_tjobs = new Map();
-  return jobs.__claudit_tjobs;
+  if (!jobs.__cutgent_tjobs) jobs.__cutgent_tjobs = new Map();
+  return jobs.__cutgent_tjobs;
 }
 export function getTranscribeJob(id: string): TranscribeJob | undefined {
   return jobMap().get(id);

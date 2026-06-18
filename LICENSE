@@ -1,17 +1,17 @@
 Copyright (c) 2026 Alejandro Treviño. All rights reserved.
 
-Claudit — Proprietary Software License
+Cutgent — Proprietary Software License
 ======================================
 
 This software, including its source code, assets, and documentation
-(collectively, "Claudit"), is proprietary and confidential.
+(collectively, "Cutgent"), is proprietary and confidential.
 
 The source code is published for transparency and convenience only. Making the
 source publicly visible does NOT place it in the public domain and does NOT
 grant any license under copyright.
 
 No permission is granted to any person or entity to use, copy, modify, merge,
-publish, distribute, sublicense, redistribute, or sell copies of Claudit, in
+publish, distribute, sublicense, redistribute, or sell copies of Cutgent, in
 whole or in part, nor to create derivative works, except with the prior written
 permission of the copyright holder.
 
@@ -19,11 +19,11 @@ You MAY: view the source code for reference and evaluation.
 
 You MAY NOT, without prior written permission: redistribute the software or any
 installer/binary built from it; host it as a service; remove or alter this
-notice; or use the Claudit name or marks to endorse derived products.
+notice; or use the Cutgent name or marks to endorse derived products.
 
 THIRD-PARTY COMPONENTS
 ----------------------
-Claudit bundles and depends on third-party components (including, without
+Cutgent bundles and depends on third-party components (including, without
 limitation, Remotion, FFmpeg, OpenAI Whisper models / Transformers.js, Next.js,
 React, and Electron). Each is governed by its own license. See
 THIRD_PARTY_NOTICES.md. Your rights in those components are defined by their

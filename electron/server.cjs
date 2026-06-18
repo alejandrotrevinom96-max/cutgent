@@ -1,5 +1,5 @@
 // Servidor Next en producción embebido en Electron. Además sirve /assets y
-// /renders desde la carpeta de datos ESCRIBIBLE del usuario (CLAUDIT_DATA_DIR),
+// /renders desde la carpeta de datos ESCRIBIBLE del usuario (CUTGENT_DATA_DIR),
 // con soporte de Range para que el <video> del preview pueda hacer seek.
 const { createServer } = require("http");
 const { parse } = require("url");
@@ -52,7 +52,7 @@ function serveStatic(req, res, baseDir) {
 /** Autoriza una petición por cookie (UI) o Authorization: Bearer (MCP). */
 function authorized(req, token) {
   if (req.headers.authorization === `Bearer ${token}`) return true;
-  const m = /(?:^|;\s*)claudit_token=([^;]+)/.exec(req.headers.cookie || "");
+  const m = /(?:^|;\s*)cutgent_token=([^;]+)/.exec(req.headers.cookie || "");
   return !!m && m[1] === token;
 }
 

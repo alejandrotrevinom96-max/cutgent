@@ -1,5 +1,5 @@
 /**
- * Themes de Claudit — las 4 direcciones del rediseño de Claude Design:
+ * Themes de Cutgent — las 4 direcciones del rediseño de Claude Design:
  *   Refined Dark · Liquid Glass · Light & Airy · High-Contrast Pro
  *
  * Los VALORES de cada theme viven en globals.css bajo `[data-theme="<id>"]`
@@ -45,7 +45,7 @@ export const THEMES: Theme[] = [
 
 export const THEME_IDS = THEMES.map((t) => t.id);
 export const DEFAULT_THEME_ID = "refined-dark";
-const STORAGE_KEY = "claudit-theme";
+const STORAGE_KEY = "cutgent-theme";
 
 export function getTheme(id: string): Theme {
   return THEMES.find((t) => t.id === id) ?? THEMES[0];

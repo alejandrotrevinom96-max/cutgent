@@ -21,13 +21,13 @@ interface AssetHub {
   loaded: boolean;
 }
 
-const g = globalThis as unknown as { __claudit_assets?: AssetHub };
+const g = globalThis as unknown as { __cutgent_assets?: AssetHub };
 
 function hub(): AssetHub {
-  if (!g.__claudit_assets) {
-    g.__claudit_assets = { assets: [], loaded: false };
+  if (!g.__cutgent_assets) {
+    g.__cutgent_assets = { assets: [], loaded: false };
   }
-  return g.__claudit_assets;
+  return g.__cutgent_assets;
 }
 
 async function ensureLoaded(): Promise<void> {

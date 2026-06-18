@@ -1,5 +1,5 @@
 /**
- * Servidor MCP de Claudit.
+ * Servidor MCP de Cutgent.
  *
  * Servidor autónomo Node/TypeScript (ejecútalo con `tsx`) que expone TODO el
  * editor de video como herramientas MCP. No importa nada de la app Next: habla
@@ -28,7 +28,7 @@ import path from "path";
 
 /**
  * Descubre a qué URL hablar:
- *  1) CLAUDIT_URL si está definido (dev / override),
+ *  1) CUTGENT_URL si está definido (dev / override),
  *  2) el endpoint que escribe la app de escritorio (Electron usa un puerto
  *     ALEATORIO; lo publica en <userData>/endpoint.json), para que el cliente
  *     de IA pueda conectarse sin saber el puerto,
@@ -38,10 +38,10 @@ function readEndpoint(): { url?: string; token?: string } {
   const home = os.homedir();
   const candidates =
     process.platform === "win32"
-      ? [path.join(process.env.APPDATA || path.join(home, "AppData", "Roaming"), "Claudit", "endpoint.json")]
+      ? [path.join(process.env.APPDATA || path.join(home, "AppData", "Roaming"), "Cutgent", "endpoint.json")]
       : process.platform === "darwin"
-        ? [path.join(home, "Library", "Application Support", "Claudit", "endpoint.json")]
-        : [path.join(process.env.XDG_CONFIG_HOME || path.join(home, ".config"), "Claudit", "endpoint.json")];
+        ? [path.join(home, "Library", "Application Support", "Cutgent", "endpoint.json")]
+        : [path.join(process.env.XDG_CONFIG_HOME || path.join(home, ".config"), "Cutgent", "endpoint.json")];
   for (const f of candidates) {
     try {
       return JSON.parse(readFileSync(f, "utf8")) as { url?: string; token?: string };
@@ -53,12 +53,12 @@ function readEndpoint(): { url?: string; token?: string } {
 }
 
 function resolveBase(): string {
-  return process.env.CLAUDIT_URL || readEndpoint().url || "http://localhost:3000";
+  return process.env.CUTGENT_URL || readEndpoint().url || "http://localhost:3000";
 }
 
 /** Header de auth para el server local (token de la app empaquetada). */
 function authHeaders(): Record<string, string> {
-  const t = process.env.CLAUDIT_TOKEN || readEndpoint().token;
+  const t = process.env.CUTGENT_TOKEN || readEndpoint().token;
   return t ? { Authorization: `Bearer ${t}` } : {};
 }
 
@@ -270,7 +270,7 @@ function buildTrack(opts: { name?: string; kind?: "media" | "audio" }): Record<s
 // Servidor
 // ---------------------------------------------------------------------------
 
-const server = new McpServer({ name: "claudit", version: "1.0.0" });
+const server = new McpServer({ name: "cutgent", version: "1.0.0" });
 
 // ---- Proyecto -------------------------------------------------------------
 
@@ -2908,10 +2908,10 @@ server.registerTool(
 async function main(): Promise<void> {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`[claudit-mcp] Servidor MCP conectado. Base URL = ${getBase()}`);
+  console.error(`[cutgent-mcp] Servidor MCP conectado. Base URL = ${getBase()}`);
 }
 
 main().catch((err) => {
-  console.error("[claudit-mcp] Error fatal:", err);
+  console.error("[cutgent-mcp] Error fatal:", err);
   process.exit(1);
 });

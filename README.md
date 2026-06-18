@@ -1,4 +1,4 @@
-# Claudit 🎬
+# Cutgent 🎬
 
 Editor de video **full-stack** basado en [Remotion](https://www.remotion.dev/), diseñado para ser **100% controlable por Claude vía MCP**. El video entero es un documento JSON; tú lo editas en una UI tipo Premiere/CapCut, y Claude lo edita por comandos a través de un servidor MCP — ambos sobre la misma fuente de verdad, sincronizados en vivo.
 
@@ -33,9 +33,9 @@ npm run dev            # http://localhost:3000
 Con la app corriendo, registra el servidor MCP (ver `mcp-server/README.md`). El repo incluye un `.mcp.json` listo para Claude Code:
 
 ```jsonc
-{ "mcpServers": { "claudit": {
+{ "mcpServers": { "cutgent": {
   "command": "npx", "args": ["tsx", "mcp-server/index.ts"],
-  "env": { "CLAUDIT_URL": "http://localhost:3000" }
+  "env": { "CUTGENT_URL": "http://localhost:3000" }
 }}}
 ```
 

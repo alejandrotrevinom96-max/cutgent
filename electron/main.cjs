@@ -1,4 +1,4 @@
-// Proceso principal de Electron para Claudit.
+// Proceso principal de Electron para Cutgent.
 // Arranca el server de Next en producción dentro de la app y abre una ventana
 // que lo carga. Redirige TODA la escritura (data/proyectos, assets, renders,
 // modelos) a la carpeta del usuario, porque los recursos instalados son de
@@ -15,7 +15,7 @@ const AUTH_TOKEN = crypto.randomBytes(24).toString("hex");
 
 /**
  * Configuración MCP lista para pegar en el cliente de IA del dueño (Claude
- * Desktop / Claude Code / cualquier cliente MCP). Apunta al PROPIO Claudit.exe
+ * Desktop / Claude Code / cualquier cliente MCP). Apunta al PROPIO Cutgent.exe
  * corriendo como Node (ELECTRON_RUN_AS_NODE) sobre el servidor MCP empaquetado
  * → NO requiere instalar Node ni tsx. El servidor descubre el puerto solo
  * (endpoint.json), así que no hay nada que configurar a mano.
@@ -23,11 +23,11 @@ const AUTH_TOKEN = crypto.randomBytes(24).toString("hex");
 function buildMcpConfig() {
   const isPkg = app.isPackaged;
   const serverPath = isPkg
-    ? path.join(process.resourcesPath, "mcp", "claudit-mcp.cjs")
+    ? path.join(process.resourcesPath, "mcp", "cutgent-mcp.cjs")
     : path.join(__dirname, "..", "mcp-server", "index.ts");
   return {
     mcpServers: {
-      claudit: {
+      cutgent: {
         command: process.execPath,
         args: isPkg ? [serverPath] : ["--import", "tsx", serverPath],
         env: { ELECTRON_RUN_AS_NODE: "1" },
@@ -51,10 +51,10 @@ function setupMenu() {
             clipboard.writeText(cfg);
             dialog.showMessageBox({
               type: "info",
-              title: "Conectar tu IA a Claudit",
+              title: "Conectar tu IA a Cutgent",
               message: "Configuración MCP copiada al portapapeles.",
               detail:
-                "Pégala en la config de tu cliente de IA (p. ej. Claude Desktop → Developer → Edit Config, o claude_desktop_config.json) y reinícialo.\n\nClaudit debe estar ABIERTO para que tu IA lo controle.",
+                "Pégala en la config de tu cliente de IA (p. ej. Claude Desktop → Developer → Edit Config, o claude_desktop_config.json) y reinícialo.\n\nCutgent debe estar ABIERTO para que tu IA lo controle.",
             });
           },
         },
@@ -70,8 +70,8 @@ const isDev = !app.isPackaged;
 const appDir = path.join(__dirname, "..");
 const userData = app.getPath("userData");
 
-// Carpeta de datos escribible (la leen las rutas vía CLAUDIT_DATA_DIR).
-process.env.CLAUDIT_DATA_DIR = userData;
+// Carpeta de datos escribible (la leen las rutas vía CUTGENT_DATA_DIR).
+process.env.CUTGENT_DATA_DIR = userData;
 // process.cwd() debe apuntar al código (src/remotion lo usa el bundler de
 // Remotion en tiempo de render).
 try {
@@ -99,7 +99,7 @@ process.on("unhandledRejection", (e) => log("unhandledRejection:", e));
 function errorPage(detail) {
   const safe = String(detail).replace(/</g, "&lt;");
   return `data:text/html;charset=utf-8,${encodeURIComponent(
-    `<html><body style="font-family:system-ui;background:#0c0d13;color:#e8eaf2;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center"><div style="max-width:560px;padding:32px"><h2>Claudit no pudo arrancar</h2><p style="color:#8b8fa3">Reinicia la app. Si persiste, revisa el log:</p><pre style="white-space:pre-wrap;background:#161823;padding:12px;border-radius:8px;text-align:left;font-size:12px">${path.join(userData, "logs", "main.log")}\n\n${safe}</pre></div></body></html>`,
+    `<html><body style="font-family:system-ui;background:#0c0d13;color:#e8eaf2;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center"><div style="max-width:560px;padding:32px"><h2>Cutgent no pudo arrancar</h2><p style="color:#8b8fa3">Reinicia la app. Si persiste, revisa el log:</p><pre style="white-space:pre-wrap;background:#161823;padding:12px;border-radius:8px;text-align:left;font-size:12px">${path.join(userData, "logs", "main.log")}\n\n${safe}</pre></div></body></html>`,
   )}`;
 }
 
@@ -163,7 +163,7 @@ async function createWindow() {
     minHeight: 700,
     backgroundColor: "#0c0d13",
     show: false,
-    title: "Claudit",
+    title: "Cutgent",
     webPreferences: { preload: path.join(__dirname, "preload.cjs"), contextIsolation: true },
   });
 
@@ -193,7 +193,7 @@ async function createWindow() {
       try {
         await session.defaultSession.cookies.set({
           url: baseUrl,
-          name: "claudit_token",
+          name: "cutgent_token",
           value: AUTH_TOKEN,
           sameSite: "lax",
         });
@@ -219,7 +219,7 @@ async function createWindow() {
   win.once("ready-to-show", () => win.show());
 }
 
-// Una sola instancia: dos Claudit a la vez pisarían endpoint.json (rompiendo la
+// Una sola instancia: dos Cutgent a la vez pisarían endpoint.json (rompiendo la
 // conexión MCP) y levantarían dos servidores. La 2ª instancia enfoca la 1ª.
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {

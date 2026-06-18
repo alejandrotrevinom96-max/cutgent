@@ -23,13 +23,13 @@ interface Registry {
   jobs: Map<string, Job>;
 }
 
-const g = globalThis as unknown as { __claudit_render_jobs?: Registry };
+const g = globalThis as unknown as { __cutgent_render_jobs?: Registry };
 
 function registry(): Registry {
-  if (!g.__claudit_render_jobs) {
-    g.__claudit_render_jobs = { jobs: new Map<string, Job>() };
+  if (!g.__cutgent_render_jobs) {
+    g.__cutgent_render_jobs = { jobs: new Map<string, Job>() };
   }
-  return g.__claudit_render_jobs;
+  return g.__cutgent_render_jobs;
 }
 
 /** Crea un trabajo nuevo en estado 'rendering' y lo devuelve. */

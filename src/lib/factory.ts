@@ -115,7 +115,7 @@ export function createDefaultProject(): Project {
   });
   const title = createClip("text", {
     name: "Título",
-    text: "Claudit",
+    text: "Cutgent",
     start: 15,
     duration: 120,
     fontSize: 160,

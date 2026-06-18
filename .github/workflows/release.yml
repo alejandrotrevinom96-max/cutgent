@@ -1,6 +1,6 @@
 name: Release (Windows + macOS)
 
-# Construye y PUBLICA los instaladores de Claudit en GitHub Releases.
+# Construye y PUBLICA los instaladores de Cutgent en GitHub Releases.
 # Ese release (con latest.yml / latest-mac.yml) es el feed que consume la
 # auto-actualización (electron-updater) para llegar a todos los clientes.
 # Dispara al pushear un tag v* (p.ej. v0.1.1) o manualmente.

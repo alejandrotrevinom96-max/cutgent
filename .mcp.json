@@ -1,10 +1,10 @@
 {
   "mcpServers": {
-    "claudit": {
+    "cutgent": {
       "command": "npx",
       "args": ["tsx", "mcp-server/index.ts"],
       "env": {
-        "CLAUDIT_URL": "http://localhost:3000"
+        "CUTGENT_URL": "http://localhost:3000"
       }
     }
   }

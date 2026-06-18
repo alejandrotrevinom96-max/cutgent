@@ -144,7 +144,7 @@ export function TopBar() {
       <div className="flex min-w-0 items-center gap-3">
         <div className="flex items-center gap-2 text-accent">
           <Clapperboard size={20} />
-          <span className="text-sm font-semibold tracking-tight text-text">Claudit</span>
+          <span className="text-sm font-semibold tracking-tight text-text">Cutgent</span>
         </div>
         <input
           value={document.name}

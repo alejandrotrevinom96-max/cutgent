@@ -51,12 +51,12 @@ interface Hub {
 
 const HISTORY_CAP = 50;
 
-const g = globalThis as unknown as { __claudit_hub?: Hub };
+const g = globalThis as unknown as { __cutgent_hub?: Hub };
 
 function hub(): Hub {
-  if (!g.__claudit_hub) {
+  if (!g.__cutgent_hub) {
     const doc = createDefaultProject();
-    g.__claudit_hub = {
+    g.__cutgent_hub = {
       doc,
       loaded: false,
       subscribers: new Set(),
@@ -68,7 +68,7 @@ function hub(): Hub {
       projects: [],
     };
   }
-  const h = g.__claudit_hub;
+  const h = g.__cutgent_hub;
   if (!h.past) h.past = [];
   if (!h.future) h.future = [];
   if (!h.subscribers) h.subscribers = new Set();
@@ -199,9 +199,9 @@ function flushSync(): void {
 }
 
 function installShutdownFlush(): void {
-  const gg = globalThis as unknown as { __claudit_shutdown?: boolean };
-  if (gg.__claudit_shutdown) return;
-  gg.__claudit_shutdown = true;
+  const gg = globalThis as unknown as { __cutgent_shutdown?: boolean };
+  if (gg.__cutgent_shutdown) return;
+  gg.__cutgent_shutdown = true;
   process.once("beforeExit", flushSync);
   for (const sig of ["SIGTERM", "SIGINT"] as const) {
     process.once(sig, () => {

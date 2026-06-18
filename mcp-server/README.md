@@ -1,6 +1,6 @@
-# Servidor MCP de Claudit
+# Servidor MCP de Cutgent
 
-Servidor MCP autónomo que expone **todo** el editor de video Claudit como
+Servidor MCP autónomo que expone **todo** el editor de video Cutgent como
 herramientas para Claude Code. No importa nada de la app Next: habla con ella
 exclusivamente por HTTP (el contrato fijo de `/api/*`). El documento del video
 es la única fuente de verdad y vive en el servidor Next; este MCP solo envía
@@ -16,7 +16,7 @@ npm run dev
 ```
 
 Por defecto queda en `http://localhost:3000`. Si usas otro host/puerto, define
-la variable de entorno `CLAUDIT_URL` (ver más abajo).
+la variable de entorno `CUTGENT_URL` (ver más abajo).
 
 ## 2. Registra el MCP en Claude Code
 
@@ -28,10 +28,10 @@ automáticamente al abrir el proyecto. Contenido:
 ```json
 {
   "mcpServers": {
-    "claudit": {
+    "cutgent": {
       "command": "npx",
       "args": ["tsx", "mcp-server/index.ts"],
-      "env": { "CLAUDIT_URL": "http://localhost:3000" }
+      "env": { "CUTGENT_URL": "http://localhost:3000" }
     }
   }
 }
@@ -40,7 +40,7 @@ automáticamente al abrir el proyecto. Contenido:
 ### Opción B — comando `claude mcp add`
 
 ```bash
-claude mcp add claudit -e CLAUDIT_URL=http://localhost:3000 -- npx tsx mcp-server/index.ts
+claude mcp add cutgent -e CUTGENT_URL=http://localhost:3000 -- npx tsx mcp-server/index.ts
 ```
 
 También puedes arrancarlo a mano para probar:
@@ -166,5 +166,5 @@ npm run mcp
   (`0,0` = centrado).
 - **Tiempos**: en **frames**. Segundos = frames / `fps` del proyecto.
 - **Capas**: `tracks[0]` es la capa de abajo; la última pista se dibuja encima.
-- **Variable de entorno**: `CLAUDIT_URL` (por defecto `http://localhost:3000`)
+- **Variable de entorno**: `CUTGENT_URL` (por defecto `http://localhost:3000`)
   apunta al servidor Next.

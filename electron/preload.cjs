@@ -2,7 +2,7 @@
 // Punto de extensión futuro (p.ej. diálogos nativos de archivo) vía contextBridge.
 const { contextBridge } = require("electron");
 
-contextBridge.exposeInMainWorld("claudit", {
+contextBridge.exposeInMainWorld("cutgent", {
   desktop: true,
   platform: process.platform,
 });

@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import { Clapperboard, Bot, Upload, Wand2, X } from "lucide-react";
 
-const KEY = "claudit-onboarded-v1";
+const KEY = "cutgent-onboarded-v1";
 
 /**
- * Primer arranque: explica qué es Claudit y los 3 pasos para empezar (conectar
+ * Primer arranque: explica qué es Cutgent y los 3 pasos para empezar (conectar
  * la IA por MCP, traer medios con tus keys, y editar). Se muestra una sola vez
  * (flag en localStorage). Sin esto, un comprador abre a un editor vacío sin
  * saber que el diferenciador es el control por IA.
@@ -38,7 +38,7 @@ export function Onboarding() {
       <div className="w-full max-w-lg rounded-xl border border-border bg-panel p-6 shadow-2xl">
         <div className="mb-4 flex items-center gap-2">
           <Clapperboard size={22} className="text-accent" />
-          <h2 className="flex-1 text-lg font-bold text-text">Bienvenido a Claudit</h2>
+          <h2 className="flex-1 text-lg font-bold text-text">Bienvenido a Cutgent</h2>
           <button type="button" onClick={close} className="text-muted hover:text-text">
             <X size={18} />
           </button>
@@ -52,7 +52,7 @@ export function Onboarding() {
             icon={<Bot size={18} />}
             n={1}
             title="Conecta tu IA (MCP)"
-            body="Menú «IA / MCP → Copiar configuración para conectar mi IA» y pégala en tu cliente (Claude Desktop / Code). Reinícialo y deja Claudit abierto: tu IA podrá editar por ti."
+            body="Menú «IA / MCP → Copiar configuración para conectar mi IA» y pégala en tu cliente (Claude Desktop / Code). Reinícialo y deja Cutgent abierto: tu IA podrá editar por ti."
           />
           <Step
             icon={<Upload size={18} />}
