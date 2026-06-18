@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Clapperboard, Bot, Upload, Wand2, X } from "lucide-react";
+import { Bot, Upload, Wand2, X } from "lucide-react";
+import { CutgentMark } from "./Logo";
 
 const KEY = "cutgent-onboarded-v1";
 
@@ -37,7 +38,7 @@ export function Onboarding() {
     <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/60 p-4">
       <div className="w-full max-w-lg rounded-xl border border-border bg-panel p-6 shadow-2xl">
         <div className="mb-4 flex items-center gap-2">
-          <Clapperboard size={22} className="text-accent" />
+          <CutgentMark size={24} />
           <h2 className="flex-1 text-lg font-bold text-text">Bienvenido a Cutgent</h2>
           <button type="button" onClick={close} className="text-muted hover:text-text">
             <X size={18} />

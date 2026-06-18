@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  Clapperboard,
   Download,
   Loader2,
   Settings2,
@@ -22,6 +21,7 @@ import { EXPORT_FORMATS, type ExportFormat } from "@/lib/export-formats";
 import { ThemeSwitcher } from "./ThemeSwitcher";
 import { MenuPortal } from "./ui/MenuPortal";
 import { SettingsModal } from "./SettingsModal";
+import { CutgentMark } from "./Logo";
 
 /**
  * Barra superior fija: nombre del proyecto editable, ajustes de composición
@@ -142,8 +142,8 @@ export function TopBar() {
     <header className="relative z-30 flex h-[52px] shrink-0 items-center gap-3 overflow-hidden border-b border-border bg-panel px-4">
       {/* Izquierda: logo + nombre del proyecto */}
       <div className="flex min-w-0 items-center gap-3">
-        <div className="flex items-center gap-2 text-accent">
-          <Clapperboard size={20} />
+        <div className="flex items-center gap-2">
+          <CutgentMark size={22} />
           <span className="text-sm font-semibold tracking-tight text-text">Cutgent</span>
         </div>
         <input
