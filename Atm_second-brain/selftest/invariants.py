@@ -110,6 +110,13 @@ INVARIANTS: dict[str, dict] = {
         "error_code": "n/a (property)",
         "covered_by": ["case:test_plain_markdown"],
     },
+    "INV-SKILL-VALID": {
+        "desc": "Every Agent Skill has valid frontmatter (kebab name==folder, "
+                "<=64 chars, description <=1024, no claude/anthropic, non-empty body).",
+        "enforced_in": "skill authoring + selftest",
+        "error_code": "n/a (property)",
+        "covered_by": ["case:test_p7_skills"],
+    },
 }
 
 
