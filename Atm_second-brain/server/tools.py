@@ -80,7 +80,7 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "full": {"type": "boolean", "default": False, "description": "Force full rebuild instead of incremental."},
             },
         },
-        "handler": _stub("reindex"),
+        "handler": None,  # bound below to the real implementation
     },
     "resolve_tier": {
         "description": (
@@ -115,6 +115,12 @@ TOOLS: dict[str, dict[str, Any]] = {
         "handler": _stub("mech_status"),
     },
 }
+
+
+# Bind real implementations as pieces land (keeps schemas above, logic in modules).
+from index import reindex_tool  # noqa: E402
+
+TOOLS["reindex"]["handler"] = reindex_tool
 
 
 def list_tools() -> list[dict]:
