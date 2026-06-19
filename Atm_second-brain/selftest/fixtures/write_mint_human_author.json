@@ -1,0 +1,19 @@
+{
+  "name": "write_mint_human_author",
+  "invariant": "INV-NO-MINT-HUMAN-AUTHOR",
+  "expect": "reject",
+  "error_contains": "author",
+  "args": {
+    "path": "vault/concepts/mh.md",
+    "frontmatter": {
+      "id": "20260619130004-mh",
+      "title": "Fixture",
+      "type": "concept",
+      "tags": [
+        "fixture"
+      ],
+      "author": "human"
+    },
+    "body": "x"
+  }
+}

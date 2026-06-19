@@ -1,0 +1,24 @@
+{
+  "name": "write_edit_human_atom",
+  "invariant": "INV-HUMAN-IMMUTABLE",
+  "expect": "reject",
+  "error_contains": "immutable",
+  "setup": [
+    {
+      "path": "vault/concepts/human.md",
+      "content": "---\nschema_version: 1\nid: \"20260619130100-human\"\ntitle: \"Human Atom\"\ntype: concept\ncreated: 2026-06-19\nupdated: 2026-06-19\ntrust_tier: human-confirmed\nauthor: human\n---\n\nHuman-authored wisdom.\n"
+    }
+  ],
+  "args": {
+    "path": "vault/concepts/human.md",
+    "frontmatter": {
+      "id": "20260619130100-human",
+      "title": "Fixture",
+      "type": "concept",
+      "tags": [
+        "fixture"
+      ]
+    },
+    "body": "agent overwrite"
+  }
+}

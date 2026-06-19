@@ -1,0 +1,25 @@
+{
+  "name": "write_stale_hash",
+  "invariant": "INV-OPTIMISTIC-LOCK",
+  "expect": "reject",
+  "error_contains": "expected_hash",
+  "setup": [
+    {
+      "path": "vault/concepts/lock.md",
+      "content": "---\nschema_version: 1\nid: \"20260619130300-lock\"\ntitle: \"Lock\"\ntype: concept\ncreated: 2026-06-19\nupdated: 2026-06-19\ntrust_tier: self-authored\nauthor: agent\n---\n\nSome body.\n"
+    }
+  ],
+  "args": {
+    "path": "vault/concepts/lock.md",
+    "frontmatter": {
+      "id": "20260619130300-lock",
+      "title": "Fixture",
+      "type": "concept",
+      "tags": [
+        "fixture"
+      ]
+    },
+    "body": "changed",
+    "expected_hash": "deadbeef"
+  }
+}

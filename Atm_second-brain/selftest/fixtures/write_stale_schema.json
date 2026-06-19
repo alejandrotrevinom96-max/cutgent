@@ -1,0 +1,19 @@
+{
+  "name": "write_stale_schema",
+  "invariant": "INV-SCHEMA-CURRENT",
+  "expect": "reject",
+  "error_contains": "CURRENT",
+  "args": {
+    "path": "vault/concepts/stale.md",
+    "frontmatter": {
+      "id": "20260619130003-stale",
+      "title": "Fixture",
+      "type": "concept",
+      "tags": [
+        "fixture"
+      ],
+      "schema_version": 99
+    },
+    "body": "x"
+  }
+}

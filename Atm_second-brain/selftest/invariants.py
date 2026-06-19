@@ -1,0 +1,131 @@
+"""The guardrail invariant registry — the single list of properties the system
+promises to enforce, each mapped to where it lives and what proves it.
+
+`coverage_report()` is consumed by the harness as a test: every invariant must be
+covered by at least one fixture or case, and every 'fixture:NAME' reference must
+resolve to a real fixture file. That makes "100% invariant coverage" a checkable
+fact, not a claim.
+"""
+from __future__ import annotations
+
+import os
+
+FIXTURES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures")
+
+# id -> {desc, enforced_in, error_code, covered_by[]}
+INVARIANTS: dict[str, dict] = {
+    "INV-PATH-SAFE": {
+        "desc": "Writes stay inside vault/ and target a .md file.",
+        "enforced_in": "writer._safe_abs",
+        "error_code": "GUARDRAIL_REJECTED",
+        "covered_by": ["fixture:write_path_escape"],
+    },
+    "INV-SCHEMA-VALID": {
+        "desc": "Final frontmatter validates against _schema/CURRENT.",
+        "enforced_in": "writer + validate.validate_frontmatter",
+        "error_code": "GUARDRAIL_REJECTED",
+        "covered_by": ["fixture:write_good", "fixture:write_bad_id"],
+    },
+    "INV-ID-FORMAT": {
+        "desc": "Note id matches ^[0-9]{14}-[a-z0-9-]+$.",
+        "enforced_in": "schema.v1.json pattern via validate",
+        "error_code": "GUARDRAIL_REJECTED",
+        "covered_by": ["fixture:write_bad_id"],
+    },
+    "INV-SCHEMA-CURRENT": {
+        "desc": "A declared schema_version must equal CURRENT (no auto-upgrade).",
+        "enforced_in": "writer",
+        "error_code": "GUARDRAIL_REJECTED",
+        "covered_by": ["fixture:write_stale_schema"],
+    },
+    "INV-NO-MINT-HUMAN-AUTHOR": {
+        "desc": "The agent write path cannot mint author=human.",
+        "enforced_in": "writer (ALLOWED_AUTHOR)",
+        "error_code": "GUARDRAIL_REJECTED",
+        "covered_by": ["fixture:write_mint_human_author"],
+    },
+    "INV-NO-MINT-HUMAN-CONFIRMED": {
+        "desc": "The agent write path cannot grant trust_tier=human-confirmed.",
+        "enforced_in": "writer (ALLOWED_GRANT)",
+        "error_code": "GUARDRAIL_REJECTED",
+        "covered_by": ["fixture:write_mint_human_confirmed"],
+    },
+    "INV-HUMAN-IMMUTABLE": {
+        "desc": "An existing author=human note is immutable to the agent.",
+        "enforced_in": "writer",
+        "error_code": "GUARDRAIL_REJECTED",
+        "covered_by": ["fixture:write_edit_human_atom"],
+    },
+    "INV-ANTI-LAUNDER": {
+        "desc": "An existing note's effective trust tier can never be raised here.",
+        "enforced_in": "writer + trust.effective_tier",
+        "error_code": "GUARDRAIL_REJECTED",
+        "covered_by": ["fixture:write_raise_tier"],
+    },
+    "INV-OPTIMISTIC-LOCK": {
+        "desc": "Edits with a stale expected_hash are rejected.",
+        "enforced_in": "writer",
+        "error_code": "GUARDRAIL_REJECTED",
+        "covered_by": ["fixture:write_stale_hash"],
+    },
+    "INV-PROVENANCE-STAMP": {
+        "desc": "content_hash is stamped and verifies against the body on re-read.",
+        "enforced_in": "writer",
+        "error_code": "n/a (positive property)",
+        "covered_by": ["fixture:write_good", "case:test_p4_write"],
+    },
+    "INV-TIER-FAILCLOSED": {
+        "desc": "Unknown/missing trust_tier resolves to externally-ingested.",
+        "enforced_in": "trust.effective_tier",
+        "error_code": "n/a (positive property)",
+        "covered_by": ["case:test_p3_recall"],
+    },
+    "INV-CITE-INTEGRITY": {
+        "desc": "Broken citations (missing cite / bad url / bad date) are detected.",
+        "enforced_in": "citations.verify_citations",
+        "error_code": "n/a (report)",
+        "covered_by": ["case:test_p3_recall"],
+    },
+    "INV-HUMAN-FLOOR": {
+        "desc": "recall enforces and reports the human-information floor.",
+        "enforced_in": "recall.recall",
+        "error_code": "n/a (report)",
+        "covered_by": ["case:test_p3_recall"],
+    },
+    "INV-REINDEX-IDEMPOTENT": {
+        "desc": "reindex with no source change does no work and is stable.",
+        "enforced_in": "index.reindex",
+        "error_code": "n/a (positive property)",
+        "covered_by": ["case:test_p2_index"],
+    },
+    "INV-LINK-RESOLVE": {
+        "desc": "Wikilinks resolve by id, then alias, then title.",
+        "enforced_in": "index._resolve_links",
+        "error_code": "n/a (positive property)",
+        "covered_by": ["case:test_p2_index"],
+    },
+    "INV-PLAIN-MARKDOWN": {
+        "desc": "Every note is greppable plain markdown; no binaries in the vault.",
+        "enforced_in": "repository invariant (CI/selftest)",
+        "error_code": "n/a (property)",
+        "covered_by": ["case:test_plain_markdown"],
+    },
+}
+
+
+def coverage_report() -> dict:
+    """Return {ok, uncovered[], missing_fixtures[]} for the harness to assert on."""
+    uncovered = [i for i, m in INVARIANTS.items() if not m.get("covered_by")]
+    missing_fixtures = []
+    for inv, meta in INVARIANTS.items():
+        for ref in meta.get("covered_by", []):
+            if ref.startswith("fixture:"):
+                name = ref.split(":", 1)[1]
+                if not os.path.exists(os.path.join(FIXTURES_DIR, name + ".json")):
+                    missing_fixtures.append(f"{inv} -> {name}.json")
+    return {
+        "ok": not uncovered and not missing_fixtures,
+        "total": len(INVARIANTS),
+        "uncovered": uncovered,
+        "missing_fixtures": missing_fixtures,
+    }

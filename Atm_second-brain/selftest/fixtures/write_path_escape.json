@@ -1,0 +1,18 @@
+{
+  "name": "write_path_escape",
+  "invariant": "INV-PATH-SAFE",
+  "expect": "reject",
+  "error_contains": "escapes vault",
+  "args": {
+    "path": "../escape.md",
+    "frontmatter": {
+      "id": "20260619130002-esc",
+      "title": "Fixture",
+      "type": "concept",
+      "tags": [
+        "fixture"
+      ]
+    },
+    "body": "x"
+  }
+}

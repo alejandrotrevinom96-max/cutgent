@@ -1,0 +1,17 @@
+{
+  "name": "write_good",
+  "invariant": "INV-SCHEMA-VALID",
+  "expect": "accept",
+  "args": {
+    "path": "vault/concepts/good.md",
+    "frontmatter": {
+      "id": "20260619130001-good",
+      "title": "Fixture",
+      "type": "concept",
+      "tags": [
+        "fixture"
+      ]
+    },
+    "body": "A valid atomic note about retrieval."
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "write_mint_human_confirmed",
+  "invariant": "INV-NO-MINT-HUMAN-CONFIRMED",
+  "expect": "reject",
+  "error_contains": "human-confirmed",
+  "args": {
+    "path": "vault/concepts/mc.md",
+    "frontmatter": {
+      "id": "20260619130005-mc",
+      "title": "Fixture",
+      "type": "concept",
+      "tags": [
+        "fixture"
+      ]
+    },
+    "body": "x",
+    "trust_tier": "human-confirmed"
+  }
+}
