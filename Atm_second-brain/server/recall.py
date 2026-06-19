@@ -1,11 +1,18 @@
-"""recall: ranked retrieval blending full-text, graph adjacency, and the
-anti-autophagy human-information floor. Standard library only.
+"""recall: hybrid ranked retrieval + the anti-autophagy human-information floor.
+Standard library only.
 
-Ranking = FTS5 bm25 (or a LIKE-fallback term score) + a small graph-adjacency
-boost for notes linked to top hits. Before returning, recall enforces the
-human-information floor: a minimum fraction of the grounding set must be
-human-authored or human-confirmed. If the top-k falls short, recall backfills
-with the best-matching human notes and reports whether the floor was met.
+Ranking fuses several weak signals via Reciprocal Rank Fusion (see `rank`):
+  1. lexical bm25 (FTS5) or a LIKE-fallback term score,
+  2. a TF-IDF cosine ranker over the candidate pool,
+  3. (optional) an embedding reranker, only if a provider is configured,
+then adds a small graph-adjacency boost for notes linked to the top hits.
+Pseudo-relevance feedback widens the candidate pool with co-occurring terms so
+related notes that don't repeat the query verbatim can still surface.
+
+Before returning, recall enforces the human-information floor: a minimum fraction
+of the grounding set must be human-authored or human-confirmed. If the top-k falls
+short, recall backfills with the best-matching human notes and reports whether the
+floor was met. None of the ranking changes can weaken that floor.
 """
 from __future__ import annotations
 
@@ -14,8 +21,10 @@ import re
 from typing import Optional
 
 import config
+import embeddings
 import graph
 import index
+import rank
 from capabilities import has_fts5
 
 # At least this fraction of the returned grounding set must be human-grounded,
@@ -161,20 +170,82 @@ def recall(query: str, k: int = 12, type_filter: Optional[str] = None,
     con = index.connect(db_path)
     try:
         mode = "fts5" if has_fts5() else "like"
-        pool = (_fts_candidates if has_fts5() else _like_candidates)(con, terms, max(k * 4, 40))
-        # Capture the pure text-match set BEFORE graph expansion, so the trace can
-        # honestly separate "matched your words" (seed) from "linked to a match" (expand).
+        lexical = _fts_candidates if has_fts5() else _like_candidates
+        pool = lexical(con, terms, max(k * 4, 40))
+        # Query-text matches form the precision spine and the trace seeds.
         text_hits = set(pool)
 
-        # Graph adjacency boost from the strongest seeds.
-        seeds = sorted(pool, key=lambda i: pool[i]["score"], reverse=True)[:k]
-        for nid, _dist in graph.expand(con, seeds).items():
-            if nid in pool:
-                pool[nid]["score"] += GRAPH_BOOST
-            else:
-                row = con.execute("SELECT body FROM notes WHERE id=?", (nid,)).fetchone()
-                if row:
-                    pool[nid] = {"score": GRAPH_BOOST, "snippet": _make_snippet(row["body"] or "", terms)}
+        def _body(nid: str) -> str:
+            row = con.execute("SELECT title, body FROM notes WHERE id=?", (nid,)).fetchone()
+            if not row:
+                return ""
+            return (row["title"] or "") + "\n" + (row["body"] or "")
+
+        docs = {nid: _body(nid) for nid in pool}
+
+        # --- signal 1: lexical (bm25 / LIKE) rank list ---
+        lex_list = sorted(pool, key=lambda i: pool[i]["score"], reverse=True)
+        # --- signal 2: TF-IDF cosine over the pool, scored against the original query ---
+        tfidf = rank.tfidf_scores(terms, docs)
+        tfidf_list = sorted(tfidf, key=lambda i: tfidf[i], reverse=True)
+
+        # --- optional embeddings over the candidate pool ---
+        provider = embeddings.get_provider()
+        sims: dict[str, float] = {}
+        embed_used = False
+        if provider.available() and pool:
+            ids = list(pool)
+            vecs = provider.embed([query] + [docs[i] for i in ids])
+            if vecs and len(vecs) == len(ids) + 1:
+                qv = vecs[0]
+                sims = {ids[j]: embeddings.cosine(qv, vecs[j + 1]) for j in range(len(ids))}
+                embed_used = True
+
+        # --- graph adjacency neighbors of the strongest lexical hits ---
+        graph_neighbors = graph.expand(con, lex_list[:k])
+        for nid in graph_neighbors:
+            docs.setdefault(nid, _body(nid))
+
+        if embed_used:
+            # Retrieve-then-rerank: a configured semantic model ORDERS the pool, with
+            # lexical as a stable tiebreak and graph a small bonus. (Pool generation
+            # is still lexical+PRF+graph, so a zero-overlap paraphrase must first enter
+            # the pool; a persisted vector index for pure semantic candidate generation
+            # is the documented next ceiling step — see docs/BENCHMARKS.md.)
+            maxlex = max((pool[i]["score"] for i in pool), default=1.0) or 1.0
+            fused = {nid: sims.get(nid, 0.0) + 0.05 * (pool[nid]["score"] / maxlex) for nid in pool}
+            for nid in graph_neighbors:
+                fused[nid] = fused.get(nid, 0.0) + 0.03
+        else:
+            # Zero-dependency hybrid: fuse lexical + TF-IDF + graph via RRF. Graph is
+            # kept modest so it enriches without overriding the lexical/semantic spine.
+            rank_lists = [lex_list, tfidf_list]
+            weights = [1.0, 0.8]
+            graph_list = sorted(graph_neighbors, key=lambda i: graph_neighbors[i])
+            if graph_list:
+                rank_lists.append(graph_list)
+                weights.append(0.5)
+            fused = rank.rrf_fuse(rank_lists, weights=weights)
+            for nid in pool:
+                fused.setdefault(nid, 0.0)
+
+        # --- recall tail: pseudo-relevance feedback. Mine co-occurring terms from
+        # the strongest hits, re-query, and admit genuinely-related notes (positive
+        # TF-IDF to the ORIGINAL query) strictly BELOW the precision spine, so recall
+        # rises without ever displacing a true match or weakening the human floor. ---
+        expanded_terms = rank.expand_query(terms, docs, lex_list[: max(3, k // 2)])
+        if expanded_terms:
+            widened = lexical(con, terms + expanded_terms, max(k * 4, 40))
+            new_ids = [nid for nid in widened if nid not in fused]
+            prf_docs = {nid: _body(nid) for nid in new_ids}
+            prf_rel = rank.tfidf_scores(terms, {**docs, **prf_docs})
+            for nid in new_ids:
+                rel = prf_rel.get(nid, 0.0)
+                if rel <= 0:
+                    continue  # must actually relate to the original query, not just expansion
+                fused[nid] = -1.0 + rel  # negative => always ranked under the spine
+                text_hits.add(nid)
+                docs[nid] = prf_docs[nid]
 
         # Hydrate metadata + apply filters.
         def hydrate(nid: str) -> Optional[dict]:
@@ -191,12 +262,12 @@ def recall(query: str, k: int = 12, type_filter: Optional[str] = None,
             return {
                 "id": row["id"], "path": row["path"], "title": row["title"],
                 "type": row["type"], "trust_tier": row["trust_tier"], "author": row["author"],
-                "domain": row["domain"], "score": round(pool[nid]["score"], 4),
-                "snippet": pool[nid]["snippet"], "human": _is_human(row),
+                "domain": row["domain"], "score": round(fused[nid], 6),
+                "snippet": _make_snippet(docs.get(nid, ""), terms), "human": _is_human(row),
             }
 
         ranked = sorted(
-            (h for nid in pool if (h := hydrate(nid)) is not None),
+            (h for nid in fused if (h := hydrate(nid)) is not None),
             key=lambda d: d["score"], reverse=True,
         )
         top = ranked[:k]
@@ -217,6 +288,7 @@ def recall(query: str, k: int = 12, type_filter: Optional[str] = None,
             frac = human_n / len(top) if top else 0.0
             floor_met = frac >= HUMAN_FLOOR
 
+        signals = ["lexical", "tfidf"] + (["embeddings"] if embed_used else [])
         result = {
             "results": top,
             "human_fraction": round(frac, 3),
@@ -224,7 +296,16 @@ def recall(query: str, k: int = 12, type_filter: Optional[str] = None,
             "floor_met": floor_met,
             "mode": mode,
             "query": query,
-            "provenance": f"recall/{mode}; human_fraction={round(frac,3)}; floor_met={floor_met}",
+            "retrieval": {
+                "fusion": "rrf",
+                "signals": signals,
+                "expanded_query": expanded_terms,
+                "embeddings": embed_used,
+            },
+            "provenance": (
+                f"recall/{mode}+rrf({'+'.join(signals)}); "
+                f"human_fraction={round(frac,3)}; floor_met={floor_met}"
+            ),
         }
         if with_trace:
             result["trace"] = _build_trace(con, top, text_hits)

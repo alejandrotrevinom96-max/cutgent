@@ -174,6 +174,23 @@ INVARIANTS: dict[str, dict] = {
         "error_code": "n/a (property)",
         "covered_by": ["case:test_p12_migrate"],
     },
+    "INV-HYBRID-RANK": {
+        "desc": "recall fuses lexical (bm25/LIKE) + TF-IDF cosine + graph adjacency "
+                "via RRF, with pseudo-relevance-feedback expansion in the recall tail; "
+                "fusion never demotes a strong lexical match below the human floor.",
+        "enforced_in": "rank.{tfidf_scores,rrf_fuse,expand_query} + recall.recall",
+        "error_code": "n/a (property)",
+        "covered_by": ["case:test_p14_retrieval", "case:test_p3_recall"],
+    },
+    "INV-EMBED-PLUGGABLE-DEGRADE": {
+        "desc": "An embedding reranker is OPTIONAL (ATM_EMBED_CMD). When configured it "
+                "reorders the candidate pool semantically; when absent, crashing, or "
+                "malformed, recall degrades to lexical fusion and still returns results "
+                "($0/offline floor preserved).",
+        "enforced_in": "embeddings.get_provider + recall.recall (retrieve-then-rerank)",
+        "error_code": "n/a (property)",
+        "covered_by": ["case:test_p14_retrieval"],
+    },
     "INV-ONBOARDING-CONFIG": {
         "desc": "Obsidian config parses with vault-relative paths and wikilinks "
                 "preserved; daily-notes points at the real template; SETUP.md exists; "

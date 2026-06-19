@@ -32,9 +32,11 @@ def _stub(name: str) -> Callable[[dict], Any]:
 TOOLS: dict[str, dict[str, Any]] = {
     "recall": {
         "description": (
-            "Ranked retrieval over the vault: grep + link/tag graph (+ FTS when "
-            "present). Enforces the anti-autophagy human-information floor on the "
-            "returned grounding set."
+            "Hybrid ranked retrieval over the vault: lexical bm25/FTS + TF-IDF "
+            "cosine + link/tag graph fused via RRF, with pseudo-relevance-feedback "
+            "expansion and an OPTIONAL embedding reranker (ATM_EMBED_CMD) that "
+            "degrades to lexical when absent. Enforces the anti-autophagy "
+            "human-information floor on the returned grounding set."
         ),
         "inputSchema": {
             "type": "object",
