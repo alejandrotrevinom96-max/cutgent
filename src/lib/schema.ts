@@ -366,10 +366,11 @@ export const ProjectSchema = z.object({
   version: z.literal(1).default(1),
   id: z.string(),
   name: z.string().default("Proyecto sin título"),
-  width: z.number().default(1920),
-  height: z.number().default(1080),
-  fps: z.number().default(30),
-  durationInFrames: z.number().default(300),
+  // par (yuv420p), acotado: evita renders rotos por dimensiones 0/negativas/absurdas.
+  width: z.number().int().min(2).max(7680).default(1920),
+  height: z.number().int().min(2).max(7680).default(1080),
+  fps: z.number().min(1).max(120).default(30),
+  durationInFrames: z.number().int().min(1).default(300),
   backgroundColor: z.string().default("#000000"),
   /** Rendered top-most LAST. tracks[0] is the bottom layer. */
   tracks: z.array(TrackSchema).default([]),

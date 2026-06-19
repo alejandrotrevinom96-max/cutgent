@@ -3,6 +3,7 @@ import { AbsoluteFill, Sequence } from "remotion";
 import { CameraMotionBlur } from "@remotion/motion-blur";
 import type { Project } from "@/lib/schema";
 import { ClipView } from "./ClipView";
+import { TrialWatermark } from "./TrialWatermark";
 
 /**
  * The single Remotion composition that renders the whole document. Used by
@@ -19,7 +20,10 @@ export const VideoComposition: React.FC<{
   proxyMap?: Record<string, string>;
   /** Clip seleccionado (solo preview): se samplea para los scopes. */
   selectedClipId?: string | null;
-}> = ({ document, preview, proxyMap, selectedClipId }) => {
+  /** Solo en EXPORT sin licencia: pinta la marca de agua de prueba. El preview
+   *  nunca pasa este flag (se decide server-side en /api/render). */
+  watermark?: boolean;
+}> = ({ document, preview, proxyMap, selectedClipId, watermark }) => {
   const layers = document.tracks.map((track) => {
     if (track.hidden) return null;
     return (
@@ -57,6 +61,7 @@ export const VideoComposition: React.FC<{
       ) : (
         layers
       )}
+      {watermark ? <TrialWatermark width={document.width} height={document.height} /> : null}
     </AbsoluteFill>
   );
 };

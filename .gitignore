@@ -18,6 +18,8 @@ mcp-server/dist
 /mcp-dist
 # local editor/tooling config
 /.claude
+# clave PRIVADA de firma de licencias — NUNCA commitear (respaldar aparte)
+/.cutgent-license.local.json
 # stray ad-hoc test scratch files
 /test_*.js
 /test_*.mjs

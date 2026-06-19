@@ -11,6 +11,7 @@ import { absolutizeAssets, bundleRemotion } from "@/lib/remotion-bundle";
 import { rendersDir as rendersDirPath } from "@/lib/paths";
 import { resolveExportFormat, QUALITY_CRF, type ExportQuality } from "@/lib/export-formats";
 import { detectGpuEncoder, transcodeWithEncoder } from "@/lib/vfx";
+import { shouldWatermark } from "@/lib/license";
 import type { Project } from "@/lib/schema";
 
 export const runtime = "nodejs";
@@ -63,7 +64,9 @@ async function runRender(
     await ensureBrowser();
     serveUrl = await bundleRemotion();
 
-    const inputProps = { document };
+    // Gate SERVER-SIDE: sin licencia válida → marca de agua en el deliverable.
+    // El flag NO se lee del body del cliente; fail-closed (watermark) ante error.
+    const inputProps = { document, watermark: await shouldWatermark() };
     const composition = await selectComposition({ serveUrl, id: "MainVideo", inputProps });
 
     const rendersDir = rendersDirPath();

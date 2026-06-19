@@ -17,6 +17,9 @@ export interface Settings {
    *  inyectan en process.env para que CUALQUIER integración (actual o futura) y
    *  las herramientas del MCP las puedan usar. El editor queda "abierto". */
   keys?: Record<string, string>;
+  /** Token de licencia CRUDO (CUTGENT-...). Se verifica offline en cada arranque
+   *  (src/lib/license.ts). NO es una env var BYO: nunca se inyecta en process.env. */
+  license?: string;
 }
 
 const FILE = dataDir("settings.json");
@@ -44,28 +47,55 @@ function applyKeysToEnv(s: Settings): void {
 
 export async function getSettings(): Promise<Settings> {
   if (cache) return cache;
+  let raw: string;
   try {
-    cache = JSON.parse(await fs.readFile(FILE, "utf8")) as Settings;
+    raw = await fs.readFile(FILE, "utf8");
+  } catch (e: unknown) {
+    // ENOENT = no hay ajustes aún (legítimo). Cualquier OTRO error de I/O NO se
+    // degrada a {}: si lo hiciéramos, el siguiente saveSettings persistiría {} y
+    // borraría la licencia pagada + las API keys del dueño.
+    if ((e as NodeJS.ErrnoException)?.code === "ENOENT") {
+      cache = {};
+      return cache;
+    }
+    throw e;
+  }
+  try {
+    cache = JSON.parse(raw) as Settings;
   } catch {
-    cache = {};
+    // Archivo corrupto: respáldalo y NIÉGATE a operar sobre {} (no pisar datos).
+    await fs.rename(FILE, `${FILE}.corrupt-${Date.now()}`).catch(() => {});
+    throw new Error("settings.json corrupto: respaldado, requiere intervención");
   }
   applyKeysToEnv(cache);
   return cache;
 }
 
+/** Cola de escrituras: serializa los saveSettings para que dos POST concurrentes
+ *  (p.ej. activar licencia + guardar key) no se pisen con un read-modify-write. */
+let writeChain: Promise<unknown> = Promise.resolve();
+
 export async function saveSettings(patch: Partial<Settings>): Promise<Settings> {
-  const cur = await getSettings();
-  // Strings vacíos = borrar la key.
-  const next: Settings = { ...cur };
-  for (const [k, v] of Object.entries(patch)) {
-    if (v === "" || v == null) delete (next as Record<string, unknown>)[k];
-    else (next as Record<string, unknown>)[k] = v;
-  }
-  await fs.mkdir(dataDir(), { recursive: true });
-  await fs.writeFile(FILE, JSON.stringify(next, null, 2), "utf8");
-  cache = next;
-  applyKeysToEnv(next);
-  return next;
+  const run = writeChain.then(async () => {
+    const cur = await getSettings(); // re-lee bajo el lock
+    // Strings vacíos = borrar la key.
+    const next: Settings = { ...cur };
+    for (const [k, v] of Object.entries(patch)) {
+      if (v === "" || v == null) delete (next as Record<string, unknown>)[k];
+      else (next as Record<string, unknown>)[k] = v;
+    }
+    await fs.mkdir(dataDir(), { recursive: true });
+    // Escritura atómica: tmp + rename (mismo volumen) para no truncar el archivo.
+    const tmp = `${FILE}.tmp`;
+    await fs.writeFile(tmp, JSON.stringify(next, null, 2), "utf8");
+    await fs.rename(tmp, FILE);
+    cache = next;
+    applyKeysToEnv(next);
+    return next;
+  });
+  // La cola sobrevive a un fallo individual; el error real se propaga al llamador.
+  writeChain = run.catch(() => {});
+  return run as Promise<Settings>;
 }
 
 export async function getPexelsKey(): Promise<string> {
@@ -82,4 +112,13 @@ export async function getKey(name: string): Promise<string> {
 /** Nombres de las llaves BYO configuradas (sin valores). */
 export async function listKeyNames(): Promise<string[]> {
   return Object.keys((await getSettings()).keys ?? {});
+}
+
+/** Token de licencia crudo guardado (o "" si no hay). */
+export async function getLicense(): Promise<string> {
+  return (await getSettings()).license || "";
+}
+/** Guarda (o borra con "") el token de licencia crudo. */
+export async function setLicense(token: string): Promise<Settings> {
+  return saveSettings({ license: token });
 }

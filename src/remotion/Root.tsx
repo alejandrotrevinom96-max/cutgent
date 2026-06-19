@@ -19,14 +19,19 @@ export const RemotionRoot: React.FC = () => {
       fps={fallback.fps}
       width={fallback.width}
       height={fallback.height}
-      defaultProps={{ document: fallback }}
+      defaultProps={{ document: fallback, watermark: true }}
       calculateMetadata={({ props }) => {
         const doc = props.document as Project;
+        // Clamp defensivo: dimensiones pares (yuv420p), acotadas y > 0, fps válido.
+        const evenClamp = (n: number) => {
+          const v = Math.min(7680, Math.max(2, Math.round(Number(n) || 2)));
+          return v % 2 === 0 ? v : v + 1;
+        };
         return {
-          durationInFrames: Math.max(1, Math.round(doc.durationInFrames)),
-          fps: doc.fps,
-          width: doc.width,
-          height: doc.height,
+          durationInFrames: Math.max(1, Math.round(Number(doc.durationInFrames) || 1)),
+          fps: Math.min(120, Math.max(1, Number(doc.fps) || 30)),
+          width: evenClamp(doc.width),
+          height: evenClamp(doc.height),
         };
       }}
     />

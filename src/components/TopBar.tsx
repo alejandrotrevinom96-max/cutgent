@@ -61,6 +61,13 @@ export function TopBar() {
     };
   }, []);
 
+  // El banner de prueba abre Ajustes (sección Licencia) vía evento.
+  useEffect(() => {
+    const open = () => setKeysOpen(true);
+    window.addEventListener("cutgent:open-license", open);
+    return () => window.removeEventListener("cutgent:open-license", open);
+  }, []);
+
   const setName = (name: string) => {
     void runCommand({ type: "set_project_settings", patch: { name } });
   };

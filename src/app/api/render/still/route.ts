@@ -6,6 +6,7 @@ import { getDocument } from "@/lib/server-store";
 import { newId } from "@/lib/factory";
 import { absolutizeAssets, bundleRemotion } from "@/lib/remotion-bundle";
 import { rendersDir as rendersDirPath } from "@/lib/paths";
+import { shouldWatermark } from "@/lib/license";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,7 +27,8 @@ export async function POST(req: Request) {
 
     await ensureBrowser();
     serveUrl = await bundleRemotion();
-    const inputProps = { document };
+    // Mismo gate server-side que el render de video: el poster en trial lleva marca.
+    const inputProps = { document, watermark: await shouldWatermark() };
     const composition = await selectComposition({ serveUrl, id: "MainVideo", inputProps });
 
     const rendersDir = rendersDirPath();

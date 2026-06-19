@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSettings, saveSettings, isReservedEnvName, type Settings } from "@/lib/settings-store";
+import { getLicenseState, verifyLicense } from "@/lib/license";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,6 +22,7 @@ export async function GET() {
     pixabay: { set: !!s.pixabayKey, masked: mask(s.pixabayKey) },
     whisperModel: s.whisperModel ?? "",
     keys,
+    license: await getLicenseState(),
   });
 }
 
@@ -33,6 +35,18 @@ export async function POST(req: NextRequest) {
     if (typeof body.pexelsKey === "string") patch.pexelsKey = body.pexelsKey.trim();
     if (typeof body.pixabayKey === "string") patch.pixabayKey = body.pixabayKey.trim();
     if (typeof body.whisperModel === "string") patch.whisperModel = body.whisperModel.trim();
+
+    // Licencia: "" la borra; un token debe verificar con la public key embebida.
+    if (typeof body.license === "string") {
+      const token = body.license.trim();
+      if (token === "") {
+        patch.license = "";
+      } else if (verifyLicense(token).valid) {
+        patch.license = token;
+      } else {
+        return NextResponse.json({ error: "Llave de licencia inválida." }, { status: 400 });
+      }
+    }
 
     if (body.keys && typeof body.keys === "object" && !Array.isArray(body.keys)) {
       const cur = { ...((await getSettings()).keys ?? {}) };
