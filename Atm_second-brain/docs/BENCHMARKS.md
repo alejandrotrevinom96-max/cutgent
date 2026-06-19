@@ -36,15 +36,22 @@ Representative run (Python 3.11, SQLite FTS5 available, commodity CI container):
 - **Full reindex is linear and is a cold-start / migration cost, not a query
   cost.** ~3.4 ms/note. It runs once; steady state is incremental.
 
-## Known ceiling & next step
+## Vector candidate generation (P18 — done)
 
-- **Retrieval is lexical + TF-IDF + graph (RRF), with an optional embedding
-  *reranker*** (`ATM_EMBED_CMD`). The reranker reorders the lexical candidate pool;
-  it does not yet do pure *vector candidate generation*, so a paraphrase that
-  shares no term with the query must still enter the pool via lexical/PRF/graph.
-  The documented next ceiling step is a **persisted embedding column** in the
-  index (embed-on-write, cached) so vector search can generate candidates without
-  re-embedding per query. That keeps the zero-dependency default (no model ships)
-  while removing the last lexical-recall gap when a provider is configured.
-- **Full-reindex throughput** could be parallelized (multiprocessing) if cold
-  starts on very large vaults (50k+) become a pain; today it's a one-time cost.
+The optional embedding layer is no longer rerank-only. `brain.py embed` builds a
+**persisted vector cache** in the index (`embeddings` table: model id + content
+hash + packed float32), incremental and pruned on delete. When the cache is
+present, `recall` does real **vector candidate generation** — cosine over the
+cache (one query embedding per call) — so a paraphrase that shares *no* term with
+the query can surface. Such hits are reported in the trace under a distinct,
+honest `semantic` category (never faked as a graph edge). Absent a provider or
+cache, recall degrades to the lexical RRF hybrid. The default still ships **no
+model** (zero-dependency); cosine is brute-force pure Python.
+
+- **Cost:** one query embedding + an O(N·dim) cosine scan per query. Fine for
+  opt-in vaults; for very large corpora a native vector index (e.g. sqlite-vec)
+  can replace the brute-force scan behind the same `vectors.query_similarities`
+  contract without touching recall.
+- **Remaining options (not gaps):** parallelize full reindex (multiprocessing) for
+  50k+ cold starts; swap the brute-force cosine for an ANN index at large scale.
+  Both are drop-in behind existing seams; today's defaults are intentionally simple.

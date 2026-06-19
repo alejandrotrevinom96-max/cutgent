@@ -45,7 +45,7 @@ vault/          The notes (PARA + Zettelkasten + MOCs)
   meta/      first-run onboarding, conventions   journal/ daily notes   templates/
   .obsidian/ shipped Obsidian config (wikilinks, daily notes, attachments)
 server/         The stdlib MCP server (parser, index, recall, writer, trust, migrate…)
-scripts/brain.py  CLI: doctor · selftest · reindex · recall · capture · migrate · eval
+scripts/brain.py  CLI: doctor · selftest · reindex · recall · capture · migrate · eval · embed
 scripts/bench.py  Scale benchmark (1k/10k/50k): reindex + recall latency + floor
 evals/          Eval harness: 31 specs scoring answers against each pack's rubric
 selftest/       The guardrail corpus (33 invariants, 100% covered) — `brain.py selftest`
@@ -94,7 +94,7 @@ cockpit). It depends on the brain; the brain never depends on it. See its README
 
 ## Status
 
-Built piece by piece, each gated by an audit. Brain selftest: **ALL GREEN — 33
+Built piece by piece, each gated by an audit. Brain selftest: **ALL GREEN — 35
 invariants, 100% coverage.** P0 scaffold/durability · P1 MCP core · P2 parser+index ·
 P3 recall+graph+tiers+citations · P4 write_with_provenance · P5 selftest corpus ·
 P6 hooks+capture+MECH · P7 base skills · P8 expertise packs · P9 graph contracts
@@ -102,6 +102,8 @@ P6 hooks+capture+MECH · P7 base skills · P8 expertise packs · P9 graph contra
 first-run · P12 migration runner · P13 Obsidian config + SETUP + doctor ·
 **P14 hybrid retrieval** (RRF: lexical+TF-IDF+graph, PRF, pluggable embeddings) ·
 **P15 eval harness** (measurable rubrics) · **P16 scale** (mtime fast-path; recall
-~0.3s @ 10k, see `docs/BENCHMARKS.md`) · **P17 guarded consolidation** (anti-autophagy).
+~0.3s @ 10k, see `docs/BENCHMARKS.md`) · **P17 guarded consolidation** (anti-autophagy) ·
+**P18 persisted vector cache** (opt-in embedding index → real vector candidate
+generation, honest `semantic` trace category).
 
 MIT licensed (`LICENSE`).

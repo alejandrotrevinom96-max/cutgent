@@ -18,6 +18,7 @@ This file is the entire contract. cosine() is stdlib math.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import os
@@ -46,6 +47,11 @@ class EmbeddingProvider:
     def available(self) -> bool:
         return False
 
+    def model_id(self) -> Optional[str]:
+        """Stable identity of the embedding space, so a persisted cache built with a
+        different embedder is detected and re-embedded rather than mixed."""
+        return None
+
     def embed(self, texts: list[str]) -> Optional[list[list[float]]]:
         return None
 
@@ -71,6 +77,13 @@ class CommandProvider(EmbeddingProvider):
     def available(self) -> bool:
         argv = self.cmd.split()
         return bool(argv) and (shutil.which(argv[0]) is not None or os.path.exists(argv[0]))
+
+    def model_id(self) -> Optional[str]:
+        # The command string IS the model identity; allow an explicit override so two
+        # different models behind the same launcher don't collide in the cache.
+        override = os.environ.get("ATM_EMBED_MODEL", "").strip()
+        base = override or self.cmd
+        return "cmd:" + hashlib.sha1(base.encode("utf-8")).hexdigest()[:16]
 
     def embed(self, texts: list[str]) -> Optional[list[list[float]]]:
         if not texts or not self.available():

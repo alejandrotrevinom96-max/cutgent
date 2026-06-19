@@ -15,9 +15,10 @@ not a license to wing it.
 
 1. **Read before you write.** Use grep/glob/read over `vault/` first. With a large
    context window, prefer pulling the actual notes over guessing. `recall` is hybrid
-   (lexical bm25 + TF-IDF + link/tag graph fused via RRF, with query expansion); a
-   semantic embedding reranker is optional (`ATM_EMBED_CMD`) and degrades to lexical
-   when absent, so retrieval always works offline at $0.
+   (lexical bm25 + TF-IDF + link/tag graph fused via RRF, with query expansion).
+   Embeddings are optional (`ATM_EMBED_CMD`): with a persisted cache (`brain.py
+   embed`) recall does true vector candidate generation; without it, it degrades to
+   lexical, so retrieval always works offline at $0.
 2. **Capture lands in `vault/00-inbox/`.** Never block a capture on validation,
    model availability, or network. Refine later.
 3. **Write through `write_with_provenance`** (once P4 lands). It stamps

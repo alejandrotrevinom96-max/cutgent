@@ -9,6 +9,7 @@ Usage:
     python3 scripts/brain.py migrate [--apply] [--to=N]  # schema migration (dry-run default)
     python3 scripts/brain.py doctor            # health check (runtime, sqlite, vault, schema)
     python3 scripts/brain.py eval [<domain>] [--task=ID] [--answer=FILE]  # score answers vs a pack rubric
+    python3 scripts/brain.py embed [--rebuild]  # build the optional vector cache (needs ATM_EMBED_CMD)
 
 Everything here is stdlib-only and works offline. `selftest` is the canonical
 gate; CI and humans both run it.
@@ -173,9 +174,15 @@ def cmd_eval(argv: list[str]) -> int:
     return 0 if all(r["discriminates"] for r in rows) else 1
 
 
+def cmd_embed(argv: list[str]) -> int:
+    """Build/refresh the persisted embedding cache (needs ATM_EMBED_CMD)."""
+    import vectors
+    return vectors.embed_index_cli(argv)
+
+
 COMMANDS = {"selftest": cmd_selftest, "reindex": cmd_reindex,
             "recall": cmd_recall, "capture": cmd_capture, "migrate": cmd_migrate,
-            "doctor": cmd_doctor, "eval": cmd_eval}
+            "doctor": cmd_doctor, "eval": cmd_eval, "embed": cmd_embed}
 
 
 def main(argv: list[str]) -> int:

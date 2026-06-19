@@ -25,6 +25,7 @@ import embeddings
 import graph
 import index
 import rank
+import vectors
 from capabilities import has_fts5
 
 # At least this fraction of the returned grounding set must be human-grounded,
@@ -87,19 +88,23 @@ def _make_snippet(body: str, terms: list[str], width: int = 120) -> str:
     return body[:width].replace("\n", " ").strip()
 
 
-def _build_trace(con, top, text_hits: set) -> dict:
-    """Reconstruct the honest seed->1-hop traversal that produced `top`.
+def _build_trace(con, top, text_hits: set, semantic_ids: Optional[set] = None) -> dict:
+    """Reconstruct the honest provenance of `top`.
 
-    seeds   = result notes that matched the query text (FTS/LIKE hits)
-    expanded= result notes pulled in purely by 1-hop graph adjacency
-    edges   = the resolved links connecting them (with type)
-    steps   = ordered walk (seeds first, then expansions) for animation
-    The app derives layout/clustering/timing; the brain emits only what it knows.
+    seeds    = result notes that matched the query text (FTS/LIKE hits)
+    expanded = result notes pulled in by a real 1-hop graph link to a seed
+    semantic = result notes pulled in ONLY by vector similarity (no text match, no
+               graph edge) — kept as a distinct, honest category, never mislabeled
+               as a graph expansion. (Additive to recall.trace/1; older clients that
+               only read seeds/expanded/edges/steps are unaffected.)
+    edges    = the resolved links connecting seeds/expansions (with type)
+    steps    = ordered walk (seeds, then graph expansions) for animation
     """
+    semantic_ids = semantic_ids or set()
     top_ids = [r["id"] for r in top]
     seed_ids = [i for i in top_ids if i in text_hits]
-    expanded_ids = [i for i in top_ids if i not in text_hits]
     seed_set = set(seed_ids)
+    non_seed = [i for i in top_ids if i not in text_hits]
 
     edges: list[dict] = []
     edge_index: dict[tuple, int] = {}
@@ -113,6 +118,19 @@ def _build_trace(con, top, text_hits: set) -> dict:
         edge_index[key] = idx
         return idx
 
+    def edge_to_seed(nid):
+        for r in con.execute(
+            "SELECT src_id, link_type FROM links WHERE dst_id=? AND src_id IS NOT NULL", (nid,)
+        ):
+            if r["src_id"] in seed_set:
+                return add_edge(r["src_id"], nid, r["link_type"])
+        for r in con.execute(
+            "SELECT dst_id, link_type FROM links WHERE src_id=? AND dst_id IS NOT NULL", (nid,)
+        ):
+            if r["dst_id"] in seed_set:
+                return add_edge(nid, r["dst_id"], r["link_type"])
+        return None
+
     steps: list[dict] = [{"kind": "seed", "node": i} for i in seed_ids]
 
     # seed<->seed links (richer static graph, no step — they're all seeds already)
@@ -123,29 +141,27 @@ def _build_trace(con, top, text_hits: set) -> dict:
             if r["dst_id"] in seed_set and r["dst_id"] != s:
                 add_edge(s, r["dst_id"], r["link_type"])
 
-    # each expanded node: find the edge to a seed (backlink first, then outlink)
-    for nid in expanded_ids:
-        edge_idx = None
-        for r in con.execute(
-            "SELECT src_id, link_type FROM links WHERE dst_id=? AND src_id IS NOT NULL", (nid,)
-        ):
-            if r["src_id"] in seed_set:
-                edge_idx = add_edge(r["src_id"], nid, r["link_type"])
-                break
-        if edge_idx is None:
-            for r in con.execute(
-                "SELECT dst_id, link_type FROM links WHERE src_id=? AND dst_id IS NOT NULL", (nid,)
-            ):
-                if r["dst_id"] in seed_set:
-                    edge_idx = add_edge(nid, r["dst_id"], r["link_type"])
-                    break
-        steps.append({"kind": "expand", "edge": edge_idx, "node": nid})
+    expanded_ids: list[str] = []
+    semantic_out: list[str] = []
+    for nid in non_seed:
+        edge_idx = edge_to_seed(nid)
+        if edge_idx is not None:
+            expanded_ids.append(nid)
+            steps.append({"kind": "expand", "edge": edge_idx, "node": nid})
+        elif nid in semantic_ids:
+            semantic_out.append(nid)  # honest: arrived by vector similarity, not a link
+        else:
+            # no text match, no graph edge, not flagged semantic — show it without
+            # inventing an edge rather than claiming a graph expansion
+            expanded_ids.append(nid)
+            steps.append({"kind": "expand", "edge": None, "node": nid})
 
     return {
         "schema": "recall.trace/1",
         "tier": None,
         "seeds": seed_ids,
         "expanded": expanded_ids,
+        "semantic": semantic_out,
         "edges": edges,
         "steps": steps,
         "answer_sources": top_ids[:3],
@@ -161,7 +177,8 @@ def recall(query: str, k: int = 12, type_filter: Optional[str] = None,
                  "floor_met": True, "mode": "empty-query", "query": query}
         if with_trace:
             empty["trace"] = {"schema": "recall.trace/1", "tier": None, "seeds": [],
-                              "expanded": [], "edges": [], "steps": [], "answer_sources": []}
+                              "expanded": [], "semantic": [], "edges": [], "steps": [],
+                              "answer_sources": []}
             empty["rev"] = config.current_rev()
         return empty
 
@@ -189,17 +206,35 @@ def recall(query: str, k: int = 12, type_filter: Optional[str] = None,
         tfidf = rank.tfidf_scores(terms, docs)
         tfidf_list = sorted(tfidf, key=lambda i: tfidf[i], reverse=True)
 
-        # --- optional embeddings over the candidate pool ---
+        # --- optional embeddings: rerank, and (if a persisted vector cache exists)
+        #     GENERATE candidates so a paraphrase with zero lexical overlap can still
+        #     surface — the last lexical-recall gap. Both are opt-in (ATM_EMBED_CMD)
+        #     and degrade to lexical fusion when the embedder/cache is absent. ---
         provider = embeddings.get_provider()
         sims: dict[str, float] = {}
         embed_used = False
-        if provider.available() and pool:
-            ids = list(pool)
-            vecs = provider.embed([query] + [docs[i] for i in ids])
-            if vecs and len(vecs) == len(ids) + 1:
-                qv = vecs[0]
-                sims = {ids[j]: embeddings.cosine(qv, vecs[j + 1]) for j in range(len(ids))}
-                embed_used = True
+        vector_gen = False
+        semantic_ids: set[str] = set()
+        if provider.available():
+            sims_all, _qv = vectors.query_similarities(con, provider, query)
+            if sims_all:
+                # Persisted cache present: vector search over the whole corpus.
+                vector_gen = embed_used = True
+                for nid in sorted(sims_all, key=lambda i: sims_all[i], reverse=True)[: max(2 * k, 20)]:
+                    if nid not in pool:
+                        pool[nid] = {"score": 0.0, "snippet": ""}
+                        docs.setdefault(nid, _body(nid))
+                        if nid not in text_hits:
+                            semantic_ids.add(nid)
+                sims = {nid: sims_all.get(nid, 0.0) for nid in pool}
+            elif pool:
+                # Provider but no usable cache: live rerank of the lexical pool only.
+                ids = list(pool)
+                vecs = provider.embed([query] + [docs[i] for i in ids])
+                if vecs and len(vecs) == len(ids) + 1:
+                    qv = vecs[0]
+                    sims = {ids[j]: embeddings.cosine(qv, vecs[j + 1]) for j in range(len(ids))}
+                    embed_used = True
 
         # --- graph adjacency neighbors of the strongest lexical hits ---
         graph_neighbors = graph.expand(con, lex_list[:k])
@@ -208,10 +243,8 @@ def recall(query: str, k: int = 12, type_filter: Optional[str] = None,
 
         if embed_used:
             # Retrieve-then-rerank: a configured semantic model ORDERS the pool, with
-            # lexical as a stable tiebreak and graph a small bonus. (Pool generation
-            # is still lexical+PRF+graph, so a zero-overlap paraphrase must first enter
-            # the pool; a persisted vector index for pure semantic candidate generation
-            # is the documented next ceiling step — see docs/BENCHMARKS.md.)
+            # lexical as a stable tiebreak and graph a small bonus. With the persisted
+            # cache, the pool already includes pure vector candidates (semantic_ids).
             maxlex = max((pool[i]["score"] for i in pool), default=1.0) or 1.0
             fused = {nid: sims.get(nid, 0.0) + 0.05 * (pool[nid]["score"] / maxlex) for nid in pool}
             for nid in graph_neighbors:
@@ -288,7 +321,11 @@ def recall(query: str, k: int = 12, type_filter: Optional[str] = None,
             frac = human_n / len(top) if top else 0.0
             floor_met = frac >= HUMAN_FLOOR
 
-        signals = ["lexical", "tfidf"] + (["embeddings"] if embed_used else [])
+        signals = ["lexical", "tfidf"]
+        if vector_gen:
+            signals.append("vector")
+        elif embed_used:
+            signals.append("embeddings")
         result = {
             "results": top,
             "human_fraction": round(frac, 3),
@@ -301,6 +338,7 @@ def recall(query: str, k: int = 12, type_filter: Optional[str] = None,
                 "signals": signals,
                 "expanded_query": expanded_terms,
                 "embeddings": embed_used,
+                "vector_candidates": vector_gen,
             },
             "provenance": (
                 f"recall/{mode}+rrf({'+'.join(signals)}); "
@@ -308,7 +346,7 @@ def recall(query: str, k: int = 12, type_filter: Optional[str] = None,
             ),
         }
         if with_trace:
-            result["trace"] = _build_trace(con, top, text_hits)
+            result["trace"] = _build_trace(con, top, text_hits, semantic_ids)
             result["rev"] = config.current_rev()
         return result
     finally:

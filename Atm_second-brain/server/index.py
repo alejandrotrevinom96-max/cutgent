@@ -68,6 +68,13 @@ CREATE TABLE IF NOT EXISTS meta (
     key TEXT PRIMARY KEY,
     value TEXT
 );
+CREATE TABLE IF NOT EXISTS embeddings (
+    id        TEXT PRIMARY KEY,
+    model     TEXT NOT NULL,
+    dim       INTEGER NOT NULL,
+    body_hash TEXT NOT NULL,
+    vec       BLOB NOT NULL
+);
 """
 
 FTS_SQL = """

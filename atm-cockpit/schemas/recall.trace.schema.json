@@ -10,6 +10,11 @@
     "tier": { "type": ["string", "null"] },
     "seeds": { "type": "array", "items": { "type": "string" } },
     "expanded": { "type": "array", "items": { "type": "string" } },
+    "semantic": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Result notes pulled in by vector similarity only (no query-text match, no graph edge). Optional/additive; absent when no embedding cache is in use. Not animated as graph expansions."
+    },
     "edges": {
       "type": "array",
       "items": {

@@ -214,6 +214,23 @@ INVARIANTS: dict[str, dict] = {
         "error_code": "n/a (property)",
         "covered_by": ["case:test_p17_consolidate"],
     },
+    "INV-VECTOR-CACHE": {
+        "desc": "The persisted embedding cache is opt-in, incremental (re-embeds only "
+                "notes whose body_hash or model changed), tagged by model id, and prunes "
+                "vectors for deleted notes. Shipping no model keeps the zero-dep default.",
+        "enforced_in": "vectors.embed_index + index embeddings table",
+        "error_code": "n/a (property)",
+        "covered_by": ["case:test_p18_vectors"],
+    },
+    "INV-VECTOR-RECALL-HONEST": {
+        "desc": "With the cache built, recall does vector candidate generation — "
+                "surfacing zero-lexical-overlap paraphrases — and reports them in the "
+                "trace as 'semantic' (vector similarity), never mislabeled as a graph "
+                "'expanded' node. Without provider/cache it degrades to lexical.",
+        "enforced_in": "recall.recall + recall._build_trace + vectors.query_similarities",
+        "error_code": "n/a (property)",
+        "covered_by": ["case:test_p18_vectors"],
+    },
     "INV-SCALE-SANE": {
         "desc": "Index + retrieval stay sane as the vault grows: full reindex covers "
                 "every note, an unchanged incremental reindex does zero work (mtime "
