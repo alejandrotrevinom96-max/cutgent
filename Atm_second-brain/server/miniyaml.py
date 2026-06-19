@@ -15,6 +15,7 @@ signal the frontmatter is doing too much.
 """
 from __future__ import annotations
 
+import re
 from typing import Any
 
 
@@ -217,6 +218,102 @@ def _unquote(s: str) -> str:
             body = body.replace('\\"', '"').replace("\\\\", "\\")
         return body
     return s
+
+
+def dump(data: dict) -> str:
+    """Serialize a frontmatter dict back to YAML in our supported subset.
+
+    Deterministic and round-trippable for the shapes notes use: scalars, flow
+    sequences of scalars, block sequences of mappings, and nested mappings.
+    """
+    if not isinstance(data, dict):
+        raise YamlError("top-level frontmatter must be a mapping")
+    lines: list[str] = []
+    _dump_map(data, 0, lines)
+    return "\n".join(lines) + ("\n" if lines else "")
+
+
+def _dump_map(d: dict, indent: int, out: list[str]) -> None:
+    pad = " " * indent
+    for key, value in d.items():
+        k = _dump_key(str(key))
+        if isinstance(value, dict):
+            if value:
+                out.append(f"{pad}{k}:")
+                _dump_map(value, indent + 2, out)
+            else:
+                out.append(f"{pad}{k}: {{}}")
+        elif isinstance(value, list):
+            _dump_list(k, value, indent, out)
+        else:
+            out.append(f"{pad}{k}: {_dump_scalar(value)}")
+
+
+def _dump_list(key: str, value: list, indent: int, out: list[str]) -> None:
+    pad = " " * indent
+    if not value:
+        out.append(f"{pad}{key}: []")
+        return
+    if all(not isinstance(v, (dict, list)) for v in value):
+        inner = ", ".join(_dump_scalar(v) for v in value)
+        out.append(f"{pad}{key}: [{inner}]")
+        return
+    out.append(f"{pad}{key}:")
+    item_pad = " " * indent
+    for v in value:
+        if isinstance(v, dict):
+            items = list(v.items())
+            if not items:
+                out.append(f"{item_pad}- {{}}")
+                continue
+            first_k, first_v = items[0]
+            fk = _dump_key(str(first_k))
+            if isinstance(first_v, (dict, list)):
+                out.append(f"{item_pad}- {fk}:")
+                tmp: list[str] = []
+                if isinstance(first_v, dict):
+                    _dump_map(first_v, indent + 4, tmp)
+                else:
+                    _dump_list(fk, first_v, indent + 2, tmp)
+                out.extend(tmp)
+            else:
+                out.append(f"{item_pad}- {fk}: {_dump_scalar(first_v)}")
+            for k2, v2 in items[1:]:
+                _dump_map({k2: v2}, indent + 2, out)
+        else:
+            out.append(f"{item_pad}- {_dump_scalar(v)}")
+
+
+def _dump_key(k: str) -> str:
+    return k if re.match(r"^[A-Za-z_][A-Za-z0-9_-]*$", k) else _quote(k)
+
+
+def _dump_scalar(v) -> str:
+    if v is None:
+        return "null"
+    if v is True:
+        return "true"
+    if v is False:
+        return "false"
+    if isinstance(v, int):
+        return str(v)
+    if isinstance(v, float):
+        return repr(v)
+    s = str(v)
+    if s == "":
+        return '""'
+    needs_quote = (
+        s.strip() != s
+        or any(c in s for c in ':#[]{}",\'')
+        or s.lower() in ("true", "false", "yes", "no", "null", "~")
+        or _is_int(s)
+        or _is_float(s)
+    )
+    return _quote(s) if needs_quote else s
+
+
+def _quote(s: str) -> str:
+    return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
 def _is_int(s: str) -> bool:

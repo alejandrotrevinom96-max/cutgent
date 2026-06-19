@@ -66,7 +66,7 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "expected_hash": {"type": "string", "description": "For edits: sha256 the caller last saw (optimistic lock)."},
             },
         },
-        "handler": _stub("write_with_provenance"),
+        "handler": None,  # bound below
     },
     "reindex": {
         "description": (
@@ -122,11 +122,13 @@ from index import reindex_tool  # noqa: E402
 from recall import recall_tool  # noqa: E402
 from trust import resolve_tier_tool  # noqa: E402
 from citations import citation_verify_tool  # noqa: E402
+from writer import write_with_provenance_tool  # noqa: E402
 
 TOOLS["reindex"]["handler"] = reindex_tool
 TOOLS["recall"]["handler"] = recall_tool
 TOOLS["resolve_tier"]["handler"] = resolve_tier_tool
 TOOLS["citation_verify"]["handler"] = citation_verify_tool
+TOOLS["write_with_provenance"]["handler"] = write_with_provenance_tool
 
 
 def list_tools() -> list[dict]:
