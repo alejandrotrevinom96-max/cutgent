@@ -1,89 +1,91 @@
 # ATM Second Brain
 
-A hybrid, Obsidian-style second brain shared by a human (via the
-[PARA](https://fortelabs.com/blog/para/) method + Obsidian) **and** an AI agent
-(via its own local MCP server). Markdown + git is the only source of truth.
-**Zero external runtime dependencies** — the server is Python 3.11+ standard
-library only.
+A hybrid, Obsidian-style second brain shared by a **human** (PARA + Obsidian) and an
+**AI agent** (its own local MCP server). Markdown + git is the only source of truth.
+**Zero external runtime dependencies** — the server is Python 3.11+ standard library
+only. A companion desktop app (**[atm-cockpit](#companion-app-atm-cockpit)**) gives it
+a face, a voice, and a live graph.
 
-## Design in one breath
+> **The one rule:** the model proposes, the server disposes. Every guardrail is a
+> code invariant in the MCP server + git, never a prompt hope.
 
-> The model proposes, the server disposes.
+---
 
-Every guardrail is a code invariant living in the MCP server + git, never a prompt
-hope. Two surfaces operate over the same vault:
+## Start here
 
-- **Surface A — Claude Code over the vault.** The native agent loop +
-  filesystem (read/grep/glob/bash) + Skills + hooks + git does most of the work.
-  This collapses RAG and orchestration to nearly zero.
-- **Surface B — a thin stdlib MCP server** (`server/atm_mcp.py`) exposing ~6
+1. **[SETUP.md](SETUP.md)** — get it running in ~15 min (Python, Obsidian, Claude Code).
+2. Open `vault/` in Obsidian and read **`vault/meta/first-run.md`** ([[first run]]).
+3. Browse what the agent can do: **`vault/mocs/expertise-packs.md`** ([[Expertise Packs]]).
+4. Sanity check anytime: `python3 scripts/brain.py doctor` then `… selftest`.
+
+---
+
+## How it works (two surfaces)
+
+- **Surface A — Claude Code over the vault.** The native agent loop + filesystem
+  (read/grep/glob/bash) + Skills + hooks + git does most of the work. Collapses RAG
+  and orchestration to near zero.
+- **Surface B — a thin stdlib MCP server** (`server/atm_mcp.py`) exposing the
   canonical, server-enforced operations:
-  `recall · write_with_provenance · reindex · resolve_tier · citation_verify · mech.*`.
+  `recall · write_with_provenance · reindex · resolve_tier · citation_verify ·
+  graph_export · mech_status`.
 
-Skills and hooks are a removable convenience/UX layer. The MCP server + git are the
+Skills/hooks are a removable convenience layer. The MCP server + git are the
 non-removable enforcement core.
 
-## Layout
+## What's inside
 
 ```
 _schema/        Immutable, append-only note contract (schema.vN.{md,json} + CURRENT)
-_migrations/    One idempotent migration per schema bump; git revert = rollback
-vault/          The notes themselves (PARA + Zettelkasten/Evergreen + MOCs)
-  00-inbox/       Capture lands here; never blocked
-  01-projects/    PARA: active, goal-bound
-  02-areas/       PARA: ongoing responsibilities
-  03-resources/   PARA: topics of interest
-  04-archive/     PARA: inactive
-  concepts/       Atomic evergreen notes
-  mocs/           Maps of Content (navigation hubs)
-  meta/           Conventions, vault-about-vault notes
-  agent/          The agent's own working notes
-  templates/      Note templates
-  attachments/    Binaries referenced by notes (never note content itself)
-server/         The stdlib MCP server
-selftest/       Guardrail regression corpus (stdlib unittest, zero-dep)
-.claude/skills/ Agent Skills: vault conventions, capture, review, git, expertise packs
-scripts/        Helper scripts (e.g. model-free capture)
-docs/adr/       Architecture Decision Records
+_migrations/    The only path vN -> vN+1 (idempotent, dry-run, git-revert = rollback)
+vault/          The notes (PARA + Zettelkasten + MOCs)
+  00-inbox 01-projects 02-areas 03-resources 04-archive   PARA, by actionability
+  concepts/  atomic evergreen notes        mocs/  Home + Expertise Packs
+  personal/  YOUR layer: identity + one note per pack (overrides generic advice)
+  meta/      first-run onboarding, conventions   journal/ daily notes   templates/
+  .obsidian/ shipped Obsidian config (wikilinks, daily notes, attachments)
+server/         The stdlib MCP server (parser, index, recall, writer, trust, migrate…)
+scripts/brain.py  CLI: doctor · selftest · reindex · recall · capture · migrate
+selftest/       The guardrail corpus (26 invariants, 100% covered) — `brain.py selftest`
+.claude/skills/ 5 base skills + pack-supervisor + 19 expertise packs (+ template)
 ```
 
-## Status
+## The expertise system
 
-Built piece by piece, each gated by an audit before the next begins.
+19 domain packs, each an Agent Skill with a **binary rubric** (no "you are an expert"
+persona): web-design, copywriting, image-video-editing-generation, 3d-animation,
+writing · software-engineering, data-analysis · business-strategy, marketing-growth,
+sales, negotiation, personal-finance · communication, counsel, leadership-management,
+decision-making, learning, productivity, health-fitness.
 
-- [x] **P0 — Scaffold + durability**: directory tree, schema v1 contract,
-      conventions, template, example note.
-- [x] **P1 — MCP core skeleton**: stdlib JSON-RPC 2.0 over stdio, FTS5 probe,
-      canonical tool registry.
-- [x] **P2 — Parser + index + `reindex`**: stdlib YAML, SQLite index, idempotent
-      incremental reindex, link resolution.
-- [x] **P3 — `recall` + graph + `resolve_tier` + `citation_verify`**: ranked
-      retrieval with the human-information floor, anti-laundering tier resolution.
-- [x] **P4 — `write_with_provenance`**: the validation/provenance gate (schema,
-      immutability, anti-laundering, optimistic locking).
-- [x] **P5 — `selftest` regression corpus**: red/green fixtures + invariant
-      registry + 100% coverage-as-test.
-- [x] **P6 — Hooks + `.mcp.json` + capture + MECH mode**: model-free capture,
-      degraded-mode reporting.
-- [x] **P7 — Base skills + pack-supervisor**: vault-conventions/capture/review/git
-      + composition meta-skill + pack template.
-- [x] **P8 — Pilot expertise packs**: image & video editing/generation (requested),
-      web-design, copywriting — each with exemplars, binary rubric, anti-patterns,
-      sources.
-
-Run the full guardrail corpus any time with `python3 scripts/brain.py selftest`.
-
-### Adding more expertise domains
-
-The pilot packs prove the template. Adding the remaining life areas (counsel/
-friend, business, 3D/animation, and the rest) is a matter of copying
-`.claude/skills/expertise-pack-template/` and filling in the four companion files
-— no engine changes required.
+Each pack is bridged to a **`personal/<domain>`** note. A pack only *overrides* generic
+best practice once you fill that note in and confirm it (the agent can't fake the
+confirmation). That's what turns a generic expert into *your* expert — start with
+[[first run]].
 
 ## Principles that don't bend
 
 - **Plain markdown survives** — every note is a greppable `.md`; binaries only in `attachments/`.
-- **Fail-closed trust tiers** — unknown provenance is treated as least-trusted.
+- **Fail-closed trust tiers** — `self-authored · human-confirmed · externally-ingested`; unknown ⇒ least.
 - **Anti-autophagy** — retrieval enforces a human-information floor so the agent can't feed on its own output.
-- **Capture is never blocked** — even with no model and no network (MECH mode).
-- **Cheapest-correct-first** — MECH (grep/git, $0) → CHEAP (small model) → FULL.
+- **Capture is never blocked** — works with no model, no network (`scripts/capture.sh`, MECH mode).
+- **Migration is the only path** to a new schema; `git revert` is the rollback.
+
+## Companion app (atm-cockpit)
+
+A separate Electron repo, **[atm-cockpit](../atm-cockpit)**, is a *client* over this
+brain: a VRM avatar you talk to, a live force-directed graph that animates the brain's
+real `recall` traversal, voice I/O, and generative widgets (e.g. a negotiation
+cockpit). It depends on the brain; the brain never depends on it. See its README and
+`docs/adr/0001-surface-c.md`.
+
+## Status
+
+Built piece by piece, each gated by an audit. Brain selftest: **ALL GREEN — 26
+invariants, 100% coverage.** P0 scaffold/durability · P1 MCP core · P2 parser+index ·
+P3 recall+graph+tiers+citations · P4 write_with_provenance · P5 selftest corpus ·
+P6 hooks+capture+MECH · P7 base skills · P8 expertise packs · P9 graph contracts
+(recall.trace + graph_export) · P10 personal layer + MOCs · P11 PARA templates +
+first-run · P12 migration runner · P13 Obsidian config + SETUP + doctor.
+
+MIT licensed (`LICENSE`).
