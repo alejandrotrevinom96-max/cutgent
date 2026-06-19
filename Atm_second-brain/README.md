@@ -28,7 +28,7 @@ a face, a voice, and a live graph.
 - **Surface B — a thin stdlib MCP server** (`server/atm_mcp.py`) exposing the
   canonical, server-enforced operations:
   `recall · write_with_provenance · reindex · resolve_tier · citation_verify ·
-  graph_export · mech_status`.
+  graph_export · consolidate · mech_status`.
 
 Skills/hooks are a removable convenience layer. The MCP server + git are the
 non-removable enforcement core.
@@ -45,8 +45,10 @@ vault/          The notes (PARA + Zettelkasten + MOCs)
   meta/      first-run onboarding, conventions   journal/ daily notes   templates/
   .obsidian/ shipped Obsidian config (wikilinks, daily notes, attachments)
 server/         The stdlib MCP server (parser, index, recall, writer, trust, migrate…)
-scripts/brain.py  CLI: doctor · selftest · reindex · recall · capture · migrate
-selftest/       The guardrail corpus (26 invariants, 100% covered) — `brain.py selftest`
+scripts/brain.py  CLI: doctor · selftest · reindex · recall · capture · migrate · eval
+scripts/bench.py  Scale benchmark (1k/10k/50k): reindex + recall latency + floor
+evals/          Eval harness: 31 specs scoring answers against each pack's rubric
+selftest/       The guardrail corpus (33 invariants, 100% covered) — `brain.py selftest`
 .claude/skills/ 5 base skills + pack-supervisor + 31 expertise packs (+ template)
 ```
 
@@ -92,11 +94,14 @@ cockpit). It depends on the brain; the brain never depends on it. See its README
 
 ## Status
 
-Built piece by piece, each gated by an audit. Brain selftest: **ALL GREEN — 26
+Built piece by piece, each gated by an audit. Brain selftest: **ALL GREEN — 33
 invariants, 100% coverage.** P0 scaffold/durability · P1 MCP core · P2 parser+index ·
 P3 recall+graph+tiers+citations · P4 write_with_provenance · P5 selftest corpus ·
 P6 hooks+capture+MECH · P7 base skills · P8 expertise packs · P9 graph contracts
 (recall.trace + graph_export) · P10 personal layer + MOCs · P11 PARA templates +
-first-run · P12 migration runner · P13 Obsidian config + SETUP + doctor.
+first-run · P12 migration runner · P13 Obsidian config + SETUP + doctor ·
+**P14 hybrid retrieval** (RRF: lexical+TF-IDF+graph, PRF, pluggable embeddings) ·
+**P15 eval harness** (measurable rubrics) · **P16 scale** (mtime fast-path; recall
+~0.3s @ 10k, see `docs/BENCHMARKS.md`) · **P17 guarded consolidation** (anti-autophagy).
 
 MIT licensed (`LICENSE`).
