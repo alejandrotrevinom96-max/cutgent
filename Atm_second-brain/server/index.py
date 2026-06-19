@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS notes (
     body_hash     TEXT,
     file_hash     TEXT,
     body_len      INTEGER,
+    body          TEXT,
     frontmatter   TEXT,
     parse_error   TEXT
 );
@@ -105,13 +106,14 @@ def _upsert_note(con: sqlite3.Connection, note: Note) -> None:
     con.execute(
         """INSERT OR REPLACE INTO notes
            (id, path, title, type, created, updated, trust_tier, author, domain,
-            schema_version, body_hash, file_hash, body_len, frontmatter, parse_error)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            schema_version, body_hash, file_hash, body_len, body, frontmatter, parse_error)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (
             nid, note.path, fm.get("title"), fm.get("type"), str(fm.get("created") or ""),
             str(fm.get("updated") or ""), fm.get("trust_tier"), fm.get("author"),
             fm.get("domain"), fm.get("schema_version"), note.body_hash, note.file_hash,
-            len(note.body), json.dumps(fm, ensure_ascii=False, sort_keys=True), note.parse_error,
+            len(note.body), note.body, json.dumps(fm, ensure_ascii=False, sort_keys=True),
+            note.parse_error,
         ),
     )
     con.execute("DELETE FROM links WHERE src_id=?", (nid,))

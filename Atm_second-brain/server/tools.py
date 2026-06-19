@@ -46,7 +46,7 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "domain": {"type": "string", "description": "Optional domain filter."},
             },
         },
-        "handler": _stub("recall"),
+        "handler": None,  # bound below
     },
     "write_with_provenance": {
         "description": (
@@ -92,7 +92,7 @@ TOOLS: dict[str, dict[str, Any]] = {
             "required": ["path"],
             "properties": {"path": {"type": "string", "description": "Vault-relative .md path."}},
         },
-        "handler": _stub("resolve_tier"),
+        "handler": None,  # bound below
     },
     "citation_verify": {
         "description": (
@@ -104,7 +104,7 @@ TOOLS: dict[str, dict[str, Any]] = {
             "required": ["path"],
             "properties": {"path": {"type": "string", "description": "Vault-relative .md path."}},
         },
-        "handler": _stub("citation_verify"),
+        "handler": None,  # bound below
     },
     "mech_status": {
         "description": (
@@ -119,8 +119,14 @@ TOOLS: dict[str, dict[str, Any]] = {
 
 # Bind real implementations as pieces land (keeps schemas above, logic in modules).
 from index import reindex_tool  # noqa: E402
+from recall import recall_tool  # noqa: E402
+from trust import resolve_tier_tool  # noqa: E402
+from citations import citation_verify_tool  # noqa: E402
 
 TOOLS["reindex"]["handler"] = reindex_tool
+TOOLS["recall"]["handler"] = recall_tool
+TOOLS["resolve_tier"]["handler"] = resolve_tier_tool
+TOOLS["citation_verify"]["handler"] = citation_verify_tool
 
 
 def list_tools() -> list[dict]:

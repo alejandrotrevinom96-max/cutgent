@@ -78,9 +78,9 @@ def main() -> int:
         check("unknown method returns error -32601",
               err.get("error", {}).get("code") == -32601, json.dumps(err)[:160])
 
-        # 5. tools/call on a stub => clean NOT_IMPLEMENTED, server stays alive
+        # 5. tools/call on a still-stubbed tool => clean NOT_IMPLEMENTED, loop alive
         send({"jsonrpc": "2.0", "id": 4, "method": "tools/call",
-              "params": {"name": "recall", "arguments": {"query": "x"}}})
+              "params": {"name": "mech_status", "arguments": {}}})
         callres = recv()
         check("stub tool returns NOT_IMPLEMENTED (-32001)",
               callres.get("error", {}).get("code") == -32001, json.dumps(callres)[:160])
