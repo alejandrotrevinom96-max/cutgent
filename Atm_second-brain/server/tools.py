@@ -123,6 +123,27 @@ TOOLS: dict[str, dict[str, Any]] = {
         },
         "handler": None,  # bound below
     },
+    "consolidate": {
+        "description": (
+            "Guarded memory consolidation: recall notes for a topic, REFUSE if the "
+            "grounding can't meet the human-information floor (anti-autophagy), then "
+            "write a synthesis DRAFT that cites every source (sources[] + "
+            "consolidates:: links) via write_with_provenance (author=agent, "
+            "self-authored, content-hashed). Never edits or deletes the sources. "
+            "Dry-run by default."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["topic"],
+            "properties": {
+                "topic": {"type": "string", "description": "What to consolidate notes about."},
+                "k": {"type": "integer", "minimum": 1, "default": 8, "description": "Max source notes."},
+                "domain": {"type": "string", "description": "Optional domain filter."},
+                "dry_run": {"type": "boolean", "default": True, "description": "Preview without writing."},
+            },
+        },
+        "handler": None,  # bound below
+    },
     "mech_status": {
         "description": (
             "MECH (degraded) mode probe: reports which operations are available "
@@ -141,6 +162,7 @@ from trust import resolve_tier_tool  # noqa: E402
 from citations import citation_verify_tool  # noqa: E402
 from writer import write_with_provenance_tool  # noqa: E402
 from mech import mech_status_tool  # noqa: E402
+from consolidate import consolidate_tool  # noqa: E402
 
 TOOLS["reindex"]["handler"] = reindex_tool
 TOOLS["graph_export"]["handler"] = graph_export_tool
@@ -149,6 +171,7 @@ TOOLS["resolve_tier"]["handler"] = resolve_tier_tool
 TOOLS["citation_verify"]["handler"] = citation_verify_tool
 TOOLS["write_with_provenance"]["handler"] = write_with_provenance_tool
 TOOLS["mech_status"]["handler"] = mech_status_tool
+TOOLS["consolidate"]["handler"] = consolidate_tool
 
 
 def list_tools() -> list[dict]:

@@ -191,6 +191,29 @@ INVARIANTS: dict[str, dict] = {
         "error_code": "n/a (property)",
         "covered_by": ["case:test_p14_retrieval"],
     },
+    "INV-CONSOLIDATE-PROVENANCE": {
+        "desc": "A consolidation writes a self-authored, author=agent synthesis through "
+                "write_with_provenance that cites every source it consolidated (sources[] "
+                "+ resolving consolidates:: links) with a verifying content_hash.",
+        "enforced_in": "consolidate.consolidate + writer.write_with_provenance",
+        "error_code": "n/a (property)",
+        "covered_by": ["case:test_p17_consolidate"],
+    },
+    "INV-CONSOLIDATE-ANTIAUTOPHAGY": {
+        "desc": "consolidate refuses when a topic's grounding cannot meet the human-"
+                "information floor, so the brain never synthesizes new memory primarily "
+                "from its own prior output.",
+        "enforced_in": "consolidate.consolidate (recall floor gate)",
+        "error_code": "n/a (refusal)",
+        "covered_by": ["case:test_p17_consolidate"],
+    },
+    "INV-CONSOLIDATE-NONDESTRUCTIVE": {
+        "desc": "consolidate never edits or deletes the source notes; a synthesis is a "
+                "new note that links back to its sources (markdown stays canonical).",
+        "enforced_in": "consolidate.consolidate",
+        "error_code": "n/a (property)",
+        "covered_by": ["case:test_p17_consolidate"],
+    },
     "INV-SCALE-SANE": {
         "desc": "Index + retrieval stay sane as the vault grows: full reindex covers "
                 "every note, an unchanged incremental reindex does zero work (mtime "

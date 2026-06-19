@@ -18,6 +18,7 @@ EXPECTED_TOOLS = {
     "graph_export",
     "resolve_tier",
     "citation_verify",
+    "consolidate",
     "mech_status",
 }
 
