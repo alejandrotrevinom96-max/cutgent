@@ -1,8 +1,10 @@
 # Recipe: captions & subtitles
 
 ## Auto (from audio)
-`auto_caption {clipId, preset, language?}` — transcribes the clip and builds the
-"Subtítulos" track aligned to it (respects trimStart/duration). Presets:
+`auto_caption {clipId, preset, language?, animated?}` — transcribes the clip and
+builds the "Subtítulos" track aligned to it (respects trimStart/duration/speed).
+`animated:true` = **karaoke word-level** captions (TikTok style: each word
+highlights as it's spoken, word timing from local Whisper). Presets:
 - `youtube` — 64px, stroke, lower third (y≈380)
 - `tiktok` — 96px bold, centered (y≈0)
 - `minimal` — clean, no stroke

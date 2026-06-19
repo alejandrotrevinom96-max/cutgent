@@ -1537,6 +1537,40 @@ const CAPTION_PRESETS: Record<string, Record<string, unknown>> = {
   bold: { fontFamily: "Inter", fontSize: 88, fontWeight: 900, color: "#ffe000", strokeColor: "#000000", strokeWidth: 8, shadowColor: "rgba(0,0,0,0.8)", shadowBlur: 10, textAlign: "center", y: 360 },
 };
 
+/** Palabra con timing en segundos (transcript word-level). */
+type WordStampMcp = { text: string; start: number; end: number };
+type WordCueMcp = { startSec: number; endSec: number; text: string; words: WordStampMcp[] };
+
+/** Agrupa palabras planas en cues karaoke (greedy; mismos params que src/lib/captions). */
+function groupWordsIntoCues(words: WordStampMcp[], vertical: boolean): WordCueMcp[] {
+  const MAX_WORDS = vertical ? 4 : 7;
+  const MAX_DUR = 2.5;
+  const MAX_CHARS = vertical ? 22 : 42;
+  const GAP_SPLIT = 0.6;
+  const HARD = /[.?!…]$/;
+  const SOFT = /[,;:]$/;
+  const cues: WordCueMcp[] = [];
+  let cur: WordStampMcp[] = [];
+  let chars = 0;
+  const flush = () => {
+    if (!cur.length) return;
+    cues.push({ startSec: cur[0].start, endSec: cur[cur.length - 1].end, text: cur.map((w) => w.text).join(" "), words: cur });
+    cur = [];
+    chars = 0;
+  };
+  for (const raw of words) {
+    const w = { text: raw.text.trim(), start: raw.start, end: raw.end };
+    if (!w.text) continue;
+    const prev = cur[cur.length - 1];
+    if (prev && (w.start - prev.end > GAP_SPLIT || HARD.test(prev.text))) flush();
+    cur.push(w);
+    chars += w.text.length + 1;
+    if (cur.length >= MAX_WORDS || w.end - cur[0].start >= MAX_DUR || chars >= MAX_CHARS || SOFT.test(w.text)) flush();
+  }
+  flush();
+  return cues;
+}
+
 server.registerTool(
   "add_subtitles",
   {
@@ -2844,11 +2878,12 @@ server.registerTool(
   {
     title: "Auto-subtítulos (clip de la timeline)",
     description:
-      "Transcribe LOCALMENTE el video/audio de un clip de la timeline y genera su pista de subtítulos alineada a su posición (respeta trimStart/duración). preset: youtube|tiktok|minimal|bold.",
+      "Transcribe LOCALMENTE el video/audio de un clip de la timeline y genera su pista de subtítulos alineada a su posición (respeta trimStart/duración). preset: youtube|tiktok|minimal|bold. animated:true = subtítulos KARAOKE a nivel de palabra (estilo TikTok: cada palabra se resalta al pronunciarse).",
     inputSchema: {
       clipId: z.string(),
       preset: z.enum(["youtube", "tiktok", "minimal", "bold"]).optional(),
       language: z.string().optional(),
+      animated: z.boolean().optional(),
     },
   },
   tool(async (args) => {
@@ -2858,6 +2893,86 @@ server.registerTool(
     const src = f.clip.src as string | undefined;
     if (!src) return ok("El clip no tiene src (debe ser video/audio).");
     const fps = doc.fps;
+
+    // --- Subtítulos KARAOKE a nivel de palabra ---
+    if (args.animated) {
+      const wr = (await postJson("/api/transcribe", { src, language: args.language, words: true })) as {
+        status?: string;
+        words?: { words: WordStampMcp[] };
+        jobId?: string;
+        detection?: { top: { language: string; prob: number }[] };
+      };
+      if (wr.status === "needs_language" && wr.detection) {
+        const opts = wr.detection.top.map((t) => `${t.language} ${(t.prob * 100).toFixed(0)}%`).join(", ");
+        return ok(`IDIOMA INCIERTO para auto_caption. Candidatos: ${opts}. Pregunta al usuario y vuelve a llamar con language="<código>".`);
+      }
+      let wordData = wr.words;
+      if (!wordData && wr.jobId) {
+        const t0 = Date.now();
+        while (Date.now() - t0 < 900000) {
+          await sleep(3000);
+          const s = (await getJson(`/api/transcribe?id=${wr.jobId}`)) as { status: string; words?: { words: WordStampMcp[] } };
+          if (s.status === "done" && s.words) { wordData = s.words; break; }
+          if (s.status === "error") return ok("Error transcribiendo (palabras).");
+        }
+      }
+      if (!wordData) return ok("Transcripción por palabra no disponible (reintenta).");
+
+      const trimStart = typeof f.clip.trimStart === "number" ? f.clip.trimStart : 0;
+      // La ventana de FUENTE abarca duration*rate (un clip 2× consume el doble de
+      // segundos de fuente); el mapeo de vuelta a timeline divide por rate.
+      const rate = typeof f.clip.playbackRate === "number" && f.clip.playbackRate > 0 ? f.clip.playbackRate : 1;
+      const winStart = trimStart / fps;
+      const winEnd = winStart + (f.clip.duration * rate) / fps;
+      const vertical = doc.height > doc.width;
+      const presetProps = CAPTION_PRESETS[args.preset ?? (vertical ? "tiktok" : "youtube")];
+      const yPos = (presetProps.y as number) ?? Math.round(doc.height / 2 - 140);
+
+      const win = wordData.words
+        .filter((w) => w.end > winStart && w.start < winEnd)
+        .map((w) => ({ text: w.text, start: Math.max(0, w.start - winStart), end: Math.min(winEnd, w.end) - winStart }))
+        .filter((w) => w.end > w.start);
+      const cues = groupWordsIntoCues(win, vertical);
+
+      const commands: Command[] = [];
+      let trackId = doc.tracks.find((t) => t.name === "Subtítulos")?.id;
+      if (!trackId) {
+        const track = buildTrack({ name: "Subtítulos", kind: "media" });
+        trackId = track.id as string;
+        commands.push({ type: "add_track", track });
+      }
+      // Defaults base; el preset los sobreescribe (sin literales "muertos" tras el spread).
+      const baseStyle = {
+        fontFamily: "Inter", fontSize: 96, fontWeight: 800, color: "#ffffff",
+        textAlign: "center", lineHeight: 1.2, letterSpacing: 0, italic: false,
+        strokeColor: "#000000", strokeWidth: 10, shadowColor: "rgba(0,0,0,0.6)", shadowBlur: 24, shadowOffsetX: 0, shadowOffsetY: 2,
+      };
+      for (const cue of cues) {
+        // Tiempo de FUENTE → TIMELINE: /rate (1s de fuente = 1/rate s de timeline).
+        const clipStart = f.clip.start + Math.round((cue.startSec / rate) * fps);
+        const dur = Math.max(1, Math.round(((cue.endSec - cue.startSec) / rate) * fps));
+        const words = cue.words.map((w) => {
+          const s = Math.max(0, Math.round(((w.start - cue.startSec) / rate) * fps));
+          const e = Math.max(s + 1, Math.round(((w.end - cue.startSec) / rate) * fps));
+          return { text: w.text, start: s, end: e };
+        });
+        commands.push({
+          type: "add_clip",
+          trackId,
+          clip: {
+            type: "text",
+            ...baseClip({ name: "Subtítulo", start: clipStart, duration: dur }),
+            ...baseStyle,
+            text: cue.text,
+            ...presetProps, y: yPos, words, activeColor: "#ffe000", activeScale: 1.12,
+          },
+        });
+      }
+      const made = commands.filter((c) => c.type === "add_clip").length;
+      if (made === 0) return ok("No hay palabras dentro del rango del clip.");
+      await postCommands(commands);
+      return ok(`${made} subtítulos ANIMADOS (karaoke) generados para ${args.clipId} en la pista ${trackId}.`);
+    }
 
     // Transcribir (o usar caché) y esperar.
     let transcript: TranscriptData | undefined;
@@ -2892,8 +3007,9 @@ server.registerTool(
     if (!transcript) return ok("Transcripción no disponible (reintenta).");
 
     const trimStart = typeof f.clip.trimStart === "number" ? f.clip.trimStart : 0;
+    const rate = typeof f.clip.playbackRate === "number" && f.clip.playbackRate > 0 ? f.clip.playbackRate : 1;
     const winStart = trimStart / fps;
-    const winEnd = winStart + f.clip.duration / fps;
+    const winEnd = winStart + (f.clip.duration * rate) / fps;
     const presetProps = CAPTION_PRESETS[args.preset ?? "youtube"];
     const yPos = (presetProps.y as number) ?? Math.round(doc.height / 2 - 140);
 
@@ -2907,8 +3023,9 @@ server.registerTool(
     let count = 0;
     for (const s of transcript.segments) {
       if (s.end <= winStart || s.start >= winEnd) continue;
-      const rel = Math.max(0, s.start - winStart);
-      const relEnd = Math.min(winEnd, s.end) - winStart;
+      // Fuente → timeline: /rate (segmentos en segundos de fuente).
+      const rel = Math.max(0, s.start - winStart) / rate;
+      const relEnd = (Math.min(winEnd, s.end) - winStart) / rate;
       commands.push({
         type: "add_clip",
         trackId,

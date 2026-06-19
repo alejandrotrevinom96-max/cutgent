@@ -47,6 +47,20 @@ export interface Transcript {
   segments: TranscriptSegment[];
 }
 
+/** Una palabra con timing (segundos). Para captions animados (karaoke). */
+export interface WordStamp {
+  text: string;
+  start: number; // segundos
+  end: number;
+}
+export interface WordTranscript {
+  src: string;
+  language: string;
+  durationSec: number;
+  model: string;
+  words: WordStamp[];
+}
+
 // Cache del pipeline en globalThis (sobrevive hot-reload; cargar el modelo es caro).
 const g = globalThis as unknown as {
   __cutgent_asr?: Promise<unknown>;
@@ -214,6 +228,83 @@ export async function getCachedTranscript(
   }
 }
 
+// Caché de palabras (karaoke), separada de la de segmentos (distinto shape).
+const wordsCacheFile = (src: string, language: string) =>
+  path.join(TRANSCRIPTS_DIR, `${cacheKey(src, language)}.words.json`);
+
+export async function getCachedWords(
+  src: string,
+  language = "default",
+): Promise<WordTranscript | null> {
+  try {
+    return JSON.parse(await fs.readFile(wordsCacheFile(src, language), "utf8")) as WordTranscript;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Transcripción a nivel de PALABRA (karaoke), local. Usa el mismo modelo q8 ya
+ * cacheado (whisper-base trae alignment_heads). chunk_length_s:29 evita el bug de
+ * borde a 30s. Sanea el shape de transformers.js: cada chunk es UNA palabra con
+ * `text` con espacio inicial y `timestamp:[start, end|null]`.
+ */
+export async function transcribeWords(
+  src: string,
+  opts: { language?: string } = {},
+): Promise<WordTranscript> {
+  const { file, cleanup } = await resolveInput(src);
+  try {
+    const audio = await extractAudio(file);
+    if (audio.length < 1600) throw new Error("Audio insuficiente o sin pista de audio (< 0.1s).");
+    const durationSec = audio.length / 16000;
+    const asr = (await getAsr()) as (
+      a: Float32Array,
+      o: Record<string, unknown>,
+    ) => Promise<{ text: string; chunks?: AsrChunk[] }>;
+
+    const out = await asr(audio, {
+      return_timestamps: "word",
+      chunk_length_s: 29,
+      stride_length_s: 5,
+      ...(opts.language ? { language: opts.language } : {}),
+    });
+
+    // Saneado: trim del espacio inicial, descarta vacías, resuelve end null y
+    // garantiza orden monótono (end>=start, start>=prev.end).
+    const raw = (out.chunks ?? [])
+      .map((c) => ({ text: (c.text ?? "").trim(), start: c.timestamp[0] ?? 0, end: c.timestamp[1] }))
+      .filter((w) => w.text.length > 0);
+    const MIN_WORD_SEC = 1 / 30; // ancho mínimo: garantiza end > start (1 frame @30fps)
+    const words: WordStamp[] = [];
+    for (let i = 0; i < raw.length; i++) {
+      const w = raw[i];
+      const nextStart = raw[i + 1]?.start ?? null;
+      let end = w.end ?? nextStart ?? durationSec;
+      let start = w.start;
+      const prev = words[words.length - 1];
+      if (prev && start < prev.end) start = prev.end; // sin solapes
+      // Fuerza end > start SIEMPRE (palabras sub-frame o colapsadas por el clamp
+      // anti-solape no se resaltarían nunca; el render usa frame < end exclusivo).
+      if (end < start + MIN_WORD_SEC) end = start + MIN_WORD_SEC;
+      words.push({ text: w.text, start, end });
+    }
+
+    const transcript: WordTranscript = {
+      src,
+      language: opts.language ?? "auto",
+      durationSec,
+      model: DEFAULT_MODEL,
+      words,
+    };
+    await fs.mkdir(TRANSCRIPTS_DIR, { recursive: true });
+    await fs.writeFile(wordsCacheFile(src, opts.language ?? "default"), JSON.stringify(transcript), "utf8");
+    return transcript;
+  } finally {
+    if (cleanup) await cleanup();
+  }
+}
+
 interface AsrChunk {
   timestamp: [number, number | null];
   text: string;
@@ -226,6 +317,7 @@ export async function transcribeSource(
   const { file, cleanup } = await resolveInput(src);
   try {
     const audio = await extractAudio(file);
+    if (audio.length < 1600) throw new Error("Audio insuficiente o sin pista de audio (< 0.1s).");
     const durationSec = audio.length / 16000;
     const asr = (await getAsr()) as (
       a: Float32Array,
@@ -302,6 +394,7 @@ export interface TranscribeJob {
   status: "running" | "done" | "error";
   src: string;
   language: string;
+  kind: "segments" | "words";
   error?: string;
 }
 const jobs = (globalThis as unknown as { __cutgent_tjobs?: Map<string, TranscribeJob> });
@@ -312,10 +405,16 @@ function jobMap(): Map<string, TranscribeJob> {
 export function getTranscribeJob(id: string): TranscribeJob | undefined {
   return jobMap().get(id);
 }
-export function startTranscribeJob(id: string, src: string, language?: string): void {
-  jobMap().set(id, { id, status: "running", src, language: language ?? "default" });
+export function startTranscribeJob(
+  id: string,
+  src: string,
+  language?: string,
+  kind: "segments" | "words" = "segments",
+): void {
+  jobMap().set(id, { id, status: "running", src, language: language ?? "default", kind });
   const evict = () => setTimeout(() => jobMap().delete(id), 10 * 60 * 1000).unref?.();
-  void transcribeSource(src, { language })
+  const run = kind === "words" ? transcribeWords(src, { language }) : transcribeSource(src, { language });
+  void run
     .then(() => {
       const j = jobMap().get(id);
       if (j) j.status = "done";

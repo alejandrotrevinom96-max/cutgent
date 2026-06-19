@@ -274,6 +274,14 @@ export const TextClipSchema = z.object({
   shadowBlur: z.number().default(0),
   shadowOffsetX: z.number().default(0),
   shadowOffsetY: z.number().default(0),
+  // Captions animados (karaoke): palabras con timing en FRAMES relativos al INICIO
+  // del clip. Si `words` está presente, el render resalta la palabra activa según
+  // el frame actual (color `activeColor` + escala `activeScale`).
+  words: z
+    .array(z.object({ text: z.string(), start: z.number(), end: z.number() }))
+    .optional(),
+  activeColor: z.string().optional(),
+  activeScale: z.number().optional(),
 });
 export type TextClip = z.infer<typeof TextClipSchema>;
 

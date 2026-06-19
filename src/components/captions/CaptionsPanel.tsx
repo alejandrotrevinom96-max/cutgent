@@ -63,6 +63,7 @@ export function CaptionsPanel() {
   const [mode, setMode] = useState<Mode>("srtvtt");
   const [secondsPerLine, setSecondsPerLine] = useState(2.5);
   const [preset, setPreset] = useState<Preset>("youtube");
+  const [animated, setAnimated] = useState(false);
   const [status, setStatus] = useState<
     { kind: "ok"; count: number } | { kind: "error"; message: string } | null
   >(null);
@@ -97,7 +98,7 @@ export function CaptionsPanel() {
     }
 
     // 2) Convertir cues a inputs de clip de texto.
-    const inputs = cuesToClipInputs(cues, { fps, preset });
+    const inputs = cuesToClipInputs(cues, { fps, preset, animated });
 
     // 3) Asegurar pista "Subtítulos" (crearla la primera si no existe).
     const existing = document.tracks.find((t) => t.name === "Subtítulos");
@@ -211,6 +212,19 @@ export function CaptionsPanel() {
               </option>
             ))}
           </select>
+        </label>
+
+        {/* Animado (karaoke) */}
+        <label className="flex cursor-pointer items-center gap-2">
+          <input
+            type="checkbox"
+            checked={animated}
+            onChange={(e) => setAnimated(e.target.checked)}
+            className="accent-[var(--accent)]"
+          />
+          <span className="text-xs text-muted">
+            Animado (karaoke, resalta palabra por palabra)
+          </span>
         </label>
 
         {/* Generar */}

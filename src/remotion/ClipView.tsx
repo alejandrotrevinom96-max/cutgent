@@ -81,7 +81,7 @@ export const ClipView: React.FC<{
   };
 
   // crop y mask se aplican en divs anidados para que no compitan por clip-path.
-  let inner: React.ReactNode = renderContent(clip, d, trackVolume, { width, height }, {
+  let inner: React.ReactNode = renderContent(clip, d, trackVolume, { width, height }, frame, {
     preview,
     proxyMap,
     sampleScope,
@@ -180,6 +180,7 @@ function renderContent(
   d: ReturnType<typeof getClipDynamics>,
   trackVolume: number,
   canvas: { width: number; height: number },
+  frame: number,
   opts: { preview?: boolean; proxyMap?: Record<string, string>; sampleScope?: boolean } = {},
 ): React.ReactNode {
   switch (clip.type) {
@@ -232,6 +233,28 @@ function renderContent(
         clip.strokeColor && clip.strokeWidth > 0
           ? { WebkitTextStrokeWidth: clip.strokeWidth, WebkitTextStrokeColor: clip.strokeColor }
           : {};
+      // Captions karaoke: si hay `words`, resalta la palabra activa según el frame
+      // (relativo al clip por estar dentro de un <Sequence>).
+      const content =
+        clip.words && clip.words.length > 0
+          ? clip.words.map((w, i) => {
+              const active = frame >= w.start && frame < w.end;
+              return (
+                <span
+                  key={i}
+                  style={{
+                    display: "inline-block",
+                    margin: "0 0.18em",
+                    color: active ? clip.activeColor ?? "#ffe000" : clip.color,
+                    transform: active ? `scale(${clip.activeScale ?? 1.12})` : undefined,
+                    transformOrigin: "center",
+                  }}
+                >
+                  {w.text}
+                </span>
+              );
+            })
+          : clip.text;
       return (
         <div
           style={{
@@ -251,7 +274,7 @@ function renderContent(
             ...stroke,
           }}
         >
-          {clip.text}
+          {content}
         </div>
       );
     }

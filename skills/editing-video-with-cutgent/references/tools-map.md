@@ -49,8 +49,8 @@ here only). Time is in FRAMES unless noted (see SKILL.md conventions).
 ## Captions / transcript
 - transcribe a source → `transcribe_source {src,language?}` · read →
   `get_transcript` · detect language → `detect_language`
-- auto captions on a clip → `auto_caption {clipId,preset,language?}`
-  (presets: `youtube`,`tiktok`,`minimal`,`bold`)
+- auto captions on a clip → `auto_caption {clipId,preset,language?,animated?}`
+  (presets: `youtube`,`tiktok`,`minimal`,`bold`; `animated:true` = karaoke word-level)
 - from text → `add_subtitles {srt}` OR `{cues:[{start,end,text}]}` (SECONDS)
 - export → `export_captions {trackName|trackId,format:"srt"|"vtt"}`
 

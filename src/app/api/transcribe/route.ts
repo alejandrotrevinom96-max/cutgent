@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   getCachedTranscript,
+  getCachedWords,
   getTranscribeJob,
   startTranscribeJob,
   detectLanguage,
@@ -18,7 +19,7 @@ export const maxDuration = 600;
  */
 export async function POST(req: NextRequest) {
   try {
-    const { src, language } = await req.json();
+    const { src, language, words } = await req.json();
     if (!src) return NextResponse.json({ error: "Falta 'src'." }, { status: 400 });
 
     // Autodetección de idioma: si no se especifica, detectamos. Si el modelo
@@ -30,6 +31,15 @@ export async function POST(req: NextRequest) {
       detection = await detectLanguage(src);
       if (detection.confident) lang = detection.language;
       else return NextResponse.json({ status: "needs_language", detection });
+    }
+
+    // Modo PALABRA (karaoke): caché y job propios, distinto shape.
+    if (words) {
+      const cachedW = await getCachedWords(src, lang);
+      if (cachedW) return NextResponse.json({ status: "done", words: cachedW, language: lang, detection });
+      const wjobId = newId("trw");
+      startTranscribeJob(wjobId, src, lang, "words");
+      return NextResponse.json({ status: "running", jobId: wjobId, language: lang, detection, kind: "words" });
     }
 
     const cached = await getCachedTranscript(src, lang);
@@ -63,6 +73,10 @@ export async function GET(req: NextRequest) {
   if (id) {
     const job = getTranscribeJob(id);
     if (!job) return NextResponse.json({ status: "error", error: "job no encontrado" }, { status: 404 });
+    if (job.kind === "words") {
+      const words = job.status === "done" ? await getCachedWords(job.src, job.language) : null;
+      return NextResponse.json({ status: job.status, error: job.error, words });
+    }
     const transcript = job.status === "done" ? await getCachedTranscript(job.src, job.language) : null;
     return NextResponse.json({ status: job.status, error: job.error, transcript });
   }

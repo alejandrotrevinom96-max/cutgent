@@ -271,6 +271,9 @@ export function cuesToClipInputs(
     preset?: keyof typeof CAPTION_PRESETS;
     fontSize?: number;
     y?: number;
+    /** Karaoke por reparto uniforme: divide el texto del cue en palabras con
+     *  timing equitativo (para SRT/texto sin timestamps de palabra reales). */
+    animated?: boolean;
   },
 ): Array<{ start: number; duration: number; text: string } & Record<string, unknown>> {
   const style: CaptionStyle = opts.preset ? CAPTION_PRESETS[opts.preset] : {};
@@ -279,13 +282,41 @@ export function cuesToClipInputs(
     const start = secondsToFrames(cue.startSec, opts.fps);
     const duration = Math.max(1, secondsToFrames(cue.endSec - cue.startSec, opts.fps));
 
+    let extra: Record<string, unknown> = {};
+    if (opts.animated) {
+      const tokens = cue.text.split(/\s+/).filter(Boolean);
+      if (tokens.length > 0) {
+        const per = duration / tokens.length;
+        extra = {
+          ...KARAOKE_HIGHLIGHT,
+          words: tokens.map((t, i) => ({
+            text: t,
+            start: Math.round(i * per),
+            end: Math.max(Math.round(i * per) + 1, Math.round((i + 1) * per)),
+          })),
+        };
+      }
+    }
+
     return {
       ...style,
       ...(opts.fontSize !== undefined ? { fontSize: opts.fontSize } : {}),
       ...(opts.y !== undefined ? { y: opts.y } : {}),
+      ...extra,
       start,
       duration,
-      text: cue.text,
+      // En karaoke las palabras fluyen en una línea; normaliza saltos para que el
+      // texto (fallback) sea coherente con los spans.
+      text: opts.animated ? cue.text.replace(/\s*\n\s*/g, " ") : cue.text,
     };
   });
 }
+
+// ---------------------------------------------------------------------------
+// Estilo de resaltado karaoke (palabra activa)
+// ---------------------------------------------------------------------------
+
+/** Estilo de resaltado por defecto para captions animados (amarillo + leve pop).
+ *  La agrupación palabra→cue real vive en el MCP (auto_caption animated); aquí
+ *  solo se usa el reparto uniforme (cuesToClipInputs animated) para texto/SRT. */
+export const KARAOKE_HIGHLIGHT = { activeColor: "#ffe000", activeScale: 1.12 };
