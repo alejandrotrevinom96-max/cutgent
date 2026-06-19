@@ -16,8 +16,14 @@ venv/
 
 # OS / editor cruft
 .DS_Store
-.obsidian/workspace*.json
-.obsidian/cache
 .trash/
 *.tmp
 *.swp
+
+# Obsidian — commit the declarative config (app/core-plugins/templates/daily-notes),
+# ignore per-machine state and user-installed third-party plugin binaries.
+.obsidian/workspace*.json
+.obsidian/workspaces.json
+.obsidian/cache
+.obsidian/plugins/
+.obsidian/community-plugins.json

@@ -7,6 +7,7 @@ Usage:
     python3 scripts/brain.py recall "<query>"  # ranked retrieval (MECH-friendly)
     python3 scripts/brain.py capture "<text>"  # model-free capture into the inbox
     python3 scripts/brain.py migrate [--apply] [--to=N]  # schema migration (dry-run default)
+    python3 scripts/brain.py doctor            # health check (runtime, sqlite, vault, schema)
 
 Everything here is stdlib-only and works offline. `selftest` is the canonical
 gate; CI and humans both run it.
@@ -65,6 +66,52 @@ def cmd_capture(argv: list[str]) -> int:
     return 0
 
 
+def cmd_doctor(_argv: list[str]) -> int:
+    """Health check: runtime, SQLite/FTS5, vault structure, schema, index."""
+    import json as _json
+    checks = []
+
+    def ck(name, ok, detail=""):
+        checks.append((name, ok, detail))
+
+    v = sys.version_info
+    ck("Python >= 3.11", v >= (3, 11), f"{v.major}.{v.minor}.{v.micro}")
+    try:
+        import capabilities
+        feats = capabilities.sqlite_features()
+        ck("SQLite available", True, feats["sqlite_version"])
+        ck("FTS5 available (else LIKE fallback)", True, f"fts5={feats['fts5']}")
+    except Exception as e:  # noqa: BLE001
+        ck("SQLite probe", False, str(e))
+
+    import config
+    ck("vault/ present", os.path.isdir(config.VAULT_DIR), config.VAULT_DIR)
+    for sub in ["00-inbox", "01-projects", "02-areas", "03-resources", "04-archive",
+                "concepts", "mocs", "personal", "templates"]:
+        p = os.path.join(config.VAULT_DIR, sub)
+        ck(f"vault/{sub}/", os.path.isdir(p))
+    try:
+        cur = config.current_schema_version()
+        import validate
+        validate.load_schema(cur)
+        ck("schema CURRENT parses + schema.vN.json loads", True, f"v{cur}")
+    except Exception as e:  # noqa: BLE001
+        ck("schema", False, str(e))
+    try:
+        import index
+        summ = index.reindex(full=False)
+        ck("reindex runs", True, f"{summ['notes']} notes, {summ['links_broken']} broken links")
+    except Exception as e:  # noqa: BLE001
+        ck("reindex", False, str(e))
+
+    all_ok = all(ok for _n, ok, _d in checks)
+    for name, ok, detail in checks:
+        print(f"[{'OK ' if ok else 'FAIL'}] {name}" + (f" — {detail}" if detail else ""))
+    print("\nDOCTOR:", "healthy ✅" if all_ok else "issues found ❌")
+    print("Next: `python3 scripts/brain.py selftest` to run the full guardrail corpus.")
+    return 0 if all_ok else 1
+
+
 def cmd_migrate(argv: list[str]) -> int:
     """Schema migration. Dry-run by default; pass --apply to write."""
     import migrate
@@ -79,7 +126,8 @@ def cmd_migrate(argv: list[str]) -> int:
 
 
 COMMANDS = {"selftest": cmd_selftest, "reindex": cmd_reindex,
-            "recall": cmd_recall, "capture": cmd_capture, "migrate": cmd_migrate}
+            "recall": cmd_recall, "capture": cmd_capture, "migrate": cmd_migrate,
+            "doctor": cmd_doctor}
 
 
 def main(argv: list[str]) -> int:

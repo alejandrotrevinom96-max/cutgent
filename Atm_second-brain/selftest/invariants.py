@@ -174,6 +174,14 @@ INVARIANTS: dict[str, dict] = {
         "error_code": "n/a (property)",
         "covered_by": ["case:test_p12_migrate"],
     },
+    "INV-ONBOARDING-CONFIG": {
+        "desc": "Obsidian config parses with vault-relative paths and wikilinks "
+                "preserved; daily-notes points at the real template; SETUP.md exists; "
+                "brain.py doctor runs healthy.",
+        "enforced_in": "vault/.obsidian config + SETUP.md + brain.py doctor",
+        "error_code": "n/a (property)",
+        "covered_by": ["case:test_p13_onboarding"],
+    },
 }
 
 

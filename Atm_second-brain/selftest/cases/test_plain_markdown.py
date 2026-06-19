@@ -39,10 +39,11 @@ def main() -> int:
                 non_text.append(os.path.relpath(p, ROOT))
     check("no binary/non-UTF8 files in vault (outside attachments/)", not non_text, str(non_text))
 
-    # Every note is a .md file.
+    # Every note is a .md file (excluding attachments/ and the Obsidian config dir).
     bad_ext = []
     for r, _d, files in os.walk(VAULT):
-        if os.path.relpath(r, VAULT).startswith("attachments"):
+        rel_dir = os.path.relpath(r, VAULT)
+        if rel_dir.startswith("attachments") or rel_dir.startswith(".obsidian"):
             continue
         for f in files:
             if f != ".gitkeep" and not f.endswith(".md"):

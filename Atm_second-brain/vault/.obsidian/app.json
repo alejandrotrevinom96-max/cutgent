@@ -1,0 +1,19 @@
+{
+  "attachmentFolderPath": "attachments",
+  "newFileLocation": "folder",
+  "newFileFolderPath": "00-inbox",
+  "useMarkdownLinks": false,
+  "newLinkFormat": "shortest",
+  "alwaysUpdateLinks": true,
+  "showUnsupportedFiles": false,
+  "promptDelete": false,
+  "trashOption": "system",
+  "showFrontmatter": true,
+  "spellcheck": true,
+  "tabSize": 2,
+  "readableLineLength": true,
+  "foldHeading": true,
+  "foldIndent": true,
+  "defaultViewMode": "source",
+  "livePreview": true
+}
