@@ -167,6 +167,13 @@ INVARIANTS: dict[str, dict] = {
         "error_code": "n/a (property)",
         "covered_by": ["case:test_p11_templates"],
     },
+    "INV-MIGRATION-SAFE": {
+        "desc": "Schema migration is dry-run by default, idempotent, re-validates "
+                "against the target schema, and refuses lossy field drops and downgrades.",
+        "enforced_in": "migrate.run",
+        "error_code": "n/a (property)",
+        "covered_by": ["case:test_p12_migrate"],
+    },
 }
 
 

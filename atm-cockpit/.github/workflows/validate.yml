@@ -1,0 +1,21 @@
+name: validate
+# Zero-install headless gate (Node built-ins only). The integration check
+# self-skips when the sibling brain repo isn't present, so it stays green in a
+# cockpit-only checkout.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Cockpit selftest (schemas, supervisor, reducers, FSM, router)
+        run: node tools/selftest.mjs
+      - name: App<->brain integration (auto-skips without the brain)
+        run: node tools/integration.mjs

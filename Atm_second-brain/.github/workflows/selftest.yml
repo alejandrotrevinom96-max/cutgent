@@ -1,0 +1,18 @@
+name: selftest
+# Runs the zero-dependency guardrail corpus on every push/PR. The brain is
+# stdlib-only, so no install step is needed — just Python.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  selftest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run brain selftest
+        run: python3 scripts/brain.py selftest

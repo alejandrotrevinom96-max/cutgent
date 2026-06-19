@@ -6,6 +6,7 @@ Usage:
     python3 scripts/brain.py reindex [--full]  # rebuild the derived index
     python3 scripts/brain.py recall "<query>"  # ranked retrieval (MECH-friendly)
     python3 scripts/brain.py capture "<text>"  # model-free capture into the inbox
+    python3 scripts/brain.py migrate [--apply] [--to=N]  # schema migration (dry-run default)
 
 Everything here is stdlib-only and works offline. `selftest` is the canonical
 gate; CI and humans both run it.
@@ -64,8 +65,21 @@ def cmd_capture(argv: list[str]) -> int:
     return 0
 
 
+def cmd_migrate(argv: list[str]) -> int:
+    """Schema migration. Dry-run by default; pass --apply to write."""
+    import migrate
+    apply = "--apply" in argv
+    target = None
+    for a in argv:
+        if a.startswith("--to="):
+            target = int(a.split("=", 1)[1])
+    result = migrate.run(apply=apply, target=target)
+    print(json.dumps(result, indent=2))
+    return 0 if not result["errors"] else 1
+
+
 COMMANDS = {"selftest": cmd_selftest, "reindex": cmd_reindex,
-            "recall": cmd_recall, "capture": cmd_capture}
+            "recall": cmd_recall, "capture": cmd_capture, "migrate": cmd_migrate}
 
 
 def main(argv: list[str]) -> int:
