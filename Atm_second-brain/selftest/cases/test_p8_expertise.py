@@ -21,7 +21,10 @@ PILOTS = ["image-video-editing-generation", "web-design", "copywriting",
           "communication", "3d-animation", "learning", "productivity",
           "software-engineering", "data-analysis", "marketing-growth", "sales",
           "leadership-management", "decision-making", "health-fitness", "writing",
-          "psychology", "philosophy"]
+          "psychology", "philosophy",
+          "cinematography", "content-strategy", "product-design-ux", "legal-literacy",
+          "brand-identity", "photography", "business-finance", "sound-audio",
+          "relationships", "career"]
 COMPANIONS = ["exemplars.md", "rubric.md", "anti-patterns.md", "sources.md"]
 
 ok = True

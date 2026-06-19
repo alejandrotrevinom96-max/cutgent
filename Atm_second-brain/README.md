@@ -47,16 +47,27 @@ vault/          The notes (PARA + Zettelkasten + MOCs)
 server/         The stdlib MCP server (parser, index, recall, writer, trust, migrate…)
 scripts/brain.py  CLI: doctor · selftest · reindex · recall · capture · migrate
 selftest/       The guardrail corpus (26 invariants, 100% covered) — `brain.py selftest`
-.claude/skills/ 5 base skills + pack-supervisor + 19 expertise packs (+ template)
+.claude/skills/ 5 base skills + pack-supervisor + 31 expertise packs (+ template)
 ```
 
 ## The expertise system
 
-19 domain packs, each an Agent Skill with a **binary rubric** (no "you are an expert"
-persona): web-design, copywriting, image-video-editing-generation, 3d-animation,
-writing · software-engineering, data-analysis · business-strategy, marketing-growth,
-sales, negotiation, personal-finance · communication, counsel, leadership-management,
-decision-making, learning, productivity, health-fitness.
+31 domain packs, each an Agent Skill with a **binary rubric** (no "you are an expert"
+persona), grouped:
+
+- **Craft / Create** — web-design, copywriting, image-video-editing-generation,
+  3d-animation, writing, cinematography, photography, sound-audio, brand-identity.
+- **Build / Analyze** — software-engineering, data-analysis, product-design-ux.
+- **Business / Money** — business-strategy, marketing-growth, sales, negotiation,
+  personal-finance, business-finance, content-strategy, legal-literacy.
+- **People / Self** — communication, counsel, leadership-management, decision-making,
+  learning, productivity, health-fitness, psychology, philosophy, relationships, career.
+
+The non-generic ones carry their honest caveats in the pack itself: psychology is
+evidence-graded (flags replication-crisis findings) and bounded against therapy;
+philosophy is anti-dogmatic; legal-literacy and business-finance are education, not
+advice (they name when to get a lawyer / CPA); relationships is reflective support,
+not couples therapy.
 
 Each pack is bridged to a **`personal/<domain>`** note. A pack only *overrides* generic
 best practice once you fill that note in and confirm it (the agent can't fake the

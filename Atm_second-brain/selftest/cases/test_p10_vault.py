@@ -28,7 +28,10 @@ DOMAINS = ["web-design", "copywriting", "image-video-editing-generation", "negot
            "3d-animation", "learning", "productivity",
            "software-engineering", "data-analysis", "marketing-growth", "sales",
            "leadership-management", "decision-making", "health-fitness", "writing",
-           "psychology", "philosophy"]
+           "psychology", "philosophy",
+           "cinematography", "content-strategy", "product-design-ux", "legal-literacy",
+           "brand-identity", "photography", "business-finance", "sound-audio",
+           "relationships", "career"]
 
 
 def check(name, cond, detail=""):

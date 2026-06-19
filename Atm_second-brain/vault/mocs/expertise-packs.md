@@ -30,11 +30,16 @@ capability to *your* situation, and so the agent's graph connects skill → self
 - `image-video-editing-generation` — making, editing, or generating images/video · related:: [[personal/image-video-editing-generation]]
 - `3d-animation` — modeling, rigging, or animating in 3D · related:: [[personal/3d-animation]]
 - `writing` — long-form nonfiction: essays, articles, docs, narrative · related:: [[personal/writing]]
+- `cinematography` — directing the camera and image for video/film · related:: [[personal/cinematography]]
+- `photography` — the craft of the still image: light, composition, edit · related:: [[personal/photography]]
+- `sound-audio` — recording, mixing, loudness, and sound design for video · related:: [[personal/sound-audio]]
+- `brand-identity` — building a coherent identity system above page level · related:: [[personal/brand-identity]]
 
 ## Build / Analyze  #build
 
 - `software-engineering` — writing, reviewing, debugging, or designing software · related:: [[personal/software-engineering]]
 - `data-analysis` — turning data into honest decisions · related:: [[personal/data-analysis]]
+- `product-design-ux` — product thinking, user research, interaction design · related:: [[personal/product-design-ux]]
 
 ## Business / Money  #business
 
@@ -43,6 +48,9 @@ capability to *your* situation, and so the agent's graph connects skill → self
 - `sales` — consultative selling, discovery, pipeline, closing · related:: [[personal/sales]]
 - `negotiation` — preparing for or running any deal or high-stakes bargain · related:: [[personal/negotiation]]
 - `personal-finance` — budgeting, investing, or a money decision for yourself · related:: [[personal/personal-finance]]
+- `business-finance` — runway, unit economics, the statements, founder bookkeeping · related:: [[personal/business-finance]]
+- `content-strategy` — creator-economy audience building: hooks, formats, distribution · related:: [[personal/content-strategy]]
+- `legal-literacy` — contracts, IP, licensing, releases (education, not advice) · related:: [[personal/legal-literacy]]
 
 ## People / Self  #people-self
 
@@ -55,6 +63,8 @@ capability to *your* situation, and so the agent's graph connects skill → self
 - `health-fitness` — training, nutrition, and recovery (general education) · related:: [[personal/health-fitness]]
 - `psychology` — behavior, cognition, motivation, emotion (evidence-graded, not therapy) · related:: [[personal/psychology]]
 - `philosophy` — reasoning, ethics, epistemology, meaning (across traditions) · related:: [[personal/philosophy]]
+- `relationships` — interpersonal dynamics: conflict, repair, boundaries, trust · related:: [[personal/relationships]]
+- `career` — direction, positioning, resume/portfolio, interviews, leverage · related:: [[personal/career]]
 
 ## Meta  #meta
 
