@@ -2,14 +2,13 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { cockpit, newTurnId } from "./lib/ipc";
 import { VrmStage } from "./avatar/VrmStage";
 import { WorkspaceHost } from "./WorkspaceHost";
-import { BrowserTts, type VisemeEvent } from "./providers/tts";
-import { BrowserStt, type SttEvent } from "./providers/stt";
+import { pickStt, pickTts, type VisemeEvent, type SttEvent } from "./providers";
 // @ts-ignore shared pure ESM
 import { reduceTranscript } from "../shared/transcript/store.mjs";
 import manifest from "../../fixtures/negotiation-cockpit.workspace.json";
 
-const tts = new BrowserTts();
-const stt = new BrowserStt();
+const tts = pickTts();
+const stt = pickStt();
 
 export function App() {
   const [graph, setGraph] = useState<any>({ nodes: [], edges: [] });

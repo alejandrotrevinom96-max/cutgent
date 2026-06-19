@@ -1,0 +1,32 @@
+{
+  "schema": "workspace.manifest/1",
+  "id": "full-palette",
+  "title": "Full palette — every widget type",
+  "rev": "test",
+  "layout": {
+    "kind": "grid",
+    "cols": 12,
+    "areas": [
+      { "widget": "transcript", "x": 0, "y": 0, "w": 4, "h": 4 },
+      { "widget": "recall", "x": 4, "y": 0, "w": 4, "h": 4 },
+      { "widget": "graph", "x": 8, "y": 0, "w": 4, "h": 4 },
+      { "widget": "options", "x": 0, "y": 4, "w": 4, "h": 3 },
+      { "widget": "entity", "x": 4, "y": 4, "w": 4, "h": 3 },
+      { "widget": "checklist", "x": 8, "y": 4, "w": 4, "h": 3 },
+      { "widget": "timer", "x": 0, "y": 7, "w": 4, "h": 2 },
+      { "widget": "teleprompter", "x": 4, "y": 7, "w": 4, "h": 2 },
+      { "widget": "calc", "x": 8, "y": 7, "w": 4, "h": 2 }
+    ]
+  },
+  "widgets": [
+    { "id": "transcript", "type": "live-transcript", "caps": ["audio.stt"], "props": {} },
+    { "id": "recall", "type": "recall-panel", "caps": ["brain.recall"], "props": { "k": 6 } },
+    { "id": "graph", "type": "graph-view", "caps": ["brain.graph_export", "brain.recall"], "props": {} },
+    { "id": "options", "type": "options-panel", "caps": [], "props": { "prompt": "Pick", "options": ["A", "B"] } },
+    { "id": "entity", "type": "entity-card", "caps": ["brain.get_note"], "props": {} },
+    { "id": "checklist", "type": "checklist", "caps": ["brain.get_note"], "props": {} },
+    { "id": "timer", "type": "timer", "caps": ["clock"], "props": { "durationSec": 300, "mode": "down" } },
+    { "id": "teleprompter", "type": "teleprompter", "caps": ["brain.get_note"], "props": {} },
+    { "id": "calc", "type": "calculator", "caps": ["compute"], "props": {} }
+  ]
+}

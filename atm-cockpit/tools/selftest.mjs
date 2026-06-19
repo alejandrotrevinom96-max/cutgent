@@ -17,6 +17,10 @@ import { phonemeToViseme, VRM_VISEMES } from "../src/shared/avatar/visemeMap.mjs
 import { buildLipsync } from "../src/shared/avatar/lipsyncTimeline.mjs";
 import { transition } from "../src/shared/turn/stateMachine.mjs";
 import { route } from "../src/shared/turn/router.mjs";
+import { ALL_WIDGET_TYPES } from "../src/shared/sdui/registry.mjs";
+import { evaluate } from "../src/shared/widgets/calc.mjs";
+import { toggle, progress } from "../src/shared/widgets/checklist.mjs";
+import { formatClock, tick } from "../src/shared/widgets/timer.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const J = (p) => JSON.parse(readFileSync(join(ROOT, p), "utf8"));
@@ -53,6 +57,35 @@ for (const f of readdirSync(join(ROOT, invalidDir)).sort()) {
 const overreach = JSON.parse(JSON.stringify(cockpit));
 overreach.widgets.find(w => w.id === "recall").caps = ["brain.recall", "audio.tts"]; // recall-panel may not hold audio.tts
 check("capability over-reach rejected", !composeWorkspace(overreach, wsSchema).ok);
+
+// ---- full widget palette (all 9 types) ----
+check("registry has all 9 widget types", ALL_WIDGET_TYPES.length === 9, ALL_WIDGET_TYPES.join(","));
+const palette = J("fixtures/full-palette.workspace.json");
+const pc = composeWorkspace(palette, wsSchema);
+check("full-palette manifest (all 9 widgets) is accepted", pc.ok, pc.errors.join("; "));
+const usedTypes = new Set(palette.widgets.map((w) => w.type));
+check("full-palette exercises every registered widget type",
+      ALL_WIDGET_TYPES.every((t) => usedTypes.has(t)), [...usedTypes].join(","));
+
+// ---- calculator (pure, no eval) ----
+check("calc: 2+3*4 = 14", evaluate("2+3*4") === 14);
+check("calc: (2+3)*4 = 20", evaluate("(2+3)*4") === 20);
+check("calc: unary minus -5+2 = -3", evaluate("-5+2") === -3);
+check("calc: right-assoc 2^3^2 = 512", evaluate("2^3^2") === 512);
+check("calc: 10%3 = 1", evaluate("10%3") === 1);
+let calcThrew = false; try { evaluate("2+"); } catch { calcThrew = true; }
+check("calc: malformed expression throws (no silent NaN)", calcThrew);
+
+// ---- checklist (pure) ----
+const cl0 = [{ label: "a", done: false }, { label: "b", done: false }];
+const cl1 = toggle(cl0, 0);
+check("checklist: toggle flips one item immutably", cl1[0].done === true && cl0[0].done === false);
+check("checklist: progress computes pct/complete", progress(cl1).pct === 50 && progress(cl1).complete === false);
+
+// ---- timer (pure) ----
+check("timer: formatClock 65 -> 1:05", formatClock(65) === "1:05");
+check("timer: formatClock 3661 -> 1:01:01", formatClock(3661) === "1:01:01");
+check("timer: countdown expires at 0", tick({ mode: "down", elapsedSec: 300, durationSec: 300 }).expired === true);
 
 // ---- recall.trace/1 ----
 const trace = J("fixtures/recall-trace.fixture.json");

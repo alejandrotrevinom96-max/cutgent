@@ -6,6 +6,11 @@ import { LiveTranscript } from "./widgets/LiveTranscript";
 import { RecallPanel } from "./widgets/RecallPanel";
 import { OptionsPanel } from "./widgets/OptionsPanel";
 import { GraphView } from "./widgets/GraphView";
+import { EntityCard } from "./widgets/EntityCard";
+import { Checklist } from "./widgets/Checklist";
+import { Timer } from "./widgets/Timer";
+import { Teleprompter } from "./widgets/Teleprompter";
+import { Calculator } from "./widgets/Calculator";
 
 // WorkspaceHost — the renderer half of "the agent proposes, the renderer disposes".
 // It runs the SAME composeWorkspace validator used in the headless selftest; an
@@ -48,6 +53,16 @@ function renderWidget(w: any, ctx: any) {
       return <GraphView graph={ctx.graph} trace={ctx.trace} />;
     case "options-panel":
       return <OptionsPanel prompt={w.props?.prompt} options={w.props?.options} onChoose={ctx.onOption} />;
+    case "entity-card":
+      return <EntityCard entity={ctx.entity} fields={w.props?.fields} />;
+    case "checklist":
+      return <Checklist seed={w.props?.items} />;
+    case "timer":
+      return <Timer durationSec={w.props?.durationSec} mode={w.props?.mode} />;
+    case "teleprompter":
+      return <Teleprompter script={w.props?.script} wpm={w.props?.wpm} />;
+    case "calculator":
+      return <Calculator />;
     default:
       return <div className="widget"><h3>{w.type}</h3><div className="body" style={{ color: "var(--muted)" }}>widget not yet implemented</div></div>;
   }
