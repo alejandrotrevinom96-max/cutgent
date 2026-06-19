@@ -15,7 +15,12 @@ knowledge graph that animates the brain's *actual* recall traversal), plus
 
 1. **Graph viewer** reading the brain's index (`graph_export`) and animating the
    honest `recall.trace` (gold = your words matched a note; blue = a 1-hop link).
-2. **Talking avatar** — VRM + viseme lip-sync on the audio clock, blink/idle/gaze.
+2. **Talking avatar** — VRM + viseme lip-sync on the audio clock, blink/idle/gaze,
+   and an **affect engine** (`src/shared/affect/`) so her demeanor adapts to the
+   conversation: a baseline by topic (serious for philosophy, focused for business,
+   warm for counsel) plus moment overrides (she can laugh at something funny, soften
+   to concern if you're overwhelmed). Drives VRM expression weights + voice prosody,
+   eased frame-by-frame so transitions are fluid, never snapped. Pure + headless-tested.
 3. **Live-transcript widget** — local, ephemeral transcription (mic), the data path
    for things like live deal negotiation.
 4. **Generative workspace composition** — the agent emits a validated

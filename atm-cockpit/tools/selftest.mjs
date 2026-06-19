@@ -21,6 +21,7 @@ import { ALL_WIDGET_TYPES } from "../src/shared/sdui/registry.mjs";
 import { evaluate } from "../src/shared/widgets/calc.mjs";
 import { toggle, progress } from "../src/shared/widgets/checklist.mjs";
 import { formatClock, tick } from "../src/shared/widgets/timer.mjs";
+import { computeAffect, blendAffect, domainBaseline, VRM_EXPRESSIONS } from "../src/shared/affect/affect.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const J = (p) => JSON.parse(readFileSync(join(ROOT, p), "utf8"));
@@ -145,6 +146,36 @@ check("router: micro-suggestion -> CHEAP/haiku", route({ kind: "micro-suggestion
 check("router: backchannel -> MECH/no-model", route({ kind: "backchannel" }).tier === "MECH" && route({ kind: "backchannel" }).model === null);
 check("router: NEGOTIATION PIN — deep + forbidden never escalates to FULL", route({ kind: "deep", escalation: "forbidden" }).tier === "CHEAP");
 check("router: offline forces MECH", route({ kind: "deep", offline: true }).tier === "MECH");
+
+// ---- affect engine: demeanor adapts to topic (baseline) + moment (override) ----
+const phil = computeAffect({ domain: "philosophy" });
+check("affect: philosophy baseline is serious + low arousal",
+      phil.baseline === "serious" && phil.arousal < 0.5, `${phil.mood}/${phil.arousal}`);
+check("affect: business/negotiation baseline is focused",
+      domainBaseline("business-finance") === "focused" && domainBaseline("negotiation") === "focused");
+const warm = computeAffect({ domain: "counsel" });
+check("affect: counsel baseline is warm (positive valence)", warm.valence > 0, String(warm.valence));
+// moment override: she can laugh even on a serious topic
+const joke = computeAffect({ domain: "philosophy", text: "jajaja that's hilarious 😂" });
+check("affect: humor flips a serious baseline to playful", joke.mood === "playful" && joke.expressions.happy > 0.4,
+      `${joke.mood}/${joke.expressions.happy}`);
+// distress softens to concern regardless of topic
+const distress = computeAffect({ domain: "sales", text: "honestly I'm so overwhelmed and anxious" });
+check("affect: distress overrides to concerned (care first)",
+      distress.mood === "concerned" && distress.expressions.sad > 0 && distress.valence < 0,
+      `${distress.mood}/${distress.valence}`);
+// every weight is a valid VRM expression in [0,1]
+const okExpr = Object.entries(joke.expressions).every(([k, v]) => VRM_EXPRESSIONS.includes(k) && v >= 0 && v <= 1);
+check("affect: expression weights are valid VRM expressions in [0,1]", okExpr, JSON.stringify(joke.expressions));
+// blendAffect eases (fluid, no snap): blended happy lands strictly between prev and target
+const prev = computeAffect({ domain: "philosophy" });               // low happy
+const target = computeAffect({ domain: "philosophy", text: "haha" }); // high happy
+const eased = blendAffect(prev, target, 0.25);
+check("affect: blendAffect eases between states (fluid transition)",
+      eased.expressions.happy > prev.expressions.happy && eased.expressions.happy < target.expressions.happy,
+      `${prev.expressions.happy} -> ${eased.expressions.happy} -> ${target.expressions.happy}`);
+check("affect: computeAffect is deterministic",
+      JSON.stringify(computeAffect({ domain: "philosophy", text: "haha" })) === JSON.stringify(target));
 
 console.log("");
 console.log("COCKPIT SELFTEST:", ok ? "ALL GREEN ✅" : "FAILURES ❌");

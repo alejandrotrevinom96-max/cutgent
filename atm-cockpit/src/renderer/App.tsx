@@ -5,6 +5,8 @@ import { WorkspaceHost } from "./WorkspaceHost";
 import { pickStt, pickTts, type VisemeEvent, type SttEvent } from "./providers";
 // @ts-ignore shared pure ESM
 import { reduceTranscript } from "../shared/transcript/store.mjs";
+// @ts-ignore shared pure ESM
+import { computeAffect } from "../shared/affect/affect.mjs";
 import manifest from "../../fixtures/negotiation-cockpit.workspace.json";
 
 const tts = pickTts();
@@ -20,6 +22,7 @@ export function App() {
   const [text, setText] = useState("");
   const sttEvents = useRef<SttEvent[]>([]);          // EPHEMERAL transcript buffer (ADR D10)
   const [transcriptLines, setTranscriptLines] = useState<any[]>([]);
+  const [affect, setAffect] = useState<any>(() => computeAffect({}));
   const stateRef = useRef(avatarState);
   stateRef.current = avatarState;
 
@@ -28,7 +31,12 @@ export function App() {
     cockpit.graphExport().then(setGraph).catch(() => {});
     const offTurn = cockpit.onTurn((e) => {
       if (e.t === "state") setAvatarState(e.state);
-      else if (e.t === "recall.result") setRecall({ ...e, results: e.results });
+      else if (e.t === "recall.result") {
+        setRecall({ ...e, results: e.results });
+        // refine demeanor with the topic the brain actually grounded in
+        const domain = e.results?.[0]?.domain;
+        if (domain) setAffect(computeAffect({ domain, text: lastQueryRef.current }));
+      }
       else if (e.t === "speak") tts.speak(e.text, e.turnId, setVisemes).then(() => setAvatarState("idle"));
     });
     const offGraph = cockpit.onAnimateGraph((e) => setTrace(e.trace));
@@ -39,6 +47,9 @@ export function App() {
   function startTurn(utterance: string) {
     if (!utterance.trim()) return;
     lastQueryRef.current = utterance.trim();
+    // demeanor reacts to what was just said; refined with the topic when recall lands
+    const domain = recall?.results?.[0]?.domain;
+    setAffect(computeAffect({ domain, text: utterance.trim() }));
     setText("");
     cockpit.startTurn(newTurnId(), utterance.trim());
   }
@@ -68,7 +79,7 @@ export function App() {
     <div className="app">
       <div className="stage">
         <div className={`badge ${micOn ? "live" : ""}`}>{micOn ? "● listening (local)" : avatarState}</div>
-        <VrmStage visemes={visemes} state={avatarState} />
+        <VrmStage visemes={visemes} state={avatarState} affect={affect} />
       </div>
       <div className="workspace">
         <WorkspaceHost manifest={manifest as any} ctx={ctx} />

@@ -7,11 +7,15 @@ import type { VisemeEvent } from "../providers/tts";
 // VrmStage — the avatar (ADR D4). Stylized VRM, one renderer/scene/loop, viseme
 // blend on the audio clock, idle blink + gaze. Place a model at /public/avatar.vrm.
 // If absent, renders a stylized placeholder head so the app still runs.
-export function VrmStage({ visemes, state }: { visemes: VisemeEvent[]; state: string }) {
+const EMOTION_KEYS = ["happy", "angry", "sad", "relaxed", "surprised"]; // neutral = rest
+
+export function VrmStage({ visemes, state, affect }: { visemes: VisemeEvent[]; state: string; affect?: any }) {
   const mount = useRef<HTMLDivElement>(null);
   const visemeRef = useRef<{ events: VisemeEvent[]; start: number }>({ events: [], start: 0 });
+  const affectRef = useRef<any>(affect || null);
 
   useEffect(() => { visemeRef.current = { events: visemes || [], start: performance.now() }; }, [visemes]);
+  useEffect(() => { affectRef.current = affect || null; }, [affect]);
 
   useEffect(() => {
     const el = mount.current!;
@@ -61,6 +65,7 @@ export function VrmStage({ visemes, state }: { visemes: VisemeEvent[]; state: st
     const ro = new ResizeObserver(resize); ro.observe(el);
 
     let raf = 0; const clock = new THREE.Clock(); let nextBlink = 1 + Math.random() * 3;
+    const applied: Record<string, number> = { happy: 0, angry: 0, sad: 0, relaxed: 0, surprised: 0 };
     function tick() {
       const dt = clock.getDelta();
       const t = clock.elapsedTime;
@@ -76,12 +81,22 @@ export function VrmStage({ visemes, state }: { visemes: VisemeEvent[]; state: st
             if (ms >= ev.startMs && ms <= ev.startMs + ev.durMs) em?.setValue(ev.target.id, ev.weight);
           }
         }
+        // emotion (affect): ease applied weights toward the target each frame so the
+        // demeanor shift is FLUID, never a snap. Mouth visemes win while speaking.
+        const tgt = affectRef.current?.expressions || {};
+        const speaking = state === "speaking";
+        for (const k of EMOTION_KEYS) {
+          const want = (tgt[k] || 0) * (speaking && k === "happy" ? 0.5 : 1); // don't fight lipsync
+          applied[k] += (want - applied[k]) * Math.min(1, dt * 4);
+          em?.setValue(k, applied[k]);
+        }
         // blink
         nextBlink -= dt;
         if (nextBlink < 0) { em?.setValue("blink", 1); if (nextBlink < -0.12) nextBlink = 2 + Math.random() * 3; }
         else em?.setValue("blink", 0);
-        // idle breathing
-        vrm.scene.position.y = Math.sin(t * 1.4) * 0.004;
+        // idle breathing — a touch more alive when aroused/energetic
+        const energy = affectRef.current?.energy ?? 0.35;
+        vrm.scene.position.y = Math.sin(t * (1.2 + energy)) * (0.003 + energy * 0.004);
         vrm.lookAt && (vrm.lookAt.target = camera);
         em?.update();
         vrm.update(dt);
