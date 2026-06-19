@@ -106,6 +106,26 @@ export function TopBar() {
     }
   };
 
+  const exportNleFile = async (format: "fcp7" | "fcpxml" = "fcp7") => {
+    setFormatMenu(false);
+    try {
+      const res = await fetch("/api/export/nle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ format }),
+      });
+      if (!res.ok) throw new Error("Error exportando XML.");
+      const blob = await res.blob();
+      const a = window.document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `${document.name || "proyecto"}.xml`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch {
+      /* ignore */
+    }
+  };
+
   const pollStatus = async (jobId: string) => {
     try {
       const res = await fetch(`/api/render/status?id=${encodeURIComponent(jobId)}`);
@@ -368,6 +388,16 @@ export function TopBar() {
               <p className="px-2 py-1 text-[10px] leading-snug text-muted">
                 ProRes/WebM pesan y tardan más. GIF no lleva audio.
               </p>
+
+              <div className="my-1 border-t border-border" />
+              <button
+                type="button"
+                onClick={() => void exportNleFile("fcp7")}
+                title="Exporta la línea de tiempo como XML para continuar en Premiere Pro o DaVinci Resolve"
+                className="flex w-full items-center gap-1.5 rounded px-2 py-1.5 text-left text-xs text-muted hover:bg-panel hover:text-text"
+              >
+                <ExternalLink size={12} /> Premiere / Resolve (.xml)
+              </button>
             </div>
           </MenuPortal>
         </div>

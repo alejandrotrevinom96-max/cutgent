@@ -912,6 +912,35 @@ server.registerTool(
 );
 
 server.registerTool(
+  "export_nle",
+  {
+    title: "Exportar XML para editor (Premiere / DaVinci Resolve)",
+    description:
+      "Exporta la línea de tiempo como XML de NLE para CONTINUAR el proyecto en otro editor. format: fcp7 (def — importa nativo en Premiere y DaVinci Resolve). " +
+      "Incluye video/imagen/audio con in/out/posición y velocidad; el texto va como generador (puede no conservar estilo); formas/sólidos se omiten; no hay round-trip de efectos/color/transform. Devuelve el XML.",
+    inputSchema: { format: z.enum(["fcp7", "fcpxml"]).optional() },
+  },
+  tool(async (args) => {
+    const res = await fetchRetry(`${getBase()}/api/export/nle`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ format: args.format ?? "fcp7" }),
+    });
+    const text = await res.text();
+    if (!res.ok) throw new Error(`POST /api/export/nle ${res.status}: ${text}`);
+    const wh = res.headers.get("X-Cutgent-Warnings");
+    let warnNote = "";
+    if (wh) {
+      try {
+        const ws = JSON.parse(decodeURIComponent(wh)) as string[];
+        if (ws.length) warnNote = `\n\n[Avisos de export (${ws.length})]\n- ${ws.join("\n- ")}`;
+      } catch { /* ignore */ }
+    }
+    return ok(text + warnNote);
+  }),
+);
+
+server.registerTool(
   "render_status",
   {
     title: "Estado del render",
