@@ -20,28 +20,39 @@ capability to *your* situation, and so the agent's graph connects skill → self
 
 > Use this note to answer "what can you help with?" Pick a group, scan the "use
 > when", then follow the link to your own context. Each personal note starts as an
-> empty stub; fill it in to make the agent follow *your* preferences over generic
-> best practice. See `source:: .claude/skills/` for the packs themselves.
+> empty stub; fill it in (see [[first run]]) to make the agent follow *your*
+> preferences over generic best practice. `source:: .claude/skills/`
 
 ## Craft / Create  #craft
 
 - `web-design` — building or critiquing a site, UI, or landing page · related:: [[personal/web-design]]
-- `copywriting` — writing or sharpening words that must persuade or convert · related:: [[personal/copywriting]]
+- `copywriting` — words that must persuade or convert · related:: [[personal/copywriting]]
 - `image-video-editing-generation` — making, editing, or generating images/video · related:: [[personal/image-video-editing-generation]]
 - `3d-animation` — modeling, rigging, or animating in 3D · related:: [[personal/3d-animation]]
+- `writing` — long-form nonfiction: essays, articles, docs, narrative · related:: [[personal/writing]]
+
+## Build / Analyze  #build
+
+- `software-engineering` — writing, reviewing, debugging, or designing software · related:: [[personal/software-engineering]]
+- `data-analysis` — turning data into honest decisions · related:: [[personal/data-analysis]]
 
 ## Business / Money  #business
 
 - `business-strategy` — direction, positioning, or how a venture makes money · related:: [[personal/business-strategy]]
+- `marketing-growth` — positioning, channels, funnel, growth experiments · related:: [[personal/marketing-growth]]
+- `sales` — consultative selling, discovery, pipeline, closing · related:: [[personal/sales]]
 - `negotiation` — preparing for or running any deal or high-stakes bargain · related:: [[personal/negotiation]]
-- `personal-finance` — budgeting, investing, or any money decision for yourself · related:: [[personal/personal-finance]]
+- `personal-finance` — budgeting, investing, or a money decision for yourself · related:: [[personal/personal-finance]]
 
 ## People / Self  #people-self
 
 - `communication` — structuring a message, talk, or hard conversation · related:: [[personal/communication]]
 - `counsel` — thinking through a personal, ethical, or life decision · related:: [[personal/counsel]]
+- `leadership-management` — leading people, 1:1s, feedback, hiring, delegation · related:: [[personal/leadership-management]]
+- `decision-making` — weighing a hard decision under uncertainty · related:: [[personal/decision-making]]
 - `learning` — learning a new skill or designing how to study something · related:: [[personal/learning]]
 - `productivity` — planning, prioritizing, or fixing how work gets done · related:: [[personal/productivity]]
+- `health-fitness` — training, nutrition, and recovery (general education) · related:: [[personal/health-fitness]]
 
 ## Meta  #meta
 
@@ -55,4 +66,4 @@ System packs (no personal-domain counterpart, so unbridged by design):
 ## See also
 
 - supports:: [[Home]]
-- related:: [[personal/identity]]
+- related:: [[personal/identity]] · [[first run]]

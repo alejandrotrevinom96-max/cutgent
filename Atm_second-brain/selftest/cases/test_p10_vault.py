@@ -25,7 +25,9 @@ import validate  # noqa: E402
 ok = True
 DOMAINS = ["web-design", "copywriting", "image-video-editing-generation", "negotiation",
            "business-strategy", "personal-finance", "counsel", "communication",
-           "3d-animation", "learning", "productivity"]
+           "3d-animation", "learning", "productivity",
+           "software-engineering", "data-analysis", "marketing-growth", "sales",
+           "leadership-management", "decision-making", "health-fitness", "writing"]
 
 
 def check(name, cond, detail=""):
