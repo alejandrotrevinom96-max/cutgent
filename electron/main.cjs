@@ -81,13 +81,6 @@ const userData = app.getPath("userData");
 
 // Carpeta de datos escribible (la leen las rutas vía CUTGENT_DATA_DIR).
 process.env.CUTGENT_DATA_DIR = userData;
-// process.cwd() debe apuntar al código (src/remotion lo usa el bundler de
-// Remotion en tiempo de render).
-try {
-  process.chdir(appDir);
-} catch {
-  /* ignore */
-}
 
 // Log a archivo (para soporte): userData/logs/main.log.
 const LOG_FILE = path.join(userData, "logs", "main.log");
@@ -103,6 +96,14 @@ function log(...args) {
 }
 process.on("uncaughtException", (e) => log("uncaughtException:", e));
 process.on("unhandledRejection", (e) => log("unhandledRejection:", e));
+
+// process.cwd() debe apuntar al código (Remotion bundler lo usa en render).
+// Se hace DESPUÉS de definir log() para REGISTRAR un fallo en vez de tragarlo.
+try {
+  process.chdir(appDir);
+} catch (e) {
+  log("[chdir] no se pudo cambiar a appDir:", e?.message || e);
+}
 
 /** Página de error legible (en vez de ventana en blanco). */
 function errorPage(detail) {
@@ -146,21 +147,19 @@ function setupAutoUpdate() {
       /* ignore */
     }
     if (!owner || owner.includes("CAMBIAME")) {
-      console.warn("[updater] desactivado: configura build.publish.owner (package.json) con tu repo real.");
+      log("[updater] desactivado: configura build.publish.owner (package.json) con tu repo real.");
       return;
     }
     const { autoUpdater } = require("electron-updater");
+    autoUpdater.logger = { info: (m) => log("[updater]", m), warn: (m) => log("[updater]", m), error: (m) => log("[updater]", m), debug: () => {} };
     autoUpdater.autoDownload = true;
-    autoUpdater.on("update-downloaded", () => {
-      // Se instala al cerrar; opcionalmente se puede forzar quitAndInstall().
-      console.log("[updater] actualización descargada; se instalará al cerrar.");
-    });
-    autoUpdater.on("error", (e) => console.error("[updater]", e?.message || e));
+    autoUpdater.on("update-downloaded", () => log("[updater] actualización descargada; se instalará al cerrar."));
+    autoUpdater.on("error", (e) => log("[updater]", e?.message || e));
     autoUpdater.checkForUpdatesAndNotify().catch(() => {});
     // Re-chequea cada 4 horas para sesiones largas.
     setInterval(() => autoUpdater.checkForUpdatesAndNotify().catch(() => {}), 4 * 60 * 60 * 1000);
   } catch (e) {
-    console.error("[updater] no disponible:", e?.message || e);
+    log("[updater] no disponible:", e?.message || e);
   }
 }
 
@@ -188,11 +187,19 @@ async function createWindow() {
     shown = true;
     win.show();
     win.focus();
+    log("[window] visible");
   };
   win.once("ready-to-show", reveal);
   win.webContents.once("did-finish-load", reveal);
   const revealTimer = setTimeout(reveal, 15000);
   win.once("closed", () => clearTimeout(revealTimer));
+
+  // Cualquier fallo se muestra como página de error VISIBLE (nunca ventana fantasma).
+  const showError = (detail) => {
+    log("[error]", detail);
+    win.loadURL(errorPage(detail)).catch(() => {});
+    reveal();
+  };
 
   // Abre enlaces externos en el navegador del sistema, no en la app.
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -204,8 +211,13 @@ async function createWindow() {
   });
 
   win.webContents.on("did-fail-load", (_e, code, desc, url) => {
-    if (code === -3) return; // abortos benignos
+    if (code === -3) return; // abortos benignos (navegación cancelada)
     log("did-fail-load:", code, desc, url);
+    if (!String(url).startsWith("data:")) showError(`No se pudo cargar la app (${code} ${desc}).`);
+  });
+  win.webContents.on("render-process-gone", (_e, d) => {
+    log("render-process-gone:", d && d.reason);
+    showError(`El proceso de la interfaz terminó inesperadamente (${d && d.reason}).`);
   });
 
   if (isDev) {
@@ -214,8 +226,14 @@ async function createWindow() {
     try {
       ensureModels();
       const { startServer } = require("./server.cjs");
-      serverInfo = await startServer({ appDir, dataDir: userData, token: AUTH_TOKEN });
+      // Timeout: si prepare()/listen se cuelga, surge como error visible y NO
+      // deja la ventana invisible para siempre.
+      serverInfo = await Promise.race([
+        startServer({ appDir, dataDir: userData, token: AUTH_TOKEN }),
+        new Promise((_r, rej) => setTimeout(() => rej(new Error("El servidor tardó demasiado en iniciar (timeout 30s).")), 30000)),
+      ]);
       const baseUrl = `http://127.0.0.1:${serverInfo.port}`;
+      log("[server] escuchando en", baseUrl, "pid", process.pid);
       // La UI lleva el token por cookie (se envía sola en fetch/EventSource/<video>).
       try {
         await session.defaultSession.cookies.set({
@@ -237,10 +255,10 @@ async function createWindow() {
       } catch (e) {
         log("[endpoint] no se pudo escribir:", e?.message || e);
       }
+      log("[window] cargando", baseUrl);
       await win.loadURL(baseUrl);
     } catch (e) {
-      log("Fallo al arrancar el servidor:", e);
-      await win.loadURL(errorPage(e?.stack || e?.message || e));
+      showError(e?.stack || e?.message || String(e));
     }
   }
 }

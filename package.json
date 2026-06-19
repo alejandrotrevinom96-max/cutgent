@@ -1,6 +1,6 @@
 {
   "name": "cutgent",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Editor de video full-stack controlable 100% por Claude vía MCP",
   "main": "electron/main.cjs",
@@ -17,8 +17,9 @@
     "predownload:model": "node scripts/predownload-model.mjs",
     "predownload:browser": "node scripts/predownload-browser.mjs",
     "predownload:all": "npm run predownload:model && npm run predownload:browser",
-    "dist:win": "next build && npm run mcp:bundle && npm run predownload:all && electron-builder --win",
-    "dist:mac": "next build && npm run mcp:bundle && npm run predownload:all && electron-builder --mac"
+    "clean:next": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\"",
+    "dist:win": "npm run clean:next && next build && npm run mcp:bundle && npm run predownload:all && electron-builder --win",
+    "dist:mac": "npm run clean:next && next build && npm run mcp:bundle && npm run predownload:all && electron-builder --mac"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.2.0",

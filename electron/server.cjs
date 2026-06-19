@@ -17,7 +17,9 @@ const MIME = {
 function serveStatic(req, res, baseDir) {
   const urlPath = decodeURIComponent((parse(req.url).pathname || "").replace(/\/+/g, "/"));
   const filePath = path.normalize(path.join(baseDir, urlPath));
-  if (!filePath.startsWith(baseDir)) {
+  // Anti path-traversal robusto: filePath debe quedar ESTRICTAMENTE dentro de baseDir.
+  const rel = path.relative(baseDir, filePath);
+  if (rel === "" || rel.startsWith("..") || path.isAbsolute(rel)) {
     res.statusCode = 403;
     return res.end("Forbidden");
   }
