@@ -112,7 +112,7 @@ TOOLS: dict[str, dict[str, Any]] = {
             "with grep/git only, at $0 and offline. Always succeeds."
         ),
         "inputSchema": {"type": "object", "properties": {}},
-        "handler": _stub("mech_status"),
+        "handler": None,  # bound below
     },
 }
 
@@ -123,12 +123,14 @@ from recall import recall_tool  # noqa: E402
 from trust import resolve_tier_tool  # noqa: E402
 from citations import citation_verify_tool  # noqa: E402
 from writer import write_with_provenance_tool  # noqa: E402
+from mech import mech_status_tool  # noqa: E402
 
 TOOLS["reindex"]["handler"] = reindex_tool
 TOOLS["recall"]["handler"] = recall_tool
 TOOLS["resolve_tier"]["handler"] = resolve_tier_tool
 TOOLS["citation_verify"]["handler"] = citation_verify_tool
 TOOLS["write_with_provenance"]["handler"] = write_with_provenance_tool
+TOOLS["mech_status"]["handler"] = mech_status_tool
 
 
 def list_tools() -> list[dict]:

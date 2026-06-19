@@ -5,6 +5,7 @@ Usage:
     python3 scripts/brain.py selftest          # run the full guardrail corpus
     python3 scripts/brain.py reindex [--full]  # rebuild the derived index
     python3 scripts/brain.py recall "<query>"  # ranked retrieval (MECH-friendly)
+    python3 scripts/brain.py capture "<text>"  # model-free capture into the inbox
 
 Everything here is stdlib-only and works offline. `selftest` is the canonical
 gate; CI and humans both run it.
@@ -41,7 +42,30 @@ def cmd_recall(argv: list[str]) -> int:
     return 0
 
 
-COMMANDS = {"selftest": cmd_selftest, "reindex": cmd_reindex, "recall": cmd_recall}
+def cmd_capture(argv: list[str]) -> int:
+    """Model-free capture (Python path; mirrors scripts/capture.sh)."""
+    import datetime
+    text = " ".join(argv) if argv else sys.stdin.read()
+    text = text.strip() or "(empty capture)"
+    now = datetime.datetime.now(datetime.timezone.utc)
+    ts = now.strftime("%Y%m%d%H%M%S")
+    day = now.strftime("%Y-%m-%d")
+    title = (text.splitlines()[0][:72] or "Captured note").replace('"', '\\"')
+    inbox = os.environ.get("ATM_INBOX", os.path.join(ROOT, "vault", "00-inbox"))
+    os.makedirs(inbox, exist_ok=True)
+    path = os.path.join(inbox, f"{ts}-capture.md")
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(
+            f'---\nschema_version: 1\nid: "{ts}-capture"\ntitle: "{title}"\n'
+            f"type: note\ncreated: {day}\nupdated: {day}\n"
+            f"trust_tier: self-authored\nauthor: human\ntags: [inbox, capture]\n---\n\n{text}\n"
+        )
+    print(path)
+    return 0
+
+
+COMMANDS = {"selftest": cmd_selftest, "reindex": cmd_reindex,
+            "recall": cmd_recall, "capture": cmd_capture}
 
 
 def main(argv: list[str]) -> int:

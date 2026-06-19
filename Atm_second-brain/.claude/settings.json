@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'ATM second brain: writes go through write_with_provenance; human notes are immutable; cite or mark uncertain. See CLAUDE.md.'"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/brain.py\" reindex >/dev/null 2>&1 || true"
+          }
+        ]
+      }
+    ]
+  }
+}
