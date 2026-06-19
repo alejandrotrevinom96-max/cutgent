@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "graph.export/1",
+  "title": "graph.export/1 — static whole-vault graph",
+  "type": "object",
+  "required": ["schema", "nodes", "edges"],
+  "additionalProperties": true,
+  "properties": {
+    "schema": { "const": "graph.export/1" },
+    "rev": { "type": ["string", "null"] },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "type", "tags"],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": ["string", "null"] },
+          "type": { "type": ["string", "null"] },
+          "tags": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["src", "dst", "type"],
+        "properties": {
+          "src": { "type": "string" },
+          "dst": { "type": "string" },
+          "type": { "type": "string" }
+        }
+      }
+    }
+  }
+}

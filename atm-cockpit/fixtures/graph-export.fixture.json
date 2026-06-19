@@ -1,0 +1,43 @@
+{
+  "schema": "graph.export/1",
+  "rev": "abc123",
+  "nodes": [
+    {
+      "id": "n1",
+      "title": "Vector Clocks",
+      "type": "concept",
+      "tags": [
+        "distsys"
+      ]
+    },
+    {
+      "id": "n2",
+      "title": "Lamport Time",
+      "type": "concept",
+      "tags": [
+        "distsys",
+        "time"
+      ]
+    },
+    {
+      "id": "n3",
+      "title": "Logs MOC",
+      "type": "moc",
+      "tags": [
+        "distsys"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "src": "n1",
+      "dst": "n2",
+      "type": "refines"
+    },
+    {
+      "src": "n1",
+      "dst": "n3",
+      "type": "wikilink"
+    }
+  ]
+}

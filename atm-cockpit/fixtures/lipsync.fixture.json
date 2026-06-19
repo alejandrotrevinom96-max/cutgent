@@ -1,0 +1,30 @@
+{
+  "turnId": "t1",
+  "phonemes": [
+    {
+      "phoneme": "HH",
+      "startMs": 0,
+      "durMs": 60
+    },
+    {
+      "phoneme": "AH",
+      "startMs": 60,
+      "durMs": 120
+    },
+    {
+      "phoneme": "L",
+      "startMs": 180,
+      "durMs": 80
+    },
+    {
+      "phoneme": "OW",
+      "startMs": 260,
+      "durMs": 140
+    },
+    {
+      "phoneme": "sil",
+      "startMs": 400,
+      "durMs": 100
+    }
+  ]
+}

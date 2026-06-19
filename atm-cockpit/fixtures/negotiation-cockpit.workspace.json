@@ -1,0 +1,47 @@
+{
+  "schema": "workspace.manifest/1",
+  "id": "negotiation-cockpit",
+  "title": "Negotiation Cockpit — Acme",
+  "originPack": "negotiation",
+  "rev": "REPLACED_AT_COMPOSE",
+  "layout": {
+    "kind": "grid",
+    "cols": 12,
+    "areas": [
+      { "widget": "transcript", "x": 0, "y": 0, "w": 4, "h": 8 },
+      { "widget": "graph", "x": 4, "y": 0, "w": 5, "h": 5 },
+      { "widget": "recall", "x": 9, "y": 0, "w": 3, "h": 8 },
+      { "widget": "options", "x": 4, "y": 5, "w": 5, "h": 3 }
+    ]
+  },
+  "widgets": [
+    {
+      "id": "transcript",
+      "type": "live-transcript",
+      "caps": ["audio.stt"],
+      "props": { "speakerLabels": true, "redactPII": true, "highlightTerms": ["price", "deadline", "scope"] }
+    },
+    {
+      "id": "graph",
+      "type": "graph-view",
+      "caps": ["brain.graph_export", "brain.recall"],
+      "props": { "animateTrace": true, "seedQuery": "vendor contract terms" }
+    },
+    {
+      "id": "recall",
+      "type": "recall-panel",
+      "caps": ["brain.recall"],
+      "props": { "querySource": "transcript", "k": 6, "showCitations": true }
+    },
+    {
+      "id": "options",
+      "type": "options-panel",
+      "caps": [],
+      "props": { "prompt": "Counter-offer stance?", "options": ["Hold firm", "Split difference", "Concede deadline"] }
+    }
+  ],
+  "wiring": [
+    { "from": "transcript", "on": "contextWindow", "to": "recall", "action": "query" },
+    { "from": "transcript", "on": "contextWindow", "to": "options", "action": "context" }
+  ]
+}

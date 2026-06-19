@@ -1,0 +1,42 @@
+{
+  "schema": "recall.trace/1",
+  "tier": null,
+  "seeds": [
+    "n1",
+    "n2"
+  ],
+  "expanded": [
+    "n3"
+  ],
+  "edges": [
+    {
+      "src": "n1",
+      "dst": "n3",
+      "type": "wikilink"
+    },
+    {
+      "src": "n1",
+      "dst": "n2",
+      "type": "refines"
+    }
+  ],
+  "steps": [
+    {
+      "kind": "seed",
+      "node": "n1"
+    },
+    {
+      "kind": "seed",
+      "node": "n2"
+    },
+    {
+      "kind": "expand",
+      "edge": 0,
+      "node": "n3"
+    }
+  ],
+  "answer_sources": [
+    "n1",
+    "n3"
+  ]
+}

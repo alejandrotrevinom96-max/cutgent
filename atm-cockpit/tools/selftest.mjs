@@ -1,0 +1,113 @@
+#!/usr/bin/env node
+// Cockpit selftest — the headless, zero-dependency gate (mirrors the brain's
+// selftest discipline). Validates schemas, the negotiation-cockpit manifest, a
+// battery of invalid manifests, and every pure reducer/FSM/router against fixtures.
+// No GUI, no npm install required:  node tools/selftest.mjs
+
+import { readFileSync, readdirSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+import { validate } from "../src/shared/sdui/validate.mjs";
+import { composeWorkspace } from "../src/shared/sdui/supervisor.mjs";
+import { reduceTrace } from "../src/shared/graph/traceReducer.mjs";
+import { seedLayout } from "../src/shared/graph/layout.mjs";
+import { reduceTranscript, contextWindow } from "../src/shared/transcript/store.mjs";
+import { phonemeToViseme, VRM_VISEMES } from "../src/shared/avatar/visemeMap.mjs";
+import { buildLipsync } from "../src/shared/avatar/lipsyncTimeline.mjs";
+import { transition } from "../src/shared/turn/stateMachine.mjs";
+import { route } from "../src/shared/turn/router.mjs";
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+const J = (p) => JSON.parse(readFileSync(join(ROOT, p), "utf8"));
+
+let ok = true;
+const check = (name, cond, detail = "") => {
+  console.log(`[${cond ? "PASS" : "FAIL"}] ${name}${detail ? " — " + detail : ""}`);
+  if (!cond) ok = false;
+};
+
+// ---- schemas load ----
+const wsSchema = J("schemas/workspace.manifest.schema.json");
+const traceSchema = J("schemas/recall.trace.schema.json");
+const graphSchema = J("schemas/graph.export.schema.json");
+check("schemas load", !!(wsSchema && traceSchema && graphSchema));
+
+// ---- generative UI: valid manifest passes ----
+const cockpit = J("fixtures/negotiation-cockpit.workspace.json");
+const composed = composeWorkspace(cockpit, wsSchema);
+check("negotiation-cockpit manifest is accepted", composed.ok, composed.errors.join("; "));
+check("cockpit composes 4 widgets", composed.widgets.length === 4);
+check("options-panel got zero effective caps", (composed.widgets.find(w => w.id === "options").effectiveCaps || []).length === 0);
+
+// ---- generative UI: every invalid manifest is rejected (fail-closed) ----
+const invalidDir = "fixtures/invalid";
+for (const f of readdirSync(join(ROOT, invalidDir)).sort()) {
+  if (!f.endsWith(".json")) continue;
+  const m = J(`${invalidDir}/${f}`);
+  const r = composeWorkspace(m, wsSchema);
+  check(`invalid manifest rejected: ${f}`, !r.ok, r.ok ? "WRONGLY ACCEPTED" : r.errors[0]);
+}
+
+// ---- capability scoping: a widget over-requesting caps is rejected ----
+const overreach = JSON.parse(JSON.stringify(cockpit));
+overreach.widgets.find(w => w.id === "recall").caps = ["brain.recall", "audio.tts"]; // recall-panel may not hold audio.tts
+check("capability over-reach rejected", !composeWorkspace(overreach, wsSchema).ok);
+
+// ---- recall.trace/1 ----
+const trace = J("fixtures/recall-trace.fixture.json");
+check("trace fixture is schema-valid", validate(trace, traceSchema).length === 0, validate(trace, traceSchema).join("; "));
+const red = reduceTrace(trace);
+check("reduceTrace frame count == steps", red.frames.length === trace.steps.length, `${red.frames.length} vs ${trace.steps.length}`);
+check("reduceTrace seeds before expands", red.frames.findIndex(f => f.kind === "expand") > red.frames.filter(f => f.kind === "seed").length - 1 || !red.frames.some(f => f.kind === "expand"));
+check("reduceTrace highlight == answer_sources", JSON.stringify(red.highlight) === JSON.stringify(trace.answer_sources));
+check("reduceTrace durationMs > 0", red.durationMs > 0);
+check("expand frame carries its edge object", red.frames.find(f => f.kind === "expand").edge?.src === "n1");
+
+// ---- graph.export/1 ----
+const gx = J("fixtures/graph-export.fixture.json");
+check("graph-export fixture is schema-valid", validate(gx, graphSchema).length === 0, validate(gx, graphSchema).join("; "));
+const ids = new Set(gx.nodes.map(n => n.id));
+check("graph-export edges connect exported nodes", gx.edges.every(e => ids.has(e.src) && ids.has(e.dst)));
+
+// ---- layout determinism ----
+const l1 = seedLayout(gx.nodes);
+const l2 = seedLayout([...gx.nodes].reverse());
+check("seedLayout is deterministic & order-independent", JSON.stringify(l1.n1) === JSON.stringify(l2.n1));
+
+// ---- transcript ----
+const events = J("fixtures/transcript-events.fixture.json");
+const t = reduceTranscript(events);
+check("transcript final count == 2", t.finalCount === 2, String(t.finalCount));
+check("transcript context window non-empty", contextWindow(events).length > 0);
+
+// ---- viseme map + lipsync ----
+check("visemeMap: AA->aa, M->closed(null), IY->ee", phonemeToViseme("AA1") === "aa" && phonemeToViseme("M") === null && phonemeToViseme("IY0") === "ee");
+const lip = J("fixtures/lipsync.fixture.json");
+const ve = buildLipsync(lip);
+check("lipsync skips silence (4 events from 5 phonemes)", ve.length === 4, String(ve.length));
+check("lipsync ids are all valid VRM visemes", ve.every(e => VRM_VISEMES.includes(e.target.id)));
+check("lipsync look-ahead clamps first event to 0ms", ve[0].startMs === 0);
+check("lipsync carries turnId for epoch-guarded barge-in", ve.every(e => e.turnId === "t1"));
+
+// ---- turn FSM ----
+let s = "idle";
+const path = ["vad.speechStart", "vad.endpoint", "tool.begin", "assistant.firstAudio", "turn.done"];
+const expect = ["listening", "thinking", "recalling", "speaking", "idle"];
+let fsmOk = true;
+path.forEach((ev, i) => { s = transition(s, ev).state; if (s !== expect[i]) fsmOk = false; });
+check("FSM happy path idle->...->idle", fsmOk, `ended at ${s}`);
+const bi = transition("speaking", "vad.speechStart");
+check("FSM barge-in: speaking+speech -> interrupted", bi.state === "interrupted");
+check("FSM barge-in stops output before cancelling cognition", bi.effects[0] === "tts.stop" && bi.effects.includes("abort") && bi.effects.includes("stage.discard"));
+
+// ---- tier router ----
+check("router: deep -> FULL/opus", route({ kind: "deep" }).model === "claude-opus-4-8");
+check("router: micro-suggestion -> CHEAP/haiku", route({ kind: "micro-suggestion" }).model === "claude-haiku-4-5");
+check("router: backchannel -> MECH/no-model", route({ kind: "backchannel" }).tier === "MECH" && route({ kind: "backchannel" }).model === null);
+check("router: NEGOTIATION PIN — deep + forbidden never escalates to FULL", route({ kind: "deep", escalation: "forbidden" }).tier === "CHEAP");
+check("router: offline forces MECH", route({ kind: "deep", offline: true }).tier === "MECH");
+
+console.log("");
+console.log("COCKPIT SELFTEST:", ok ? "ALL GREEN ✅" : "FAILURES ❌");
+process.exit(ok ? 0 : 1);

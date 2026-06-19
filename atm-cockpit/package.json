@@ -1,0 +1,39 @@
+{
+  "name": "atm-cockpit",
+  "version": "0.1.0",
+  "description": "Surface C — a desktop client that gives the ATM second brain a visible body (VRM avatar) and a live Obsidian-style knowledge graph, with voice and generative widgets.",
+  "private": true,
+  "type": "module",
+  "main": "out/main/index.js",
+  "scripts": {
+    "selftest": "node tools/selftest.mjs",
+    "integration": "node tools/integration.mjs",
+    "validate": "npm run selftest && npm run integration",
+    "typecheck": "tsc --noEmit",
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.1.0",
+    "@pixiv/three-vrm": "3.1.6",
+    "d3-force-3d": "3.0.5",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "three": "0.169.0",
+    "three-forcegraph": "1.41.16"
+  },
+  "devDependencies": {
+    "@types/node": "20.14.0",
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "@types/three": "0.169.0",
+    "electron": "31.7.6",
+    "electron-vite": "2.3.0",
+    "typescript": "5.6.3",
+    "vite": "5.4.11"
+  },
+  "overrides": {
+    "three": "0.169.0"
+  }
+}

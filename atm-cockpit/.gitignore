@@ -1,0 +1,8 @@
+node_modules/
+out/
+dist/
+*.log
+.DS_Store
+.vite/
+# the user supplies their own avatar model (can be large)
+public/avatar.vrm

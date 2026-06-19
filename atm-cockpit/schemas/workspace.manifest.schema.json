@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "workspace.manifest/1",
+  "title": "Surface C — generative workspace manifest v1",
+  "description": "Declarative spec the agent emits to compose a UI workspace. Data, never code. Validated fail-closed against a CLOSED widget registry.",
+  "type": "object",
+  "required": ["schema", "id", "layout", "widgets"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": { "const": "workspace.manifest/1" },
+    "id": { "type": "string", "pattern": "^[a-z0-9-]+$", "maxLength": 64 },
+    "title": { "type": "string", "maxLength": 120 },
+    "rev": { "type": "string" },
+    "originPack": { "type": "string", "maxLength": 64 },
+    "layout": {
+      "type": "object",
+      "required": ["kind", "areas"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "enum": ["grid"] },
+        "cols": { "type": "integer", "minimum": 1, "maximum": 12, "default": 12 },
+        "areas": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "items": {
+            "type": "object",
+            "required": ["widget", "x", "y", "w", "h"],
+            "additionalProperties": false,
+            "properties": {
+              "widget": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+              "x": { "type": "integer", "minimum": 0, "maximum": 11 },
+              "y": { "type": "integer", "minimum": 0, "maximum": 47 },
+              "w": { "type": "integer", "minimum": 1, "maximum": 12 },
+              "h": { "type": "integer", "minimum": 1, "maximum": 48 }
+            }
+          }
+        }
+      }
+    },
+    "widgets": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "required": ["id", "type"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9-]+$", "maxLength": 64 },
+          "type": {
+            "enum": [
+              "live-transcript", "recall-panel", "graph-view", "options-panel",
+              "entity-card", "checklist", "timer", "teleprompter", "calculator"
+            ]
+          },
+          "caps": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "enum": ["brain.recall", "brain.graph_export", "brain.get_note",
+                       "audio.stt", "audio.tts", "clock", "compute"]
+            }
+          },
+          "props": { "type": "object" }
+        }
+      }
+    },
+    "wiring": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "required": ["from", "on", "to", "action"],
+        "additionalProperties": false,
+        "properties": {
+          "from": { "type": "string" },
+          "on": { "type": "string" },
+          "to": { "type": "string" },
+          "action": { "type": "string" },
+          "map": { "type": "object" }
+        }
+      }
+    }
+  }
+}

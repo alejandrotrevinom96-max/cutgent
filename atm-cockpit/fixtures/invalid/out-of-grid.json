@@ -1,0 +1,28 @@
+{
+  "schema": "workspace.manifest/1",
+  "id": "x",
+  "title": "t",
+  "layout": {
+    "kind": "grid",
+    "cols": 12,
+    "areas": [
+      {
+        "widget": "a",
+        "x": 10,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      }
+    ]
+  },
+  "widgets": [
+    {
+      "id": "a",
+      "type": "recall-panel",
+      "caps": [
+        "brain.recall"
+      ],
+      "props": {}
+    }
+  ]
+}

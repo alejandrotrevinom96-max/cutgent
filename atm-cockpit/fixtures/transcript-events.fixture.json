@@ -1,0 +1,32 @@
+[
+  {
+    "kind": "partial",
+    "turnId": "t1",
+    "speaker": "them",
+    "text": "so on price we"
+  },
+  {
+    "kind": "partial",
+    "turnId": "t1",
+    "speaker": "them",
+    "text": "so on price we were thinking"
+  },
+  {
+    "kind": "final",
+    "turnId": "t1",
+    "speaker": "them",
+    "text": "So on price, we were thinking forty."
+  },
+  {
+    "kind": "partial",
+    "turnId": "t1",
+    "speaker": "me",
+    "text": "the deadline is"
+  },
+  {
+    "kind": "final",
+    "turnId": "t1",
+    "speaker": "me",
+    "text": "The deadline is the real constraint."
+  }
+]
