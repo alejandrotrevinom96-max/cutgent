@@ -1,0 +1,23 @@
+# Derived/index artifacts — rebuildable from the markdown source of truth.
+# The vault (markdown + git) is canonical; never commit the derived index.
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+.atm/
+selftest/.cache/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# OS / editor cruft
+.DS_Store
+.obsidian/workspace*.json
+.obsidian/cache
+.trash/
+*.tmp
+*.swp

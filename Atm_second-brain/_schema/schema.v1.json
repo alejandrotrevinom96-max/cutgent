@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "atm-second-brain/_schema/schema.v1.json",
+  "title": "ATM Second Brain — Note Frontmatter Contract v1",
+  "description": "Canonical, machine-readable contract for the YAML frontmatter of every note in the vault. Validation is hand-rolled in the stdlib MCP server (no jsonschema dependency); this file is the single source of truth that both the server and the human read from. Append-only and immutable once published: changes ship as schema.vN, never edits to v1.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version",
+    "id",
+    "title",
+    "type",
+    "created",
+    "updated",
+    "trust_tier",
+    "author"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version this note is written against. Writes MUST equal the integer in _schema/CURRENT; the server never auto-upgrades. Migration is the only path to a higher version."
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[0-9]{14}-[a-z0-9-]+$",
+      "description": "Stable identity, never reused: UTC timestamp YYYYMMDDhhmmss + '-' + kebab slug. Links resolve by id/alias, never by filename, so notes can be renamed freely."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-facing title. May change; identity lives in id."
+    },
+    "type": {
+      "type": "string",
+      "enum": ["note", "concept", "moc", "project", "area", "resource", "daily", "literature", "meta", "template"],
+      "description": "Note role. Drives folder placement convention and review behavior."
+    },
+    "created": {
+      "type": "string",
+      "format": "date",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "description": "UTC creation date (YYYY-MM-DD). Immutable after first write."
+    },
+    "updated": {
+      "type": "string",
+      "format": "date",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "description": "UTC date of last content change (YYYY-MM-DD)."
+    },
+    "trust_tier": {
+      "type": "string",
+      "enum": ["self-authored", "human-confirmed", "externally-ingested"],
+      "description": "Provenance trust level. Fail-closed: unknown or missing => treated as externally-ingested. Subject to a monotonic anti-laundering floor — a note's effective tier can never silently rise."
+    },
+    "author": {
+      "type": "string",
+      "enum": ["human", "agent", "mixed"],
+      "description": "Who produced the prose. 'human' atoms are immutable to the agent. 'mixed' requires span-level provenance in the body or provenance block."
+    },
+    "domain": {
+      "type": "string",
+      "description": "Optional life/expertise domain tag (e.g. 'web-design', 'business', 'image-video', 'counsel'). Used to route expertise packs."
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9/_-]*$" },
+      "uniqueItems": true,
+      "description": "Lowercase kebab tags; '/' allowed for hierarchy. The tag graph is built from these, separate from the FTS index."
+    },
+    "aliases": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true,
+      "description": "Alternate names a wikilink may resolve to. Add an alias instead of renaming to preserve inbound links."
+    },
+    "sources": {
+      "type": "array",
+      "description": "Citations backing claims in this note. citation_verify checks every entry resolves.",
+      "items": {
+        "type": "object",
+        "required": ["cite"],
+        "additionalProperties": true,
+        "properties": {
+          "cite": { "type": "string", "description": "Human-readable citation string." },
+          "url": { "type": "string", "description": "Canonical URL if any." },
+          "locator": { "type": "string", "description": "Page / section / timestamp within the source." },
+          "accessed": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$", "description": "Date the source was accessed (YYYY-MM-DD)." }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "description": "Machine-managed provenance block. Written by write_with_provenance; the tier_lineage is append-only.",
+      "additionalProperties": true,
+      "properties": {
+        "source": { "type": "string", "description": "Where the content originated (human, agent-run id, external ingest id)." },
+        "ingested_at": { "type": "string", "description": "ISO-8601 UTC timestamp of ingestion." },
+        "content_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$", "description": "sha256 of the note body at write time; powers the integrity manifest and idempotent reindex." },
+        "tier_lineage": {
+          "type": "array",
+          "description": "Append-only history of trust_tier transitions; the anti-laundering floor is the max-trust ever justified, not the latest claim.",
+          "items": {
+            "type": "object",
+            "required": ["tier", "at"],
+            "properties": {
+              "tier": { "type": "string", "enum": ["self-authored", "human-confirmed", "externally-ingested"] },
+              "at": { "type": "string" },
+              "by": { "type": "string" },
+              "reason": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}
