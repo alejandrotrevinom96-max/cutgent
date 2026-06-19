@@ -12,7 +12,7 @@ import { REGISTRY } from "./registry.mjs";
  * @param {string[]} grantedCaps    capabilities the session policy permits
  * @returns {{ok:boolean, errors:string[], widgets:object[], droppedCaps:object[]}}
  */
-export function composeWorkspace(manifest, schema, grantedCaps = ["brain.recall", "brain.graph_export", "brain.get_note", "audio.stt", "audio.tts", "clock", "compute"]) {
+export function composeWorkspace(manifest, schema, grantedCaps = ["brain.recall", "brain.graph_export", "brain.get_note", "brain.consolidate", "audio.stt", "audio.tts", "clock", "compute"]) {
   const errors = [];
 
   // 1. structural validation against the manifest schema (fail-closed)

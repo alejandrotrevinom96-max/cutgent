@@ -13,9 +13,10 @@
       { "widget": "options", "x": 0, "y": 4, "w": 4, "h": 3 },
       { "widget": "entity", "x": 4, "y": 4, "w": 4, "h": 3 },
       { "widget": "checklist", "x": 8, "y": 4, "w": 4, "h": 3 },
-      { "widget": "timer", "x": 0, "y": 7, "w": 4, "h": 2 },
-      { "widget": "teleprompter", "x": 4, "y": 7, "w": 4, "h": 2 },
-      { "widget": "calc", "x": 8, "y": 7, "w": 4, "h": 2 }
+      { "widget": "timer", "x": 0, "y": 7, "w": 3, "h": 2 },
+      { "widget": "teleprompter", "x": 3, "y": 7, "w": 3, "h": 2 },
+      { "widget": "calc", "x": 6, "y": 7, "w": 3, "h": 2 },
+      { "widget": "consolidate", "x": 9, "y": 7, "w": 3, "h": 2 }
     ]
   },
   "widgets": [
@@ -27,6 +28,7 @@
     { "id": "checklist", "type": "checklist", "caps": ["brain.get_note"], "props": {} },
     { "id": "timer", "type": "timer", "caps": ["clock"], "props": { "durationSec": 300, "mode": "down" } },
     { "id": "teleprompter", "type": "teleprompter", "caps": ["brain.get_note"], "props": {} },
-    { "id": "calc", "type": "calculator", "caps": ["compute"], "props": {} }
+    { "id": "calc", "type": "calculator", "caps": ["compute"], "props": {} },
+    { "id": "consolidate", "type": "consolidate-panel", "caps": ["brain.consolidate", "brain.recall"], "props": { "topicSource": "transcript", "dryRun": true } }
   ]
 }

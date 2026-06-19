@@ -58,11 +58,16 @@ const overreach = JSON.parse(JSON.stringify(cockpit));
 overreach.widgets.find(w => w.id === "recall").caps = ["brain.recall", "audio.tts"]; // recall-panel may not hold audio.tts
 check("capability over-reach rejected", !composeWorkspace(overreach, wsSchema).ok);
 
-// ---- full widget palette (all 9 types) ----
-check("registry has all 9 widget types", ALL_WIDGET_TYPES.length === 9, ALL_WIDGET_TYPES.join(","));
+// a non-consolidate widget may not hold brain.consolidate (least privilege)
+const consolidateReach = JSON.parse(JSON.stringify(cockpit));
+consolidateReach.widgets.find(w => w.id === "recall").caps = ["brain.recall", "brain.consolidate"];
+check("brain.consolidate over-reach on recall-panel rejected", !composeWorkspace(consolidateReach, wsSchema).ok);
+
+// ---- full widget palette (all 10 types) ----
+check("registry has all 10 widget types", ALL_WIDGET_TYPES.length === 10, ALL_WIDGET_TYPES.join(","));
 const palette = J("fixtures/full-palette.workspace.json");
 const pc = composeWorkspace(palette, wsSchema);
-check("full-palette manifest (all 9 widgets) is accepted", pc.ok, pc.errors.join("; "));
+check("full-palette manifest (all 10 widgets) is accepted", pc.ok, pc.errors.join("; "));
 const usedTypes = new Set(palette.widgets.map((w) => w.type));
 check("full-palette exercises every registered widget type",
       ALL_WIDGET_TYPES.every((t) => usedTypes.has(t)), [...usedTypes].join(","));

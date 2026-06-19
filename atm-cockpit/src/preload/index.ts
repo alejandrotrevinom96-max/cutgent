@@ -6,6 +6,7 @@ const api = {
   // read-only brain ops for the graph + recall panels
   graphExport: (limit?: number) => ipcRenderer.invoke("brain:graphExport", limit),
   recall: (query: string, opts?: object) => ipcRenderer.invoke("brain:recall", query, opts),
+  consolidate: (topic: string, opts?: object) => ipcRenderer.invoke("brain:consolidate", topic, opts),
   // start a conversational/agent turn from a spoken or typed utterance
   startTurn: (turnId: string, utterance: string) => ipcRenderer.send("turn:start", { turnId, utterance }),
   // subscribe to turn lifecycle + UI effect events

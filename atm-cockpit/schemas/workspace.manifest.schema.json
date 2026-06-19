@@ -51,7 +51,8 @@
           "type": {
             "enum": [
               "live-transcript", "recall-panel", "graph-view", "options-panel",
-              "entity-card", "checklist", "timer", "teleprompter", "calculator"
+              "entity-card", "checklist", "timer", "teleprompter", "calculator",
+              "consolidate-panel"
             ]
           },
           "caps": {
@@ -59,7 +60,7 @@
             "uniqueItems": true,
             "items": {
               "enum": ["brain.recall", "brain.graph_export", "brain.get_note",
-                       "audio.stt", "audio.tts", "clock", "compute"]
+                       "brain.consolidate", "audio.stt", "audio.tts", "clock", "compute"]
             }
           },
           "props": { "type": "object" }

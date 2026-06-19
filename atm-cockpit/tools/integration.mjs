@@ -47,6 +47,17 @@ try {
   check("recall returns results", Array.isArray(r.results) && r.results.length >= 1);
   check("recall trace is recall.trace/1", r.trace?.schema === "recall.trace/1");
   check("recall trace has seeds", (r.trace?.seeds || []).length >= 1, JSON.stringify(r.trace?.seeds));
+  check("recall exposes hybrid retrieval signals", Array.isArray(r.retrieval?.signals) && r.retrieval.signals.includes("lexical"),
+        JSON.stringify(r.retrieval));
+
+  // consolidate is a canonical op now; dry-run must either draft (citing sources)
+  // or refuse via the anti-autophagy guard — never silently write.
+  check("tools include consolidate", names.has("consolidate"));
+  const c = await brain.consolidate("model proposes server disposes guardrail", { k: 6 });
+  check("consolidate dry-run is guarded (drafts with sources OR refuses)",
+        (c.ok === true && c.dry_run === true && c.n_sources >= 1) ||
+        (c.ok === false && /autophagy|grounding|no source/i.test(c.reason || "")),
+        JSON.stringify(c).slice(0, 160));
 } catch (e) {
   check("no exception", false, String(e));
 } finally {

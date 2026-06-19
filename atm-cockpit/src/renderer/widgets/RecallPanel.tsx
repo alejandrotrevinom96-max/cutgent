@@ -4,10 +4,16 @@ import React from "react";
 // every claim shows where it came from) and the anti-autophagy floor signal.
 export function RecallPanel({ recall }: { recall: any }) {
   const results = recall?.results ?? [];
+  const ret = recall?.retrieval;
+  const signals = ret?.signals?.join("+");
   return (
     <div className="widget" style={{ height: "100%" }}>
-      <h3>Recall {recall?.mode ? `· ${recall.mode}` : ""}</h3>
+      <h3>Recall {recall?.mode ? `· ${recall.mode}` : ""}{signals ? ` · ${ret.fusion}(${signals})` : ""}</h3>
       <div className="body">
+        {ret?.embeddings && <div className="tier">semantic rerank: on</div>}
+        {ret?.expanded_query?.length > 0 && (
+          <div className="tier">expanded: {ret.expanded_query.join(", ")}</div>
+        )}
         {recall && recall.floor_met === false && (
           <div className="floor-warn">⚠ leaned on agent-authored material — treat as tentative</div>
         )}

@@ -35,8 +35,10 @@ export function App() {
     return () => { offTurn(); offGraph(); };
   }, []);
 
+  const lastQueryRef = useRef("");
   function startTurn(utterance: string) {
     if (!utterance.trim()) return;
+    lastQueryRef.current = utterance.trim();
     setText("");
     cockpit.startTurn(newTurnId(), utterance.trim());
   }
@@ -57,7 +59,9 @@ export function App() {
 
   const ctx = useMemo(() => ({
     transcriptLines, recall, trace, graph,
+    lastQuery: lastQueryRef.current,
     onOption: (o: string) => startTurn(`I'm leaning toward: ${o}. What's the risk?`),
+    onConsolidate: (topic: string, opts: { dry_run: boolean }) => cockpit.consolidate(topic, opts),
   }), [transcriptLines, recall, trace, graph]);
 
   return (

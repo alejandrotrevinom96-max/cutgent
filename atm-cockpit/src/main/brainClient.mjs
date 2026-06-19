@@ -77,6 +77,9 @@ export class BrainClient {
   // Convenience wrappers for the canonical ops the cockpit uses.
   recall(query, opts = {}) { return this.call("recall", { query, with_trace: true, ...opts }); }
   graphExport(limit = 5000) { return this.call("graph_export", { limit }); }
+  // Guarded consolidation. dry_run defaults true; the brain enforces anti-autophagy
+  // and provenance regardless — the cockpit only proposes.
+  consolidate(topic, opts = {}) { return this.call("consolidate", { topic, dry_run: true, ...opts }); }
 
   stop() {
     try { this.proc?.stdin.end(); } catch { /* noop */ }

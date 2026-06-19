@@ -92,6 +92,24 @@ export const REGISTRY = {
     emits: ["result"],
     accepts: ["setExpression"],
   },
+  "consolidate-panel": {
+    // The UI face of the brain's guarded `consolidate` op. The brain still
+    // disposes: it refuses (anti-autophagy) and stamps provenance regardless of
+    // what this widget requests. dryRun is the safe default.
+    maxCaps: ["brain.consolidate", "brain.recall"],
+    props: {
+      type: "object",
+      additionalProperties: true,
+      properties: {
+        topicSource: { type: "string" },
+        k: { type: "integer", minimum: 1, maximum: 50 },
+        domain: { type: "string" },
+        dryRun: { type: "boolean" },
+      },
+    },
+    emits: ["synthesisDrafted", "consolidationRefused"],
+    accepts: ["topic"],
+  },
 };
 
 export const ALL_WIDGET_TYPES = Object.keys(REGISTRY);

@@ -3,6 +3,7 @@
 export interface CockpitApi {
   graphExport(limit?: number): Promise<any>;
   recall(query: string, opts?: object): Promise<any>;
+  consolidate(topic: string, opts?: object): Promise<any>;
   startTurn(turnId: string, utterance: string): void;
   onTurn(cb: (e: any) => void): () => void;
   onAnimateGraph(cb: (e: any) => void): () => void;
@@ -13,6 +14,7 @@ export const cockpit: CockpitApi = (globalThis as any).cockpit ?? {
   // dev/headless stub so the module imports without Electron present
   graphExport: async () => ({ schema: "graph.export/1", nodes: [], edges: [] }),
   recall: async () => ({ results: [], trace: null }),
+  consolidate: async () => ({ ok: false, reason: "no brain in this build" }),
   startTurn: () => {},
   onTurn: () => () => {},
   onAnimateGraph: () => () => {},

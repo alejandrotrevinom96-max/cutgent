@@ -19,8 +19,11 @@ knowledge graph that animates the brain's *actual* recall traversal), plus
 3. **Live-transcript widget** — local, ephemeral transcription (mic), the data path
    for things like live deal negotiation.
 4. **Generative workspace composition** — the agent emits a validated
-   `workspace.manifest/1`; a closed widget registry + capability scoping render it
-   fail-closed (the same validator runs in the headless selftest).
+   `workspace.manifest/1`; a closed widget registry (10 widget types, incl. a
+   `consolidate-panel` over the brain's guarded consolidation op) + capability
+   scoping render it fail-closed (the same validator runs in the headless selftest).
+   The recall panel surfaces the brain's hybrid-retrieval signals (lexical + TF-IDF
+   + graph via RRF, and whether the optional embedding reranker was used).
 
 ## Architecture (one breath)
 

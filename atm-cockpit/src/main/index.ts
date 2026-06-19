@@ -108,6 +108,8 @@ app.whenReady().then(() => {
   // read-only ops the renderer panels call directly (no LLM)
   ipcMain.handle("brain:graphExport", (_e, limit = 5000) => brain.graphExport(limit));
   ipcMain.handle("brain:recall", (_e, query: string, opts = {}) => brain.recall(query, opts));
+  // guarded consolidation; the brain enforces anti-autophagy + provenance regardless
+  ipcMain.handle("brain:consolidate", (_e, topic: string, opts = {}) => brain.consolidate(topic, opts));
   // a spoken/typed turn drives the agent loop
   ipcMain.on("turn:start", (_e, { turnId, utterance }) => { runTurn(turnId, utterance); });
 

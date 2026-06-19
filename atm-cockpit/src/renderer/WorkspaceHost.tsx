@@ -11,6 +11,7 @@ import { Checklist } from "./widgets/Checklist";
 import { Timer } from "./widgets/Timer";
 import { Teleprompter } from "./widgets/Teleprompter";
 import { Calculator } from "./widgets/Calculator";
+import { ConsolidatePanel } from "./widgets/ConsolidatePanel";
 
 // WorkspaceHost — the renderer half of "the agent proposes, the renderer disposes".
 // It runs the SAME composeWorkspace validator used in the headless selftest; an
@@ -63,6 +64,9 @@ function renderWidget(w: any, ctx: any) {
       return <Teleprompter script={w.props?.script} wpm={w.props?.wpm} />;
     case "calculator":
       return <Calculator />;
+    case "consolidate-panel":
+      return <ConsolidatePanel topic={w.props?.topicSource === "transcript" ? ctx.lastQuery : w.props?.topic}
+                               dryRun={w.props?.dryRun !== false} onConsolidate={ctx.onConsolidate} />;
     default:
       return <div className="widget"><h3>{w.type}</h3><div className="body" style={{ color: "var(--muted)" }}>widget not yet implemented</div></div>;
   }
