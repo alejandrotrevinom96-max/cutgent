@@ -16,7 +16,9 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SKILLS = os.path.join(ROOT, ".claude", "skills")
 
-PILOTS = ["image-video-editing-generation", "web-design", "copywriting"]
+PILOTS = ["image-video-editing-generation", "web-design", "copywriting",
+          "negotiation", "business-strategy", "personal-finance", "counsel",
+          "communication", "3d-animation", "learning", "productivity"]
 COMPANIONS = ["exemplars.md", "rubric.md", "anti-patterns.md", "sources.md"]
 
 ok = True
