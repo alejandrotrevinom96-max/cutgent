@@ -176,6 +176,24 @@ async function createWindow() {
     webPreferences: { preload: path.join(__dirname, "preload.cjs"), contextIsolation: true },
   });
 
+  // Mostrar la ventana en cuanto haya algo que pintar. IMPORTANTE: registramos
+  // estos handlers ANTES de `await win.loadURL(...)`. Si se registraran después,
+  // `ready-to-show` (que se dispara durante la carga) podría perderse y la
+  // ventana quedaría oculta para siempre: proceso vivo en el Task Manager pero
+  // sin ventana visible. Usamos un guard para mostrarla una sola vez y un
+  // salvavidas por timeout por si ningún evento llegara a dispararse.
+  let shown = false;
+  const reveal = () => {
+    if (shown || win.isDestroyed()) return;
+    shown = true;
+    win.show();
+    win.focus();
+  };
+  win.once("ready-to-show", reveal);
+  win.webContents.once("did-finish-load", reveal);
+  const revealTimer = setTimeout(reveal, 15000);
+  win.once("closed", () => clearTimeout(revealTimer));
+
   // Abre enlaces externos en el navegador del sistema, no en la app.
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith("http")) {
@@ -225,7 +243,6 @@ async function createWindow() {
       await win.loadURL(errorPage(e?.stack || e?.message || e));
     }
   }
-  win.once("ready-to-show", () => win.show());
 }
 
 // Una sola instancia: dos Cutgent a la vez pisarían endpoint.json (rompiendo la
