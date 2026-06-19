@@ -1,12 +1,12 @@
 import type { GenRequest, GenStart, Provider, HttpSpec } from "../types";
 
 /**
- * OpenAI (SÍNCRONO, sin poll). Imagen → /v1/images/generations (gpt-image-1.5,
+ * OpenAI (SÍNCRONO, sin poll). Imagen → /v1/images/generations (gpt-image-2,
  * SIEMPRE devuelve b64_json, nunca url). Audio TTS → /v1/audio/speech (bytes
  * binarios). Auth: Bearer.
  */
 const HOST = "api.openai.com";
-const IMG = "gpt-image-1.5";
+const IMG = "gpt-image-2";
 const TTS = "gpt-4o-mini-tts";
 
 export function sizeFor(req: GenRequest): "1024x1024" | "1536x1024" | "1024x1536" {
@@ -50,7 +50,8 @@ export const openaiProvider: Provider = {
   requiredKey: "OPENAI_API_KEY",
   apiHost: HOST,
   models: [
-    { id: IMG, label: "GPT-Image 1.5 (imagen)", kind: "image" },
+    { id: IMG, label: "GPT-Image 2 (imagen)", kind: "image" },
+    { id: "gpt-image-1.5", label: "GPT-Image 1.5 (imagen, previo)", kind: "image" },
     { id: TTS, label: "GPT-4o mini TTS (voz)", kind: "audio" },
   ],
   defaultModel: (k) => (k === "image" ? IMG : k === "audio" ? TTS : undefined),

@@ -25,7 +25,15 @@ export function pickUrl(output: unknown): string | undefined {
 // --- pure builders / parsers (testeables sin red) --------------------------
 export function buildReplicateStart(req: GenRequest, model: string, apiKey: string): HttpSpec {
   const input: Record<string, unknown> = { prompt: req.prompt };
-  if (req.imageUrl) input.image_input = [req.imageUrl];
+  // Imagen de entrada (i2i / i2v). El nombre del campo es ESPECÍFICO del modelo y
+  // no está confirmado contra el schema autenticado de Replicate: los modelos
+  // FLUX (BFL) usan `input_image` (string, hasta 8 refs input_image_2..8); el
+  // resto de modelos de video suelen usar `image`. Ruta NO usada aún por la UI
+  // (solo vía MCP); confirmar en el smoke test de i2i/i2v con key real.
+  if (req.imageUrl) {
+    if (model.includes("flux")) input.input_image = req.imageUrl;
+    else input.image = req.imageUrl;
+  }
   if (req.aspectRatio) input.aspect_ratio = req.aspectRatio;
   return {
     url: `https://${HOST}/v1/models/${model}/predictions`,
