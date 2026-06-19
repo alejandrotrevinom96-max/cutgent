@@ -41,6 +41,8 @@ Con la app corriendo, registra el servidor MCP (ver `mcp-server/README.md`). El 
 
 Luego pídele a Claude cosas como *"añade un título con animación pop, un fondo degradado y música, y exporta a MP4"* — verás los cambios aparecer en el editor en tiempo real.
 
+**Skill opcional (recomendada):** [`skills/editing-video-with-cutgent`](skills/) empaqueta el conocimiento experto para editar por lenguaje natural (cortar silencios, subtítulos, color, shorts verticales, export…) sin que tengas que saber qué herramienta llamar. Instálala en Claude Code (`~/.claude/skills/`) o Claude Desktop (.zip) — ver [`skills/README.md`](skills/README.md). Se activa sola al decir cosas como *"edita este video"* o *"ponle subtítulos"*.
+
 ## Funcionalidades
 
 - Línea de tiempo multipista con drag, resize, zoom, playhead.
