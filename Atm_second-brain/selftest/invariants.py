@@ -139,6 +139,26 @@ INVARIANTS: dict[str, dict] = {
         "error_code": "n/a (property)",
         "covered_by": ["case:test_p9_graph_contracts"],
     },
+    "INV-VAULT-NOTE-SCHEMA": {
+        "desc": "Every vault note (excluding templates) has schema-valid frontmatter.",
+        "enforced_in": "authoring + validate.validate_frontmatter",
+        "error_code": "n/a (property)",
+        "covered_by": ["case:test_p10_vault"],
+    },
+    "INV-PERSONAL-STUB": {
+        "desc": "personal/ notes start as honest stubs (author=agent, self-authored, "
+                "personal/stub) that do not override generic advice until a human confirms.",
+        "enforced_in": "personal-layer authoring",
+        "error_code": "n/a (property)",
+        "covered_by": ["case:test_p10_vault"],
+    },
+    "INV-MOC-RESOLVES": {
+        "desc": "The expertise MOC links to all 11 personal/<domain> notes and to "
+                "identity, and every personal/* link in the vault resolves.",
+        "enforced_in": "MOC authoring + index._resolve_links",
+        "error_code": "n/a (property)",
+        "covered_by": ["case:test_p10_vault"],
+    },
 }
 
 
