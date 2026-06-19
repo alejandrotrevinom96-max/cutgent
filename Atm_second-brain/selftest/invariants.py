@@ -124,6 +124,21 @@ INVARIANTS: dict[str, dict] = {
         "error_code": "n/a (property)",
         "covered_by": ["case:test_p8_expertise"],
     },
+    "INV-RECALL-TRACE-HONEST": {
+        "desc": "recall.trace/1 is additive/back-compatible and honest: seeds are "
+                "query-text matches, expanded are 1-hop neighbors (disjoint), edges "
+                "connect real notes, steps are seed-before-expand ordered.",
+        "enforced_in": "recall._build_trace",
+        "error_code": "n/a (property)",
+        "covered_by": ["case:test_p9_graph_contracts"],
+    },
+    "INV-GRAPH-EXPORT": {
+        "desc": "graph.export/1 emits nodes (id/title/type/tags) and only resolved "
+                "edges whose endpoints are both exported nodes.",
+        "enforced_in": "index.graph_export",
+        "error_code": "n/a (property)",
+        "covered_by": ["case:test_p9_graph_contracts"],
+    },
 }
 
 

@@ -15,6 +15,7 @@ EXPECTED_TOOLS = {
     "recall",
     "write_with_provenance",
     "reindex",
+    "graph_export",
     "resolve_tier",
     "citation_verify",
     "mech_status",

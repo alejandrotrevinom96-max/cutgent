@@ -47,3 +47,22 @@ DB_PATH = os.path.join(INDEX_DIR, "index.db")
 def current_schema_version() -> int:
     with open(os.path.join(SCHEMA_DIR, "CURRENT"), encoding="utf-8") as fh:
         return int(fh.read().strip())
+
+
+def current_rev() -> "str | None":
+    """Best-effort git HEAD of the vault, for cache/stability of exported graphs.
+    Returns None when not a git repo or git is unavailable (stays zero-dep: git
+    is optional, never required)."""
+    import subprocess
+
+    try:
+        out = subprocess.run(
+            ["git", "-C", VAULT_ROOT, "rev-parse", "HEAD"],
+            capture_output=True, text=True, timeout=2,
+        )
+        if out.returncode == 0:
+            return out.stdout.strip()
+    except Exception:
+        pass
+    return None
+

@@ -217,3 +217,48 @@ def reindex(full: bool = False, db_path: Optional[str] = None) -> dict:
 def reindex_tool(args: dict) -> dict:
     summary = reindex(full=bool(args.get("full", False)))
     return {"content": [{"type": "text", "text": json.dumps(summary, indent=2)}]}
+
+
+def graph_export(limit: int = 5000, db_path: Optional[str] = None) -> dict:
+    """Static whole-vault graph for the map view (graph.export/1). Plain stdlib
+    SELECTs over the index; clustering/layout are the client's job."""
+    import config
+
+    reindex(full=False, db_path=db_path)
+    con = connect(db_path)
+    try:
+        tags_by_note: dict[str, list[str]] = {}
+        for r in con.execute("SELECT note_id, tag FROM tags"):
+            tags_by_note.setdefault(r["note_id"], []).append(r["tag"])
+
+        nodes = []
+        for r in con.execute(
+            "SELECT id, title, type FROM notes WHERE parse_error IS NULL ORDER BY id LIMIT ?",
+            (limit,),
+        ):
+            nodes.append({
+                "id": r["id"], "title": r["title"], "type": r["type"],
+                "tags": tags_by_note.get(r["id"], []),
+            })
+        node_ids = {n["id"] for n in nodes}
+
+        edges = []
+        for r in con.execute(
+            "SELECT src_id, dst_id, link_type FROM links WHERE dst_id IS NOT NULL"
+        ):
+            if r["src_id"] in node_ids and r["dst_id"] in node_ids:
+                edges.append({"src": r["src_id"], "dst": r["dst_id"], "type": r["link_type"] or "wikilink"})
+
+        return {
+            "schema": "graph.export/1",
+            "rev": config.current_rev(),
+            "nodes": nodes,
+            "edges": edges,
+        }
+    finally:
+        con.close()
+
+
+def graph_export_tool(args: dict) -> dict:
+    result = graph_export(limit=int(args.get("limit", 5000)))
+    return {"content": [{"type": "text", "text": json.dumps(result, indent=2)}]}

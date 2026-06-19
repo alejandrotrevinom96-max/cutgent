@@ -44,6 +44,21 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "k": {"type": "integer", "minimum": 1, "default": 12, "description": "Max results."},
                 "type": {"type": "string", "description": "Optional note-type filter."},
                 "domain": {"type": "string", "description": "Optional domain filter."},
+                "with_trace": {"type": "boolean", "default": False, "description": "Include the honest seed->1-hop traversal trace (recall.trace/1) for graph animation."},
+            },
+        },
+        "handler": None,  # bound below
+    },
+    "graph_export": {
+        "description": (
+            "Export the static whole-vault knowledge graph (graph.export/1): nodes "
+            "(id/title/type/tags) + resolved edges. For the map view; clustering and "
+            "layout are the client's responsibility."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "limit": {"type": "integer", "minimum": 1, "default": 5000, "description": "Max nodes."},
             },
         },
         "handler": None,  # bound below
@@ -118,7 +133,7 @@ TOOLS: dict[str, dict[str, Any]] = {
 
 
 # Bind real implementations as pieces land (keeps schemas above, logic in modules).
-from index import reindex_tool  # noqa: E402
+from index import reindex_tool, graph_export_tool  # noqa: E402
 from recall import recall_tool  # noqa: E402
 from trust import resolve_tier_tool  # noqa: E402
 from citations import citation_verify_tool  # noqa: E402
@@ -126,6 +141,7 @@ from writer import write_with_provenance_tool  # noqa: E402
 from mech import mech_status_tool  # noqa: E402
 
 TOOLS["reindex"]["handler"] = reindex_tool
+TOOLS["graph_export"]["handler"] = graph_export_tool
 TOOLS["recall"]["handler"] = recall_tool
 TOOLS["resolve_tier"]["handler"] = resolve_tier_tool
 TOOLS["citation_verify"]["handler"] = citation_verify_tool

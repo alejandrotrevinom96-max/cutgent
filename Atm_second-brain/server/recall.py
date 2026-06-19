@@ -78,12 +78,83 @@ def _make_snippet(body: str, terms: list[str], width: int = 120) -> str:
     return body[:width].replace("\n", " ").strip()
 
 
+def _build_trace(con, top, text_hits: set) -> dict:
+    """Reconstruct the honest seed->1-hop traversal that produced `top`.
+
+    seeds   = result notes that matched the query text (FTS/LIKE hits)
+    expanded= result notes pulled in purely by 1-hop graph adjacency
+    edges   = the resolved links connecting them (with type)
+    steps   = ordered walk (seeds first, then expansions) for animation
+    The app derives layout/clustering/timing; the brain emits only what it knows.
+    """
+    top_ids = [r["id"] for r in top]
+    seed_ids = [i for i in top_ids if i in text_hits]
+    expanded_ids = [i for i in top_ids if i not in text_hits]
+    seed_set = set(seed_ids)
+
+    edges: list[dict] = []
+    edge_index: dict[tuple, int] = {}
+
+    def add_edge(src, dst, etype) -> int:
+        key = (src, dst)
+        if key in edge_index:
+            return edge_index[key]
+        idx = len(edges)
+        edges.append({"src": src, "dst": dst, "type": etype or "wikilink"})
+        edge_index[key] = idx
+        return idx
+
+    steps: list[dict] = [{"kind": "seed", "node": i} for i in seed_ids]
+
+    # seed<->seed links (richer static graph, no step — they're all seeds already)
+    for s in seed_ids:
+        for r in con.execute(
+            "SELECT dst_id, link_type FROM links WHERE src_id=? AND dst_id IS NOT NULL", (s,)
+        ):
+            if r["dst_id"] in seed_set and r["dst_id"] != s:
+                add_edge(s, r["dst_id"], r["link_type"])
+
+    # each expanded node: find the edge to a seed (backlink first, then outlink)
+    for nid in expanded_ids:
+        edge_idx = None
+        for r in con.execute(
+            "SELECT src_id, link_type FROM links WHERE dst_id=? AND src_id IS NOT NULL", (nid,)
+        ):
+            if r["src_id"] in seed_set:
+                edge_idx = add_edge(r["src_id"], nid, r["link_type"])
+                break
+        if edge_idx is None:
+            for r in con.execute(
+                "SELECT dst_id, link_type FROM links WHERE src_id=? AND dst_id IS NOT NULL", (nid,)
+            ):
+                if r["dst_id"] in seed_set:
+                    edge_idx = add_edge(nid, r["dst_id"], r["link_type"])
+                    break
+        steps.append({"kind": "expand", "edge": edge_idx, "node": nid})
+
+    return {
+        "schema": "recall.trace/1",
+        "tier": None,
+        "seeds": seed_ids,
+        "expanded": expanded_ids,
+        "edges": edges,
+        "steps": steps,
+        "answer_sources": top_ids[:3],
+    }
+
+
 def recall(query: str, k: int = 12, type_filter: Optional[str] = None,
-           domain: Optional[str] = None, db_path: Optional[str] = None) -> dict:
+           domain: Optional[str] = None, with_trace: bool = False,
+           db_path: Optional[str] = None) -> dict:
     terms = _terms(query)
     if not terms:
-        return {"results": [], "human_fraction": 0.0, "floor": HUMAN_FLOOR,
-                "floor_met": True, "mode": "empty-query", "query": query}
+        empty = {"results": [], "human_fraction": 0.0, "floor": HUMAN_FLOOR,
+                 "floor_met": True, "mode": "empty-query", "query": query}
+        if with_trace:
+            empty["trace"] = {"schema": "recall.trace/1", "tier": None, "seeds": [],
+                              "expanded": [], "edges": [], "steps": [], "answer_sources": []}
+            empty["rev"] = config.current_rev()
+        return empty
 
     # Keep the index honest with disk before answering.
     index.reindex(full=False, db_path=db_path)
@@ -91,6 +162,9 @@ def recall(query: str, k: int = 12, type_filter: Optional[str] = None,
     try:
         mode = "fts5" if has_fts5() else "like"
         pool = (_fts_candidates if has_fts5() else _like_candidates)(con, terms, max(k * 4, 40))
+        # Capture the pure text-match set BEFORE graph expansion, so the trace can
+        # honestly separate "matched your words" (seed) from "linked to a match" (expand).
+        text_hits = set(pool)
 
         # Graph adjacency boost from the strongest seeds.
         seeds = sorted(pool, key=lambda i: pool[i]["score"], reverse=True)[:k]
@@ -143,7 +217,7 @@ def recall(query: str, k: int = 12, type_filter: Optional[str] = None,
             frac = human_n / len(top) if top else 0.0
             floor_met = frac >= HUMAN_FLOOR
 
-        return {
+        result = {
             "results": top,
             "human_fraction": round(frac, 3),
             "floor": HUMAN_FLOOR,
@@ -152,6 +226,10 @@ def recall(query: str, k: int = 12, type_filter: Optional[str] = None,
             "query": query,
             "provenance": f"recall/{mode}; human_fraction={round(frac,3)}; floor_met={floor_met}",
         }
+        if with_trace:
+            result["trace"] = _build_trace(con, top, text_hits)
+            result["rev"] = config.current_rev()
+        return result
     finally:
         con.close()
 
@@ -165,5 +243,6 @@ def recall_tool(args: dict) -> dict:
         k=int(args.get("k", 12)),
         type_filter=args.get("type"),
         domain=args.get("domain"),
+        with_trace=bool(args.get("with_trace", False)),
     )
     return {"content": [{"type": "text", "text": json.dumps(result, indent=2)}]}
