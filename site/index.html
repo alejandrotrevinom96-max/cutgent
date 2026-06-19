@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cutgent — El editor de video que tu IA controla</title>
+  <meta name="description" content="Cutgent es un editor de video full-stack 100% controlable por Claude vía MCP. Timeline multipista profesional, export a MP4 real y todo corriendo en local." />
+
+  <!-- Open Graph / redes -->
+  <meta property="og:title" content="Cutgent — El editor de video que tu IA controla" />
+  <meta property="og:description" content="Editor de video full-stack controlable 100% por Claude vía MCP. Descárgalo para Windows y macOS." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://cutgent.com" />
+
+  <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+  <style>
+    :root {
+      --bg: #0c0d13;
+      --bg-soft: #11121c;
+      --panel: #161823;
+      --panel-2: #1c1f2e;
+      --border: #262a3d;
+      --text: #e8eaf2;
+      --muted: #8b8fa3;
+      --violet: #8B5CF6;
+      --indigo: #6366F1;
+      --orange: #F97316;
+      --grad: linear-gradient(120deg, #8B5CF6 0%, #6366F1 50%, #F97316 100%);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+    a { color: inherit; text-decoration: none; }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+    /* Glow de fondo */
+    .glow {
+      position: fixed;
+      top: -260px; left: 50%;
+      transform: translateX(-50%);
+      width: 900px; height: 600px;
+      background: radial-gradient(closest-side, rgba(99,102,241,0.20), rgba(139,92,246,0.10), transparent);
+      filter: blur(20px);
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* Header */
+    header {
+      position: relative; z-index: 2;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 22px 24px;
+      max-width: 1080px; margin: 0 auto;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 19px; }
+    .brand svg { width: 34px; height: 34px; border-radius: 9px; }
+    .nav-links { display: flex; align-items: center; gap: 26px; font-size: 15px; color: var(--muted); }
+    .nav-links a:hover { color: var(--text); }
+    @media (max-width: 640px) { .nav-links { display: none; } }
+
+    /* Hero */
+    .hero { position: relative; z-index: 1; text-align: center; padding: 70px 0 60px; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 13px; color: var(--muted);
+      background: var(--panel); border: 1px solid var(--border);
+      padding: 7px 14px; border-radius: 999px; margin-bottom: 28px;
+    }
+    .pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--orange); box-shadow: 0 0 10px var(--orange); }
+    h1 {
+      font-size: clamp(40px, 7vw, 68px);
+      line-height: 1.05; letter-spacing: -0.03em; font-weight: 800;
+      margin-bottom: 22px;
+    }
+    h1 .grad {
+      background: var(--grad);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .sub { font-size: clamp(17px, 2.4vw, 21px); color: var(--muted); max-width: 640px; margin: 0 auto 38px; }
+
+    /* Botones */
+    .cta { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 11px;
+      padding: 15px 26px; border-radius: 13px; font-size: 16px; font-weight: 600;
+      border: 1px solid var(--border); background: var(--panel);
+      transition: transform .15s ease, border-color .15s ease, background .15s ease;
+    }
+    .btn:hover { transform: translateY(-2px); border-color: #3a3f57; background: var(--panel-2); }
+    .btn svg { width: 21px; height: 21px; }
+    .btn-primary {
+      background: var(--grad); border: none; color: #fff;
+      box-shadow: 0 10px 30px -8px rgba(99,102,241,0.55);
+    }
+    .btn-primary:hover { background: var(--grad); filter: brightness(1.07); }
+    .meta { margin-top: 20px; font-size: 13.5px; color: var(--muted); }
+    .meta a { color: var(--indigo); }
+    .meta a:hover { text-decoration: underline; }
+
+    /* Secciones */
+    section.block { position: relative; z-index: 1; padding: 60px 0; }
+    .eyebrow { text-transform: uppercase; letter-spacing: .14em; font-size: 12.5px; color: var(--indigo); font-weight: 700; margin-bottom: 12px; }
+    .h2 { font-size: clamp(28px, 4vw, 40px); letter-spacing: -0.02em; font-weight: 800; margin-bottom: 16px; }
+    .lead { color: var(--muted); font-size: 18px; max-width: 620px; }
+
+    /* Grid de features */
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin-top: 40px; }
+    .card {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 16px; padding: 26px;
+      transition: border-color .15s ease, transform .15s ease;
+    }
+    .card:hover { border-color: #36405e; transform: translateY(-3px); }
+    .card .ico {
+      width: 44px; height: 44px; border-radius: 11px;
+      display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, rgba(139,92,246,0.18), rgba(249,115,22,0.14));
+      border: 1px solid var(--border); margin-bottom: 16px;
+    }
+    .card .ico svg { width: 22px; height: 22px; stroke: var(--violet); }
+    .card h3 { font-size: 18px; margin-bottom: 8px; }
+    .card p { color: var(--muted); font-size: 15px; }
+
+    /* Bloque MCP / cómo funciona */
+    .how {
+      background: linear-gradient(180deg, var(--bg-soft), var(--bg));
+      border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+    }
+    .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-top: 40px; }
+    .step .n {
+      font-size: 14px; font-weight: 700; color: #fff;
+      width: 30px; height: 30px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--grad); margin-bottom: 14px;
+    }
+    .step h4 { font-size: 16.5px; margin-bottom: 6px; }
+    .step p { color: var(--muted); font-size: 14.5px; }
+    .code {
+      margin-top: 36px; background: #0a0b11; border: 1px solid var(--border);
+      border-radius: 14px; padding: 20px 22px; overflow-x: auto;
+      font-family: "SF Mono", ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
+      font-size: 13.5px; color: #c8ccdd; line-height: 1.7;
+    }
+    .code .k { color: var(--orange); }
+    .code .s { color: #9ae6b4; }
+
+    /* CTA final */
+    .final { text-align: center; }
+    .final .h2 { margin-bottom: 14px; }
+
+    /* Footer */
+    footer {
+      position: relative; z-index: 1;
+      border-top: 1px solid var(--border);
+      padding: 34px 0; color: var(--muted); font-size: 14px;
+    }
+    .foot { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; }
+    .foot a:hover { color: var(--text); }
+    .foot .links { display: flex; gap: 22px; }
+  </style>
+</head>
+<body>
+  <div class="glow"></div>
+
+  <header>
+    <div class="brand">
+      <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs>
+          <linearGradient id="bg" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse"><stop stop-color="#0d0a17"/><stop offset="1" stop-color="#130f1f"/></linearGradient>
+          <linearGradient id="c" x1="18" y1="18" x2="82" y2="82" gradientUnits="userSpaceOnUse"><stop stop-color="#8B5CF6"/><stop offset="0.5" stop-color="#6366F1"/><stop offset="1" stop-color="#F97316"/></linearGradient>
+        </defs>
+        <rect width="100" height="100" rx="22" fill="url(#bg)"/>
+        <path d="M76 33 A32 32 0 1 0 76 67" stroke="url(#c)" stroke-width="13" stroke-linecap="round"/>
+        <path d="M66 50 L86 41 L82 50 L86 59 Z" fill="#F97316"/>
+      </svg>
+      Cutgent
+    </div>
+    <nav class="nav-links">
+      <a href="#features">Funciones</a>
+      <a href="#mcp">Cómo funciona</a>
+      <a href="https://github.com/alejandrotrevinom96-max/cutgent" target="_blank" rel="noopener">GitHub</a>
+      <a href="#download">Descargar</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero wrap" id="download">
+      <span class="pill"><span class="dot"></span> Controlado por Claude vía MCP</span>
+      <h1>El editor de video que<br /><span class="grad">tu IA controla</span></h1>
+      <p class="sub">Cutgent es un editor de video full-stack tipo Premiere/CapCut donde el video entero es un documento JSON — tú lo editas en la UI y Claude lo edita por comandos, sobre la misma fuente de verdad, sincronizado en vivo.</p>
+
+      <div class="cta">
+        <a class="btn btn-primary" id="dl-win" href="https://github.com/alejandrotrevinom96-max/cutgent/releases/download/v0.1.0/Cutgent-Setup-0.1.0.exe">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5 10.2 4.5v7.1H3V5.5Zm0 13L10.2 19.5v-6.9H3v5.9Zm8.1 1.2L21 21V12.6h-9.9v7.1Zm0-16.5v7.4H21V3l-9.9 1.2Z"/></svg>
+          Descargar para Windows
+        </a>
+        <a class="btn" id="dl-mac" href="https://github.com/alejandrotrevinom96-max/cutgent/releases/download/v0.1.0/Cutgent-0.1.0.dmg">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.4 12.7c0-2.1 1.7-3.1 1.8-3.2-1-1.4-2.5-1.6-3-1.7-1.3-.1-2.5.8-3.1.8-.6 0-1.6-.7-2.7-.7-1.4 0-2.7.8-3.4 2-1.5 2.5-.4 6.3 1 8.3.7 1 1.5 2.1 2.6 2.1 1 0 1.4-.7 2.7-.7s1.6.7 2.7.6c1.1 0 1.8-1 2.5-2 .8-1.2 1.1-2.3 1.1-2.4-.1 0-2.1-.8-2.2-3.4ZM14.3 6.3c.6-.7 1-1.7.9-2.6-.8 0-1.9.5-2.5 1.3-.5.6-1 1.6-.9 2.5.9.1 1.8-.5 2.5-1.2Z"/></svg>
+          Descargar para macOS
+        </a>
+      </div>
+      <p class="meta">
+        <span id="ver">Versión 0.1.0</span> · Windows 10/11 y macOS · Gratis y open source ·
+        <a href="https://github.com/alejandrotrevinom96-max/cutgent/releases/latest" target="_blank" rel="noopener">Ver todas las versiones</a>
+      </p>
+    </section>
+
+    <section class="block wrap" id="features">
+      <div class="eyebrow">Funciones</div>
+      <div class="h2">Un editor de verdad, no un juguete</div>
+      <p class="lead">Todo lo que esperas de un editor profesional, más una superficie de control pensada para la IA.</p>
+
+      <div class="grid">
+        <div class="card">
+          <div class="ico"><svg fill="none" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Z"/><path d="M12 8v8M8 12h8"/></svg></div>
+          <h3>Control 100% por IA</h3>
+          <p>~30 herramientas MCP cubren cada acción: añadir clips, texto, animaciones, efectos y exportar. Pídeselo a Claude en lenguaje natural.</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg fill="none" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="4" rx="1"/><rect x="3" y="11" width="12" height="4" rx="1"/><rect x="3" y="17" width="16" height="4" rx="1"/></svg></div>
+          <h3>Timeline multipista</h3>
+          <p>Drag, resize, zoom y playhead. Video, imagen, audio, texto, formas y fondos sólidos. Inspector completo de propiedades por clip.</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg fill="none" stroke-width="2" viewBox="0 0 24 24"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg></div>
+          <h3>Export a MP4 real</h3>
+          <p>Renderizado con Remotion: lo que ves en el preview es exactamente lo que se exporta, con barra de progreso.</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg fill="none" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg></div>
+          <h3>Local y privado</h3>
+          <p>Corre en tu máquina. Tus proyectos y medios viven en local — sin subir tu material a la nube de nadie.</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg fill="none" stroke-width="2" viewBox="0 0 24 24"><path d="M4 7V5a2 2 0 0 1 2-2h2M16 3h2a2 2 0 0 1 2 2v2M20 17v2a2 2 0 0 1-2 2h-2M8 21H6a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/></svg></div>
+          <h3>Animaciones y efectos</h3>
+          <p>Entradas/salidas (fade, slide, zoom, pop, blur, wipe), keyframes por propiedad con easing y filtros de color.</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg fill="none" stroke-width="2" viewBox="0 0 24 24"><path d="M14 9V5a3 3 0 0 0-6 0v4M5 9h14l1 12H4L5 9Z"/></svg></div>
+          <h3>Biblioteca de medios</h3>
+          <p>Sube archivos o importa por URL — incluido material generado por IA — y úsalo directo en la línea de tiempo.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="block how" id="mcp">
+      <div class="wrap">
+        <div class="eyebrow">Cómo funciona</div>
+        <div class="h2">Conecta tu IA en un paso</div>
+        <p class="lead">Cutgent expone un servidor MCP local. Conéctalo a Claude una vez y ya puedes dirigir el editor hablando.</p>
+
+        <div class="steps">
+          <div class="step">
+            <div class="n">1</div>
+            <h4>Instala y abre Cutgent</h4>
+            <p>Descarga el instalador, ábrelo y deja la app corriendo. Tu IA controla esa ventana.</p>
+          </div>
+          <div class="step">
+            <div class="n">2</div>
+            <h4>Copia la config MCP</h4>
+            <p>Menú «IA / MCP → Copiar configuración». Pégala en Claude Desktop o Claude Code una sola vez.</p>
+          </div>
+          <div class="step">
+            <div class="n">3</div>
+            <h4>Pídeselo a Claude</h4>
+            <p>«Añade un título con animación pop, un fondo degradado y música, y exporta a MP4». Lo verás aparecer en vivo.</p>
+          </div>
+        </div>
+
+        <div class="code">
+<span class="k">{</span> <span class="s">"mcpServers"</span>: <span class="k">{</span> <span class="s">"cutgent"</span>: <span class="k">{</span><br />
+&nbsp;&nbsp;<span class="s">"command"</span>: <span class="s">"npx"</span>, <span class="s">"args"</span>: [<span class="s">"tsx"</span>, <span class="s">"mcp-server/index.ts"</span>],<br />
+&nbsp;&nbsp;<span class="s">"env"</span>: <span class="k">{</span> <span class="s">"CUTGENT_URL"</span>: <span class="s">"http://localhost:3000"</span> <span class="k">}</span><br />
+<span class="k">}}}</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="block wrap final">
+      <div class="h2">Empieza a editar con tu IA</div>
+      <p class="lead" style="margin: 0 auto 30px;">Gratis, open source y corriendo en tu propia máquina.</p>
+      <div class="cta">
+        <a class="btn btn-primary" href="https://github.com/alejandrotrevinom96-max/cutgent/releases/download/v0.1.0/Cutgent-Setup-0.1.0.exe">Descargar para Windows</a>
+        <a class="btn" href="https://github.com/alejandrotrevinom96-max/cutgent/releases/download/v0.1.0/Cutgent-0.1.0.dmg">Descargar para macOS</a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot">
+      <div class="brand" style="font-size:16px;">
+        <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="width:26px;height:26px;border-radius:7px;">
+          <rect width="100" height="100" rx="22" fill="#11121c"/>
+          <path d="M76 33 A32 32 0 1 0 76 67" stroke="url(#c)" stroke-width="13" stroke-linecap="round"/>
+          <path d="M66 50 L86 41 L82 50 L86 59 Z" fill="#F97316"/>
+        </svg>
+        Cutgent
+      </div>
+      <div class="links">
+        <a href="https://github.com/alejandrotrevinom96-max/cutgent" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/alejandrotrevinom96-max/cutgent/releases/latest" target="_blank" rel="noopener">Releases</a>
+        <a href="#download">Descargar</a>
+      </div>
+      <div>© <span id="yr">2026</span> Cutgent</div>
+    </div>
+  </footer>
+
+  <script>
+    // Detecta el SO para resaltar el botón de descarga correcto.
+    (function () {
+      var p = navigator.platform || "";
+      var ua = navigator.userAgent || "";
+      var isMac = /Mac/.test(p) || /Mac OS X/.test(ua);
+      if (isMac) {
+        var win = document.getElementById("dl-win");
+        var mac = document.getElementById("dl-mac");
+        if (win && mac) { win.classList.remove("btn-primary"); mac.classList.add("btn-primary"); }
+      }
+      document.getElementById("yr").textContent = new Date().getFullYear();
+    })();
+  </script>
+</body>
+</html>
