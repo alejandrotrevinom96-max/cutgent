@@ -3087,6 +3087,44 @@ server.registerTool(
   }),
 );
 
+// ---- Versiones (snapshots persistentes) -----------------------------------
+
+server.registerTool(
+  "list_versions",
+  {
+    title: "Listar versiones",
+    description:
+      "Lista las instantáneas (snapshots) guardadas del proyecto actual: id, etiqueta, auto/manual, versión y fecha, de la más reciente a la más antigua. Persisten en disco (sobreviven al reinicio).",
+    inputSchema: {},
+  },
+  tool(async () => okJson(await getJson("/api/versions"))),
+);
+
+server.registerTool(
+  "save_version",
+  {
+    title: "Guardar versión",
+    description:
+      "Guarda una instantánea PERSISTENTE del proyecto actual con una etiqueta opcional. Sobrevive al reinicio de la app. Úsala antes de un cambio grande o como hito ('v1 aprobada'). Devuelve la metadata del snapshot.",
+    inputSchema: { label: z.string().optional() },
+  },
+  tool(async (args) => okJson(await postJson("/api/versions", { label: args.label }))),
+);
+
+server.registerTool(
+  "restore_version",
+  {
+    title: "Restaurar versión",
+    description:
+      "Restaura el proyecto a una instantánea anterior por id (de list_versions). DESTRUCTIVO: reemplaza el documento actual, pero antes guarda un snapshot automático 'Antes de restaurar' para poder volver. El editor abierto se actualiza en vivo.",
+    inputSchema: { id: z.string() },
+  },
+  tool(async (args) => {
+    await postJson("/api/versions/restore", { id: args.id });
+    return ok(`Versión ${args.id} restaurada (se guardó un snapshot del estado previo).`);
+  }),
+);
+
 // ---------------------------------------------------------------------------
 // Arranque
 // ---------------------------------------------------------------------------

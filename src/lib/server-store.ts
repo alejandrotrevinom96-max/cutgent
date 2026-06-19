@@ -1,5 +1,6 @@
 import "server-only";
 import { promises as fs, writeFileSync, mkdirSync } from "fs";
+import { createHash } from "crypto";
 import path from "path";
 import { applyCommand, CommandSchema, type Command } from "./commands";
 import { createDefaultProject, newId } from "./factory";
@@ -30,6 +31,19 @@ export interface ProjectMeta {
   updatedAt: number;
 }
 
+/** Metadata de un snapshot/versión persistente (sin el doc; vive en el índice). */
+export interface SnapshotMeta {
+  id: string;
+  projectId: string;
+  kind: "auto" | "manual";
+  label?: string;
+  createdAt: number;
+  version: number;
+  docHash: string;
+  size: number;
+  clipCount?: number;
+}
+
 export type StoreMessage =
   | { kind: "snapshot"; version: number; document: Project; origin: string | null }
   | { kind: "command"; version: number; command: Command; origin: string | null };
@@ -47,6 +61,9 @@ interface Hub {
   currentId: string;
   projects: ProjectMeta[];
   loadingPromise?: Promise<void>;
+  /** Cadencia de auto-snapshots del proyecto ACTUAL (por-proyecto). */
+  lastAutoSnapshotAt: number;
+  lastSnapshotHash?: string;
 }
 
 const HISTORY_CAP = 50;
@@ -66,6 +83,7 @@ function hub(): Hub {
       persistTimer: null,
       currentId: doc.id,
       projects: [],
+      lastAutoSnapshotAt: 0,
     };
   }
   const h = g.__cutgent_hub;
@@ -73,12 +91,21 @@ function hub(): Hub {
   if (!h.future) h.future = [];
   if (!h.subscribers) h.subscribers = new Set();
   if (!h.projects) h.projects = [];
+  if (h.lastAutoSnapshotAt == null) h.lastAutoSnapshotAt = 0;
   installShutdownFlush();
   return h;
 }
 
 const projectFile = (id: string) => path.join(PROJECTS_DIR, `${id}.json`);
+const snapshotsDir = (id: string) => path.join(PROJECTS_DIR, `${id}.snapshots`);
+const snapshotFile = (id: string, snapId: string) => path.join(snapshotsDir(id), `${snapId}.json`);
+const snapshotIndex = (id: string) => path.join(snapshotsDir(id), "index.json");
 const now = () => Date.now();
+
+/** Snapshots automáticos: cada 5 min de actividad, cap 20 por proyecto. */
+const AUTO_SNAPSHOT_INTERVAL_MS = 5 * 60 * 1000;
+const AUTO_SNAPSHOT_CAP = 20;
+const docHash = (s: string) => createHash("sha1").update(s).digest("hex");
 
 async function readJson<T>(file: string): Promise<T | null> {
   try {
@@ -139,12 +166,17 @@ async function doLoad(): Promise<void> {
     await fs.rename(projectFile(h.currentId), `${projectFile(h.currentId)}.corrupt-${now()}`).catch(() => {});
     h.doc = createDefaultProject();
   }
+  // Arranca el reloj de cadencia al cargar: el primer auto-snapshot llega a los
+  // 5 min de editar, no en la primera edición de la sesión.
+  h.lastAutoSnapshotAt = now();
   h.loaded = true;
 }
 
-/** Escritura atómica: tmp + rename (evita archivos a medias si crashea). */
+/** Escritura atómica: tmp ÚNICO + rename (evita archivos a medias y que dos
+ *  escrituras concurrentes compartan el mismo tmp y se pisen). */
+let tmpSeq = 0;
 async function atomicWrite(file: string, data: string): Promise<void> {
-  const tmp = `${file}.tmp`;
+  const tmp = `${file}.${process.pid}.${tmpSeq++}.tmp`;
   await fs.writeFile(tmp, data, "utf8");
   await fs.rename(tmp, file);
 }
@@ -178,6 +210,108 @@ function schedulePersist(): void {
     h.persistTimer = null;
     void persistCurrent().catch(() => {});
   }, 500);
+}
+
+// ---------------------------------------------------------------------------
+// Snapshots / historial de versiones PERSISTENTE (sobrevive al reinicio)
+// ---------------------------------------------------------------------------
+
+/** Conserva todos los manuales + los AUTO_SNAPSHOT_CAP autos más recientes;
+ *  borra los archivos de los autos podados y reescribe el índice (atómico). */
+async function pruneAndWriteIndex(pid: string, list: SnapshotMeta[]): Promise<void> {
+  const autos = list.filter((s) => s.kind === "auto").sort((a, b) => b.createdAt - a.createdAt);
+  const drop = autos.slice(AUTO_SNAPSHOT_CAP);
+  if (drop.length) {
+    const dropIds = new Set(drop.map((s) => s.id));
+    for (const s of drop) await fs.unlink(snapshotFile(pid, s.id)).catch(() => {});
+    list = list.filter((s) => !dropIds.has(s.id));
+  }
+  await fs.mkdir(snapshotsDir(pid), { recursive: true });
+  await atomicWrite(snapshotIndex(pid), JSON.stringify({ snapshots: list }, null, 2));
+}
+
+/** Cola de escritura de snapshots: serializa la I/O (archivo + read-modify-write
+ *  del índice) para que dos saveSnapshot concurrentes no pierdan entradas. */
+let snapshotChain: Promise<unknown> = Promise.resolve();
+
+/** Guarda un snapshot persistente del proyecto ACTUAL (full Project + meta). */
+export async function saveSnapshot(opts: { kind: "auto" | "manual"; label?: string }): Promise<SnapshotMeta> {
+  await ensureLoaded();
+  const h = hub();
+  const pid = h.currentId;
+  // Captura el doc como STRING inmutable AHORA (no dependemos de h.doc cuando la
+  // I/O encolada corra: pudo cambiar o cambiar de proyecto).
+  const data = JSON.stringify(h.doc);
+  const hash = docHash(data);
+  const meta: SnapshotMeta = {
+    id: newId("snap"),
+    projectId: pid,
+    kind: opts.kind,
+    ...(opts.label ? { label: opts.label.slice(0, 80) } : {}),
+    createdAt: now(),
+    version: h.version,
+    docHash: hash,
+    size: data.length,
+    clipCount: h.doc.tracks.reduce((n, t) => n + t.clips.length, 0),
+  };
+  h.lastSnapshotHash = hash;
+  if (opts.kind === "auto") h.lastAutoSnapshotAt = meta.createdAt;
+  // Archivo construido desde el string capturado (sin re-serializar el doc).
+  const fileContent = `{"meta":${JSON.stringify(meta)},"doc":${data}}`;
+  const run = snapshotChain.then(async (): Promise<SnapshotMeta> => {
+    await fs.mkdir(snapshotsDir(pid), { recursive: true });
+    await atomicWrite(snapshotFile(pid, meta.id), fileContent);
+    const idx = (await readJson<{ snapshots: SnapshotMeta[] }>(snapshotIndex(pid)))?.snapshots ?? [];
+    idx.push(meta);
+    await pruneAndWriteIndex(pid, idx);
+    return meta;
+  });
+  snapshotChain = run.catch(() => {});
+  return run;
+}
+
+/** Lista los snapshots del proyecto actual (más reciente primero, sin docs). */
+export async function listSnapshots(): Promise<{ currentId: string; snapshots: SnapshotMeta[] }> {
+  await ensureLoaded();
+  const h = hub();
+  const idx = (await readJson<{ snapshots: SnapshotMeta[] }>(snapshotIndex(h.currentId)))?.snapshots ?? [];
+  return { currentId: h.currentId, snapshots: idx.sort((a, b) => b.createdAt - a.createdAt) };
+}
+
+/** Captura un auto-snapshot si toca (cadencia por tiempo + dedupe por hash).
+ *  Síncrono hasta disparar: reclama el slot ANTES de encolar el guardado para que
+ *  dos dispatches seguidos no generen autos duplicados (la cadena difiere la I/O). */
+function maybeAutoSnapshot(): void {
+  const h = hub();
+  if (now() - h.lastAutoSnapshotAt < AUTO_SNAPSHOT_INTERVAL_MS) return;
+  const hash = docHash(JSON.stringify(h.doc));
+  if (h.lastSnapshotHash && hash === h.lastSnapshotHash) return; // nada cambió
+  h.lastAutoSnapshotAt = now();
+  h.lastSnapshotHash = hash;
+  void saveSnapshot({ kind: "auto" }).catch(() => {});
+}
+
+/** Restaura el proyecto actual a un snapshot. Toma un auto de seguridad antes,
+ *  es UNDO-able (recordHistory) y refresca a los clientes vía broadcast snapshot. */
+export async function restoreSnapshot(id: string, origin: string | null = null): Promise<Project> {
+  await ensureLoaded();
+  const h = hub();
+  const pid = h.currentId;
+  const idx = (await readJson<{ snapshots: SnapshotMeta[] }>(snapshotIndex(pid)))?.snapshots ?? [];
+  if (!idx.some((s) => s.id === id)) throw new Error("Snapshot no encontrado");
+  // Red de seguridad: snapshot INCONDICIONAL del estado actual antes de pisarlo
+  // (acotado por el FIFO de autos), para que una mala restauración sea reversible.
+  await saveSnapshot({ kind: "auto", label: "Antes de restaurar" });
+  const raw = await readJson<{ meta: SnapshotMeta; doc: unknown }>(snapshotFile(pid, id));
+  if (!raw) throw new Error("Archivo de snapshot ilegible");
+  const doc = ProjectSchema.parse(raw.doc); // si es incompatible, lanza (no sustituye)
+  if (doc.id !== pid) doc.id = pid; // invariante de id (como dispatch/setDocument)
+  recordHistory(h.doc);
+  h.doc = doc;
+  h.version++;
+  schedulePersist();
+  broadcast({ kind: "snapshot", version: h.version, document: h.doc, origin });
+  return h.doc;
 }
 
 /** Flush SÍNCRONO del autosave pendiente (para apagado del proceso). */
@@ -249,6 +383,7 @@ export async function dispatch(rawCommand: unknown, origin: string | null = null
   recordHistory(prev);
   h.version++;
   schedulePersist();
+  maybeAutoSnapshot();
   broadcast({ kind: "command", version: h.version, command, origin });
   return h.doc;
 }
@@ -292,6 +427,7 @@ export async function setDocument(raw: unknown, origin: string | null = null): P
   h.doc = doc;
   h.version++;
   schedulePersist();
+  maybeAutoSnapshot();
   broadcast({ kind: "snapshot", version: h.version, document: h.doc, origin });
   return h.doc;
 }
@@ -356,6 +492,10 @@ export async function openProject(id: string, origin: string | null = null): Pro
   h.currentId = id;
   h.past = [];
   h.future = [];
+  // Cadencia de snapshots es por-proyecto: reinicia el reloj al abrir (primer
+  // auto a los 5 min de empezar a editar este proyecto).
+  h.lastAutoSnapshotAt = now();
+  h.lastSnapshotHash = undefined;
   h.version++;
   await saveIndex();
   broadcast({ kind: "snapshot", version: h.version, document: h.doc, origin });
@@ -373,6 +513,8 @@ export async function deleteProject(id: string, origin: string | null = null): P
   }
   h.projects = h.projects.filter((p) => p.id !== id);
   await fs.unlink(projectFile(id)).catch(() => {});
+  // Borra toda la carpeta de snapshots del proyecto eliminado (no dejar huérfanos).
+  await fs.rm(snapshotsDir(id), { recursive: true, force: true }).catch(() => {});
   if (h.projects.length === 0) {
     const meta = await createProject({ name: "Proyecto sin título" });
     await openProject(meta.id, origin);

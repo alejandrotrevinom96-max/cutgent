@@ -8,6 +8,7 @@ import {
   ExternalLink,
   Undo2,
   Redo2,
+  History,
   FolderOpen,
   ChevronDown,
   Plus,
@@ -20,6 +21,7 @@ import { useEditor } from "@/lib/store";
 import { EXPORT_FORMATS, type ExportFormat } from "@/lib/export-formats";
 import { ThemeSwitcher } from "./ThemeSwitcher";
 import { MenuPortal } from "./ui/MenuPortal";
+import { VersionsPanel } from "./VersionsPanel";
 import { SettingsModal } from "./SettingsModal";
 import { CutgentMark } from "./Logo";
 
@@ -50,8 +52,10 @@ export function TopBar() {
   });
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [keysOpen, setKeysOpen] = useState(false);
+  const [versionsOpen, setVersionsOpen] = useState(false);
   const [eta, setEta] = useState<number | null>(null);
   const settingsBtnRef = useRef<HTMLButtonElement>(null);
+  const versionsBtnRef = useRef<HTMLButtonElement>(null);
   const exportBtnRef = useRef<HTMLButtonElement>(null);
 
   // Limpia el polling al desmontar.
@@ -199,7 +203,27 @@ export function TopBar() {
           >
             <Redo2 size={16} />
           </button>
+          <button
+            ref={versionsBtnRef}
+            type="button"
+            onClick={() => setVersionsOpen((v) => !v)}
+            title="Versiones (historial guardado)"
+            aria-haspopup="dialog"
+            aria-expanded={versionsOpen}
+            className="rounded-md p-1.5 text-muted transition-colors hover:bg-panel-2 hover:text-text"
+          >
+            <History size={16} />
+          </button>
         </div>
+        <MenuPortal
+          anchorRef={versionsBtnRef}
+          open={versionsOpen}
+          onClose={() => setVersionsOpen(false)}
+          align="left"
+          width={320}
+        >
+          <VersionsPanel open={versionsOpen} onClose={() => setVersionsOpen(false)} />
+        </MenuPortal>
         <ProjectSwitcher />
 
         {/* Toggle Editor | Clipper */}
