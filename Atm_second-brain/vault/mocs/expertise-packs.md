@@ -53,6 +53,8 @@ capability to *your* situation, and so the agent's graph connects skill → self
 - `learning` — learning a new skill or designing how to study something · related:: [[personal/learning]]
 - `productivity` — planning, prioritizing, or fixing how work gets done · related:: [[personal/productivity]]
 - `health-fitness` — training, nutrition, and recovery (general education) · related:: [[personal/health-fitness]]
+- `psychology` — behavior, cognition, motivation, emotion (evidence-graded, not therapy) · related:: [[personal/psychology]]
+- `philosophy` — reasoning, ethics, epistemology, meaning (across traditions) · related:: [[personal/philosophy]]
 
 ## Meta  #meta
 
