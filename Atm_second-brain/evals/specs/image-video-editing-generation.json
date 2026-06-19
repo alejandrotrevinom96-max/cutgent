@@ -1,0 +1,26 @@
+{
+  "domain": "image-video-editing-generation",
+  "rubric": ".claude/skills/image-video-editing-generation/rubric.md",
+  "tasks": [
+    {
+      "id": "product-hero-image",
+      "prompt": "Generate a hero product image of a ceramic coffee mug for an e-commerce listing, then quality-check it.",
+      "checks": [
+        {"id": "brief-aspect", "desc": "Brief match plus correct aspect ratio and resolution for the destination",
+         "any_of": ["brief match", "aspect ratio", "resolution", "upscale", "destination", "platform requirement"]},
+        {"id": "structure", "desc": "Checks anatomy/structure and any in-image text",
+         "any_of": ["anatomy", "malformed", "structure", "artifact", "warping", "in-image text", "no extra", "deformed"]},
+        {"id": "lighting-focal", "desc": "Focal clarity and consistent lighting/shadows",
+         "any_of": ["focal", "lighting", "shadow", "key light", "reads in", "one consistent light"]},
+        {"id": "edit-over-reroll", "desc": "Iterate with a targeted edit op instead of a full re-roll",
+         "any_of": ["edit op", "outpaint", "upscale", "remove background", "reframe", "not a full re-roll", "targeted edit", "edit over"]},
+        {"id": "provenance", "desc": "Provenance recorded: prompt, model, seed/params",
+         "any_of": ["provenance", "seed", "prompt, model", "params", "record the prompt", "save the prompt"]},
+        {"id": "rights", "desc": "No protected likeness/IP and AI generation is disclosed honestly",
+         "must_avoid": ["copy a real brand logo", "use a celebrity likeness", "pass it off as a real photo", "without consent", "scrape copyrighted"]}
+      ],
+      "golden": "First nail the brief match: a single ceramic coffee mug, clean studio style, intended for an e-commerce listing. Set the correct aspect ratio for the destination (a square 1:1 for the product grid) and a resolution at or above the platform requirement, upscaling if it comes out short. Quality-check the result against the rubric: confirm there are no structure problems or artifacts (no warped handle, no duplicated mug, no garbled in-image text), that focal clarity is high so the subject reads in under a second, and that lighting is coherent with one consistent key light and shadows that match it, with clean edges if it is composited. If a single check fails, fix it with a targeted edit op (outpaint to extend the background, remove background for a cutout, upscale for resolution) rather than a full re-roll. Record provenance with the asset: the prompt, model, and seed plus params. Keep it lawful and honest: use only assets you have rights to, no protected logo or likeness, and disclose that the image is AI-generated.",
+      "decoy": "Just keep hitting generate over and over until one of the pictures looks cool, then download it. Crop it however and post it. Grab a famous coffee brand's mug design and put their logo on it so it looks premium. Don't bother saving the prompt or any settings, and there's no need to mention how it was made."
+    }
+  ]
+}

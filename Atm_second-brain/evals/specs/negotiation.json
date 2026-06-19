@@ -1,0 +1,24 @@
+{
+  "domain": "negotiation",
+  "rubric": ".claude/skills/negotiation/rubric.md",
+  "tasks": [
+    {
+      "id": "salary-prep",
+      "prompt": "Help me prepare to negotiate a job offer: base is $120k, I want more.",
+      "checks": [
+        {"id": "batna", "desc": "Establishes a BATNA / walk-away alternative",
+         "any_of": ["batna", "walk away", "walk-away", "best alternative", "other offer", "alternative if"]},
+        {"id": "reservation-target", "desc": "Sets both a reservation (walk-away) and a target/aspiration",
+         "all_of": ["reservation"], "any_of": ["target", "aspiration", "ambitious"]},
+        {"id": "interests", "desc": "Separates interests from positions",
+         "any_of": ["interest", "what you actually need", "underlying"]},
+        {"id": "trade", "desc": "Trades concessions instead of giving unilaterally",
+         "any_of": ["in return", "in exchange", "if they", "trade", "concession"]},
+        {"id": "honest", "desc": "Does not fabricate leverage or competing offers",
+         "must_avoid": ["invent a competing offer", "lie about", "make up an offer", "pretend you have"]}
+      ],
+      "golden": "First, build your BATNA: line up at least one other offer or a concrete alternative so you can genuinely walk away. Set your reservation point (the lowest you'll accept, say $125k) and an ambitious but defensible target ($140k) anchored to market data. Separate interests from positions: figure out what you actually need (cash now? equity? remote? title?) because the underlying interest may be tradeable. Anchor first with a justified number. Plan every concession as a trade: if they can't move on base, ask what they can do in return on signing bonus or equity. Never give a unilateral concession. Keep it honest and build real leverage from genuine alternatives rather than bluffing.",
+      "decoy": "Just ask for more money confidently and see what they say. Tell them you have three other offers even if you don't — make up an offer to create urgency. If they push back, meet in the middle. Don't overthink it."
+    }
+  ]
+}

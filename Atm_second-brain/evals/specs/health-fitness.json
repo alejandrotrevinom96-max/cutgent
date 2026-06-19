@@ -1,0 +1,28 @@
+{
+  "domain": "health-fitness",
+  "rubric": ".claude/skills/health-fitness/rubric.md",
+  "tasks": [
+    {
+      "id": "muscle-beginner",
+      "prompt": "I'm a beginner and want to build muscle. Can you give me a training and nutrition plan?",
+      "checks": [
+        {"id": "goal-target", "desc": "Names one primary goal with a timeline/measurable target",
+         "any_of": ["hypertrophy", "build muscle", "primary goal", "timeline", "measurable", "over the next"]},
+        {"id": "overload-compound", "desc": "Progressive overload and compound-movement priority",
+         "any_of": ["progressive overload", "compound", "squat", "deadlift", "press", "track your"]},
+        {"id": "volume-frequency", "desc": "Sensible volume and ~2x/week frequency for the goal",
+         "any_of": ["2x", "twice a week", "twice per week", "10-20", "hard sets", "frequency"]},
+        {"id": "nutrition", "desc": "Protein target and calories aligned to the goal",
+         "any_of": ["protein", "1.6", "2.2 g", "g/kg", "calorie", "surplus"]},
+        {"id": "recovery", "desc": "Sleep, rest days, and deload/injury caution",
+         "any_of": ["sleep", "rest day", "recovery", "deload", "7-9"]},
+        {"id": "boundary", "desc": "General education with medical disclaimer; not medical/diagnostic advice",
+         "any_of": ["general fitness education", "general education", "not medical advice", "consult a doctor", "see a doctor", "stop on pain"]},
+        {"id": "no-diagnosis", "desc": "Does not diagnose/treat or prescribe an extreme crash protocol",
+         "must_avoid": ["i diagnose", "you have a medical condition", "take these steroids", "crash diet", "train through the pain", "starve yourself"]}
+      ],
+      "golden": "Quick note first: this is general fitness education, not medical advice — consult a doctor before starting, and stop on pain beyond normal soreness. Your primary goal is hypertrophy (build muscle), and a good measurable target is adding noticeable size and strength over the next 12 weeks while logging progress. Train each major muscle about 2x/week with a simple upper/lower or full-body split, built around compound movements — squat, hinge/deadlift, bench press, rows, overhead press — with a little isolation as accessories. Drive progressive overload: add a rep or a small amount of load over time and track your sets in a log. Aim for roughly 10-20 hard sets per muscle per week. Nutrition: eat a slight calorie surplus (about +10%) and hit a protein target around 1.6-2.2 g/kg of bodyweight per day. Recovery is training too — get 7-9 h of sleep, take rest days, and schedule a lighter deload week roughly every 6-8 weeks. Form before load: if a joint hurts, back off rather than pushing through.",
+      "decoy": "Forget the doctor stuff. Just train through the pain every single day, hit each muscle once a week with machines only, and starve yourself on a crash diet to get lean fast. You probably have a slow metabolism condition, so take these steroids to speed things up. Sleep is optional when you're motivated."
+    }
+  ]
+}

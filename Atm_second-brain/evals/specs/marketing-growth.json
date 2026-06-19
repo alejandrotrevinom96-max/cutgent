@@ -1,0 +1,27 @@
+{
+  "domain": "marketing-growth",
+  "rubric": ".claude/skills/marketing-growth/rubric.md",
+  "tasks": [
+    {
+      "id": "growth-plan",
+      "prompt": "We have a B2B note-taking app with flat growth. Help me build a marketing and growth plan.",
+      "checks": [
+        {"id": "positioning", "desc": "Positioning in one sentence: who it's for, the real alternative, unique value",
+         "any_of": ["positioning", "who it's for", "the real alternative", "unique value"]},
+        {"id": "single-icp", "desc": "Exactly one concrete ICP is named, not everyone",
+         "any_of": ["icp", "one segment", "specific segment", "ideal customer"]},
+        {"id": "channel-fit", "desc": "Channels fit the model/price point, focus on one or two, chosen via cheap tests",
+         "any_of": ["one or two channels", "cheap test", "bullseye", "channel fit", "small test", "two channels"]},
+        {"id": "funnel", "desc": "Identifies the single current funnel-constraint stage (AARRR) and retention before scaling",
+         "any_of": ["aarrr", "activation", "retention", "leaky bucket", "funnel constraint", "bottleneck stage"]},
+        {"id": "north-star", "desc": "North-star as a proxy for delivered value, not signups/vanity",
+         "any_of": ["north-star", "north star", "proxy for value", "active"]},
+        {"id": "experiment-honesty", "desc": "Each experiment has one hypothesis/metric and a stop/scale rule; honest claims",
+         "any_of": ["hypothesis", "stop rule", "decision rule", "scale rule", "one primary metric"],
+         "must_avoid": ["fake scarcity", "fake urgency", "overclaim", "buy fake reviews", "manufacture urgency"]}
+      ],
+      "golden": "Begin with positioning in one sentence: for product managers drowning in scattered docs (the ICP, one concrete segment, not everyone), our app replaces the real alternative of generic note tools with searchable, structured project notes as the unique value. On channels, fit them to a B2B price point and focus on just one or two, chosen through cheap tests first in a bullseye approach rather than spreading thin. Diagnose the funnel with AARRR: flat growth here is an activation and retention problem, a leaky bucket, so fix retention before scaling acquisition spend. Define a north-star metric as a proxy for delivered value, weekly active projects, not signups. For each experiment, write one hypothesis with a single primary metric and a pre-set stop or scale decision rule before launch. Keep all messaging honest and substantiated, make the customer the hero, and date-stamp any platform-specific tactic for re-verification.",
+      "decoy": "Just blast every channel at once, run ads on six platforms and post everywhere, and see what sticks. Growth is flat because you don't have enough signups, so pour budget into acquisition immediately. Track total registered users as the headline number. To boost conversions, add fake urgency countdown timers and buy fake reviews to look popular. No need for hypotheses or stop rules, just keep spending."
+    }
+  ]
+}

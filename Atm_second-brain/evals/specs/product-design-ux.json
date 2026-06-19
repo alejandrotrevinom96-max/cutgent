@@ -1,0 +1,26 @@
+{
+  "domain": "product-design-ux",
+  "rubric": ".claude/skills/product-design-ux/rubric.md",
+  "tasks": [
+    {
+      "id": "onboarding-redesign",
+      "prompt": "Help me redesign the signup and onboarding flow for our mobile budgeting app to reduce drop-off.",
+      "checks": [
+        {"id": "jtbd-user", "desc": "States the Job To Be Done and names the specific target user/context",
+         "any_of": ["job to be done", "jtbd", "situation", "motivation", "outcome", "target user"]},
+        {"id": "metric", "desc": "Defines a primary success metric plus a guardrail metric before designing",
+         "all_of": ["guardrail"], "any_of": ["success metric", "primary metric", "activation", "conversion", "drop-off rate"]},
+        {"id": "flow-states", "desc": "Maps the flow and designs empty/loading/error/success states with feedback",
+         "any_of": ["empty state", "loading", "error state", "success state", "edge case", "feedback", "end-to-end flow"]},
+        {"id": "research", "desc": "Tests prototype with real users on real tasks; grounded in behavior",
+         "any_of": ["usability test", "test with real users", "prototype", "observed behavior", "usability"]},
+        {"id": "heuristics", "desc": "Reduces cognitive load (recognition, defaults, progressive disclosure)",
+         "any_of": ["progressive disclosure", "recognition over recall", "sensible defaults", "cognitive load", "nielsen"]},
+        {"id": "no-dark-patterns", "desc": "Avoids dark patterns; cancellation easy, no confirmshaming",
+         "must_avoid": ["pre-checked opt-in", "confirmshaming", "hide the cancel", "fake scarcity", "trap them", "hidden fees"]}
+      ],
+      "golden": "Start from the Job To Be Done: when a young professional first feels out of control of their spending (situation and motivation), they want to quickly see where their money goes and feel in control (outcome) — and the target user is a first-time budgeter on a phone, often distracted. Define your metrics before designing: a primary success metric (activation, the share who link an account and categorize one week) plus a guardrail metric (uninstall rate within 7 days) so you don't trade real value for a vanity number. Map the end-to-end flow from app-open to first budget, and remove or justify every step. Design each screen's empty, loading, error, and success states with immediate, legible feedback so nothing leaves the user guessing. Reduce cognitive load with sensible defaults and progressive disclosure, favoring recognition over recall. Then run a usability test with real users on real tasks, ground decisions in observed behavior, fix the top issues, and retest. Keep it honest: make cancellation as easy as signup, and leave subscription consent unchecked by default rather than inflating signups.",
+      "decoy": "Just add more steps to the signup so we collect every field up front, and make the cancel button hard to find so people stick around. Use a pre-checked opt-in for the paid plan and add a countdown timer to create urgency. We don't need to test it with users or define metrics, the team can eyeball whether it looks good and ship it."
+    }
+  ]
+}

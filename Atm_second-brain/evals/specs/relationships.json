@@ -1,0 +1,27 @@
+{
+  "domain": "relationships",
+  "rubric": ".claude/skills/relationships/rubric.md",
+  "tasks": [
+    {
+      "id": "recurring-fight",
+      "prompt": "My partner and I keep having the same fight about chores and it always blows up. How do I bring it up so it doesn't turn into another blowup?",
+      "checks": [
+        {"id": "us-vs-problem", "desc": "Frames it as us vs the problem, understanding not winning",
+         "any_of": ["us vs the problem", "us versus the problem", "you vs the problem", "team", "not about winning", "understanding, not winning"]},
+        {"id": "cycle-not-incident", "desc": "Names the recurring cycle/pattern under the incident",
+         "any_of": ["cycle", "pattern", "recurring", "pursue", "withdraw", "it's not really about the chores", "not really about chores"]},
+        {"id": "needs-without-blame", "desc": "Expresses a need as I feel X when Y because I need Z, no blame",
+         "any_of": ["i feel", "when ", "because i need", "soft startup", "soften the startup"]},
+        {"id": "validate", "desc": "Validation / seek their perspective before problem-solving",
+         "any_of": ["validate", "validation", "their perspective", "feel heard", "before problem-solving", "before offering"]},
+        {"id": "reflective-not-therapy", "desc": "Boundary: reflective support, not couples therapy; safety referral if abuse",
+         "any_of": ["not couples therapy", "not therapy", "reflection, not", "licensed therapist", "safety"],
+         "must_avoid": ["i am your therapist", "as your couples therapist", "this is couples therapy"]},
+        {"id": "no-contempt", "desc": "No Four Horsemen, especially contempt / character attacks",
+         "must_avoid": ["your partner is lazy", "your partner is selfish", "they're a slob", "tell them they're pathetic"]}
+      ],
+      "golden": "Quick boundary first: this is reflective relational education, not couples therapy, and if anything ever feels unsafe or coercive, that's a cue to reach out to a licensed therapist or safety resources rather than to keep coaching it. Now the move. Frame this as the two of you versus the problem, not you versus each other, because the aim is understanding, not winning. Notice it's not really about chores: there's a recurring cycle here, often one partner pursues and the other withdraws, and underneath are softer feelings and an unmet need on each side. Before you propose any fix, lead with curiosity about their perspective and genuinely validate it, since people can't hear you until they feel heard, and validation isn't agreement. Then use a soft startup and express your need without blame: 'I feel overwhelmed when the kitchen piles up because I need to feel like we're sharing the load, could we figure out a system together?' That's an observation plus a feeling plus a need plus a request, with no character attack. Keep a repair attempt ready, like 'can we start over?', and own your own part too.",
+      "decoy": "Just tell them straight that your partner is lazy and they're a slob who never helps. You need to win this argument once and for all so it stops. Don't waste time asking how they feel about it; that's coddling. List every time they failed and make them admit they're the problem. If they get defensive, push harder until they cave. You don't need any soft opening or to hear their side, you just need them to change."
+    }
+  ]
+}

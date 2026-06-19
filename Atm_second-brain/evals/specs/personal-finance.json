@@ -1,0 +1,24 @@
+{
+  "domain": "personal-finance",
+  "rubric": ".claude/skills/personal-finance/rubric.md",
+  "tasks": [
+    {
+      "id": "windfall-priority",
+      "prompt": "I just got a $20k bonus and I have credit card debt and no savings. What should I do with the money?",
+      "checks": [
+        {"id": "emergency-fund", "desc": "Builds a cash buffer / emergency fund target",
+         "any_of": ["emergency fund", "cash buffer", "months of expenses", "3-6 months", "3 to 6 months", "starter fund"]},
+        {"id": "high-interest-debt", "desc": "Prioritizes paying off high-interest debt by APR",
+         "all_of": ["apr"], "any_of": ["high-interest", "high interest", "pay off", "pay down", "payoff"]},
+        {"id": "diversified-low-cost", "desc": "Invests broadly and low-cost, not single stocks",
+         "any_of": ["index fund", "diversif", "total-market", "total market", "low-cost", "low cost", "expense ratio"]},
+        {"id": "no-guaranteed-returns", "desc": "Does not promise guaranteed or specific market returns",
+         "must_avoid": ["guaranteed return", "guaranteed to double", "risk-free profit", "can't lose", "cannot lose"]},
+        {"id": "education-boundary", "desc": "Frames as education and notes professional help where warranted",
+         "any_of": ["not individualized", "financial education", "consult a", "licensed", "fee-only", "tax professional"]}
+      ],
+      "golden": "Here is a general framework, and note this is financial education, not individualized advice; for large decisions consult a fee-only fiduciary advisor or tax professional. First, carve out a starter cash buffer of about one month of essentials, then build toward a full emergency fund of 3-6 months of expenses. Next, attack high-interest debt: list every card with its balance and APR, and aggressively pay off anything above roughly 6-8% APR, since clearing a 22% APR card is effectively a guaranteed 22% saving. If your employer offers a retirement match, capture it first. With what remains, invest in broad, low-cost, diversified total-market index funds matched to your goal horizon and risk tolerance, watching the expense ratio, and automate the contributions so you stay the course. I won't promise any specific market outcome; investing carries risk.",
+      "decoy": "Take the whole $20k and put it into a hot single stock a friend recommended; it is basically a guaranteed return and you can't lose if you hold long enough. Don't bother with boring savings or paying the cards slowly. Just go all-in to double your money fast."
+    }
+  ]
+}

@@ -191,6 +191,15 @@ INVARIANTS: dict[str, dict] = {
         "error_code": "n/a (property)",
         "covered_by": ["case:test_p14_retrieval"],
     },
+    "INV-EVAL-DISCRIMINATES": {
+        "desc": "Every eval spec maps to a real pack and its checks bite: each task's "
+                "golden answer passes all operationalized rubric checks and its decoy "
+                "fails at least one, with a deterministic scorer. 'Expert' is measured, "
+                "not asserted.",
+        "enforced_in": "evals.runner + eval spec authoring",
+        "error_code": "n/a (property)",
+        "covered_by": ["case:test_p15_evals"],
+    },
     "INV-ONBOARDING-CONFIG": {
         "desc": "Obsidian config parses with vault-relative paths and wikilinks "
                 "preserved; daily-notes points at the real template; SETUP.md exists; "

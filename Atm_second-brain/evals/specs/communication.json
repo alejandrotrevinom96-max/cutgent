@@ -1,0 +1,26 @@
+{
+  "domain": "communication",
+  "rubric": ".claude/skills/communication/rubric.md",
+  "tasks": [
+    {
+      "id": "investor-pitch",
+      "prompt": "I have 10 minutes to pitch my startup to investors next week. Help me prepare the talk.",
+      "checks": [
+        {"id": "audience-goal", "desc": "Names the audience and the explicit goal of the talk",
+         "any_of": ["audience", "who's in the room", "what they want", "what they fear", "goal", "what you want them to do"]},
+        {"id": "core-message", "desc": "Distills to one core message in a single sentence",
+         "any_of": ["one core message", "single sentence", "one sentence", "one idea", "core message"]},
+        {"id": "structure", "desc": "Uses an intentional structure: hook, tension, resolution",
+         "all_of": ["hook"], "any_of": ["tension", "stakes", "resolution", "story spine", "pyramid"]},
+        {"id": "clarity-example", "desc": "Clarity over cleverness and at least one concrete example/story",
+         "any_of": ["clarity over cleverness", "plain words", "concrete example", "story", "jargon"]},
+        {"id": "rehearse-qa", "desc": "Rehearse aloud and timed, and anticipate hard Q&A",
+         "any_of": ["rehearse", "timed", "out loud", "aloud", "q&a", "hard questions", "anticipate"]},
+        {"id": "no-bluffing", "desc": "Does not encourage padding, bluffing, or info-dumping",
+         "must_avoid": ["cram everything in", "just wing it", "bluff your way", "dump every detail", "read off the slides"]}
+      ],
+      "golden": "Start with the audience and goal: who are these investors, what do they want and fear, and what do you want them to do after ten minutes, probably take a follow-up meeting. Then distill the pitch to one core message in a single sentence; if you can't, you have more than one talk. Structure the journey with a deliberate hook that earns attention, real tension or stakes about the problem, and a resolution that is your solution and traction. Favor clarity over cleverness: plain words, define any jargon for this room, and ground the point in one concrete example or customer story rather than abstractions. End with one clear ask. Then rehearse aloud, on your feet, and timed to fit the ten minutes, and anticipate the hard questions so you have honest answers ready and can bridge back to the core message. Cut anything that doesn't serve that one message.",
+      "decoy": "Just cram everything in: every feature, every metric, your whole roadmap, all of it on the slides so you don't forget. You don't really need to know who's in the room or pick one message. No need to rehearse, just wing it on the day and read off the slides; investors expect a data dump anyway."
+    }
+  ]
+}

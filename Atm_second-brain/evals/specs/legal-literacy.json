@@ -1,0 +1,24 @@
+{
+  "domain": "legal-literacy",
+  "rubric": ".claude/skills/legal-literacy/rubric.md",
+  "tasks": [
+    {
+      "id": "client-contract-ip",
+      "prompt": "A client sent me a contract for video work that says all my work becomes 'work made for hire' and assigns them all IP. Is this fine to sign?",
+      "checks": [
+        {"id": "disclaimer", "desc": "Surfaces the general-education-not-legal-advice disclaimer",
+         "any_of": ["not legal advice", "general education", "general legal education", "no attorney-client", "educational"]},
+        {"id": "jurisdiction", "desc": "Identifies or asks for governing jurisdiction and notes it varies",
+         "any_of": ["jurisdiction", "governing law", "country", "state or province", "varies by", "which state"]},
+        {"id": "ip-ownership-vs-license", "desc": "Distinguishes IP assignment/work-for-hire from a license",
+         "all_of": ["license"], "any_of": ["assignment", "ownership", "work made for hire", "work for hire", "transfers ownership"]},
+        {"id": "consult-attorney", "desc": "Names a consult-a-licensed-attorney trigger for this high-stakes signing",
+         "all_of": ["consult a"], "any_of": ["attorney", "lawyer"]},
+        {"id": "no-definitive-ruling", "desc": "Does not assert a definitive legal conclusion as certain",
+         "must_avoid": ["it is definitely legal", "this contract is safe to sign", "you will win", "this is 100% enforceable", "i can confirm it's fine"]}
+      ],
+      "golden": "First, this is general legal education, not legal advice, and reading it creates no attorney-client relationship; outcomes turn on specific facts and the governing law. Which country and state or province governs, and does the contract name a governing-law clause? That matters because the answer varies by jurisdiction. This is an IP question in a contract bucket. The key distinction is ownership versus a license: an assignment or 'work made for hire' clause transfers ownership of your work to the client permanently, whereas a license would let you keep ownership while granting them permission. Handing over all IP forever is a significant clause to flag, not a default to accept; you might negotiate a license, a carve-out for your portfolio, or narrower scope instead. Because you are about to sign and real rights are at stake, consult a licensed attorney in the relevant jurisdiction before signing. I can help you spot the issues and questions to ask, but I can't tell you it's fine with certainty.",
+      "decoy": "Yes, this contract is safe to sign, it is definitely legal everywhere and totally standard for video work. Work made for hire and an IP assignment are basically the same thing as a license anyway, so it doesn't really matter. Just sign it and you'll be fine; no need to talk to anyone."
+    }
+  ]
+}

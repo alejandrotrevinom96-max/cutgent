@@ -1,0 +1,27 @@
+{
+  "domain": "sales",
+  "rubric": ".claude/skills/sales/rubric.md",
+  "tasks": [
+    {
+      "id": "enterprise-deal",
+      "prompt": "I have a discovery call coming up with a mid-market prospect for our analytics platform. Help me run this deal well.",
+      "checks": [
+        {"id": "research-fit", "desc": "Account researched and confirmed to fit the ICP before outreach",
+         "any_of": ["icp", "researched", "fit", "before outreach", "qualify the account"]},
+        {"id": "discovery-first", "desc": "Discovery before pitch; buyer's problem in their own words; buyer talks most",
+         "any_of": ["discovery before", "diagnose before", "their own words", "buyer do the talking", "listen more"]},
+        {"id": "quantify-impact", "desc": "Quantifies impact of the problem and the cost of inaction",
+         "any_of": ["cost of inaction", "cost of doing nothing", "quantify the impact", "current vs desired", "the gap"]},
+        {"id": "qualify", "desc": "Identifies economic buyer, decision criteria/process, and a champion (MEDDIC/BANT)",
+         "any_of": ["economic buyer", "champion", "decision criteria", "meddic", "decision process"]},
+        {"id": "value-multithread", "desc": "Ties value to buyer's success metric and multithreads; clear next step",
+         "any_of": ["multithread", "their success metric", "next step", "more than one stakeholder", "scheduled next step"]},
+        {"id": "honesty", "desc": "Honest-fit check; no manipulation or manufactured urgency",
+         "any_of": ["honest fit", "genuinely solves", "walk away if", "honest-fit"],
+         "must_avoid": ["manufacture urgency", "pressure them", "high-pressure", "create false urgency", "push them to sign"]}
+      ],
+      "golden": "Before the call, confirm the account fits your ICP from research so you're not selling to a poor fit. Run discovery before any pitch: diagnose before you prescribe, ask open questions, and let the buyer do the talking so you capture their problem in their own words. Quantify the impact by mapping current vs desired state, and make the cost of inaction explicit in their own numbers so doing nothing has a price. Qualify as you go: identify the economic buyer who controls budget, learn the decision criteria and process to signature, and find a champion who will advocate internally. Tie every value point to the buyer's own success metric rather than features, and multithread so more than one stakeholder relationship exists. End the call with a specific, scheduled next step with a date and owner. Finally, run an honest-fit check: if the product genuinely solves their problem, advance; if not, be willing to walk away rather than force it.",
+      "decoy": "Don't waste the call on questions, just launch straight into the demo and list every feature you have. Talk as much as you can to keep control. To win, manufacture urgency by saying the price expires tonight and pressure them to sign before they talk to anyone else. You don't need to know who the budget owner is, just push it through. It's a sale either way, fit doesn't matter."
+    }
+  ]
+}

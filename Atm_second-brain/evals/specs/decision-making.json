@@ -1,0 +1,26 @@
+{
+  "domain": "decision-making",
+  "rubric": ".claude/skills/decision-making/rubric.md",
+  "tasks": [
+    {
+      "id": "job-switch",
+      "prompt": "Should I leave my stable job for a risky startup? Help me decide well.",
+      "checks": [
+        {"id": "frame", "desc": "Frames the actual decision and the real alternatives",
+         "any_of": ["the decision is", "alternatives", "options are", "what you're really deciding", "frame"]},
+        {"id": "criteria", "desc": "Names the criteria / what matters before judging options",
+         "any_of": ["criteria", "what matters", "weigh", "values", "trade-off", "tradeoff"]},
+        {"id": "uncertainty", "desc": "Reasons about uncertainty / probabilities, not certainty",
+         "any_of": ["uncertain", "probability", "likely", "base rate", "expected", "odds", "risk of"]},
+        {"id": "reversibility", "desc": "Considers reversibility / cost of being wrong",
+         "any_of": ["reversible", "irreversible", "can you undo", "two-way door", "one-way door", "downside"]},
+        {"id": "bias", "desc": "Guards against a bias (e.g. sunk cost, confirmation)",
+         "any_of": ["sunk cost", "confirmation bias", "anchoring", "loss aversion", "pre-mortem", "disconfirming"]},
+        {"id": "no-fake-precision", "desc": "Does not fake false certainty / a single right answer",
+         "must_avoid": ["the obvious answer is", "there is only one right choice", "guaranteed to"]}
+      ],
+      "golden": "Let's frame the decision: you're choosing between staying (stable income, slower growth) and the startup (higher upside, real risk) — and note there may be options beyond this binary. Name your criteria first: what matters to you (income floor, learning, autonomy, runway) and how you'd weigh each trade-off. Reason under uncertainty rather than certainty: estimate the probability the startup survives 2 years (use a base rate for startups, ~50% or worse), and the expected outcomes, not the best case. Check reversibility: leaving may be a fairly reversible two-way door if you can return to similar roles, which lowers the downside. Guard against bias: ignore sunk cost (years already invested aren't a reason to stay), and run a quick pre-mortem imagining it failed. There is no guaranteed answer; pick the option that's best across your weighted criteria given the odds.",
+      "decoy": "The obvious answer is to take the startup — fortune favors the bold and it's guaranteed to pay off if you work hard. You've already spent years getting ready for something bigger, so don't waste that. Just go for it."
+    }
+  ]
+}

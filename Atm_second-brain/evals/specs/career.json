@@ -1,0 +1,28 @@
+{
+  "domain": "career",
+  "rubric": ".claude/skills/career/rubric.md",
+  "tasks": [
+    {
+      "id": "resume-bullets",
+      "prompt": "Help me fix my resume for a senior product manager role. My current bullets just list what I was responsible for. How should I rewrite them?",
+      "checks": [
+        {"id": "impact-not-duties", "desc": "Rubric: bullets lead with quantified result/outcome, not duties",
+         "any_of": ["quantif", "metric", "result first", "action verb", "so-what", "outcome", "%"],
+         "must_avoid": ["just list your responsibilities", "list your duties", "describe your day-to-day tasks"]},
+        {"id": "tailor", "desc": "Tailor to the specific role, mirror its language, lead with what it values",
+         "any_of": ["tailor", "mirror", "the job's language", "what that role values", "specific role"]},
+        {"id": "proof", "desc": "Claims backed by pointable proof, not adjectives alone",
+         "any_of": ["proof", "portfolio", "shipped", "case study", "pointable", "demonstrated"]},
+        {"id": "truthful", "desc": "Honesty boundary: no fabricated credentials or inflated metrics",
+         "any_of": ["truthful", "honest", "real number", "don't inflate", "don't fabricate", "accurate"],
+         "must_avoid": ["make up a metric", "invent a number", "inflate the numbers", "fabricate", "lie about"]},
+        {"id": "positioning-or-narrative", "desc": "Connects bullets to positioning/narrative or what the role values",
+         "any_of": ["positioning", "narrative", "through-line", "story", "audience", "edge"]},
+        {"id": "no-vague-adjectives", "desc": "Avoids empty adjective-only self-description",
+         "must_avoid": ["just call yourself a rockstar", "say you're a results-driven team player", "describe yourself as a synergistic"]}
+      ],
+      "golden": "Rewrite every bullet so it leads with a quantified result, not a responsibility: action verb plus metric plus the so-what. Instead of 'responsible for the onboarding flow,' write 'redesigned onboarding, lifting activation 22% (31%->53%) and cutting support tickets 40%.' Each line should pass the test of result first, then how, then why it mattered. Tailor the whole thing to this senior PM role: mirror the job description's language and lead with what that role values most, like cross-functional leadership and outcome ownership. Back claims with pointable proof, not adjectives: link a shipped product, a case study, or numbers you can defend in the interview. Tie the bullets to a clear positioning and narrative through-line so the resume reads as one coherent story toward senior PM, not a list of jobs. Keep every number truthful and accurate; framing real achievement well is leverage, and the strongest bullets are the ones you can stand behind when asked. Use real, defensible figures only.",
+      "decoy": "Don't overthink it, just list your responsibilities and what you were in charge of each day. Make up a metric for each one to look impressive; nobody checks, so inflate the numbers a bit and invent a number where you don't have one. At the top, just call yourself a rockstar and say you're a results-driven team player, and use the same generic resume for every job so you save time. Adjectives carry the resume, so load up on strong words and don't bother linking any actual work."
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "domain": "photography",
+  "rubric": ".claude/skills/photography/rubric.md",
+  "tasks": [
+    {
+      "id": "outdoor-portrait",
+      "prompt": "I'm shooting an environmental portrait of a chef outside their restaurant at midday. Walk me through how to get a strong frame.",
+      "checks": [
+        {"id": "intent-subject", "desc": "States the single intent and identifiable subject the frame serves",
+         "any_of": ["the intent is", "single idea", "the idea is", "the subject is", "what the frame serves"]},
+        {"id": "exposure-triangle", "desc": "Sets aperture, shutter, and ISO deliberately for DOF/motion",
+         "all_of": ["aperture", "shutter"], "any_of": ["iso", "depth of field", "shutter speed"]},
+        {"id": "light", "desc": "Assesses and chooses light quality/direction (not default harsh midday sun)",
+         "any_of": ["open shade", "diffuse", "fill flash", "reflector", "soft light", "direction of light", "quality of light"]},
+        {"id": "composition", "desc": "Deliberate structure and simplified frame, edges checked for mergers",
+         "any_of": ["rule of thirds", "leading lines", "frame within", "simplify", "mergers", "check the edges", "background"]},
+        {"id": "focus", "desc": "Focus on the eyes; flattering angle/lens for people",
+         "any_of": ["focus on the eyes", "eyes sharp", "focus on the eye", "flattering"]},
+        {"id": "consent", "desc": "Respects subject consent / honest representation",
+         "must_avoid": ["no need to ask", "shoot them secretly", "without their permission", "fake the location"]}
+      ],
+      "golden": "First, fix the intent: the single idea is the chef as proud craftsperson in their place of work, so the subject is identifiable and everything serves that. Midday sun is hard and unflattering, so assess the light and move them into open shade or add a reflector for soft, directional fill; do not just accept the overhead glare. Set the exposure deliberately: a wide aperture (f/2.8) for shallow depth of field to separate them from the busy street, a shutter speed fast enough to avoid shake, and ISO as low as the scene allows. Compose with the rule of thirds, use the doorway as a frame within a frame, simplify the clutter, and check the edges for distracting mergers before you shoot. Focus on the eyes so they are sharp, and pick a flattering angle and lens. Get their consent and direct them into a natural pose with genuine expression; the location is real, not staged to mislead.",
+      "decoy": "Just put the camera on auto and snap a few quick photos in the bright midday sun, it's plenty of light. Stick them in the middle of the frame and don't worry about the background or the edges. You can shoot them secretly so the expression stays candid, no need to ask. Fix it all in editing later."
+    }
+  ]
+}

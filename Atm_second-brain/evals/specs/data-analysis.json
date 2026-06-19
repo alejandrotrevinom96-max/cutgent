@@ -1,0 +1,27 @@
+{
+  "domain": "data-analysis",
+  "rubric": ".claude/skills/data-analysis/rubric.md",
+  "tasks": [
+    {
+      "id": "ab-test-readout",
+      "prompt": "Our A/B test on the new checkout button shows variant B converted higher. Help me analyze whether we should ship it.",
+      "checks": [
+        {"id": "decision-first", "desc": "States the decision and a threshold/what would change the conclusion first",
+         "any_of": ["the decision", "decision threshold", "what would change", "we should ship if", "ship if"]},
+        {"id": "provenance", "desc": "Documents data source, collection, unit of analysis, and time window",
+         "any_of": ["data source", "unit of analysis", "per user", "per session", "time window", "how it was collected"]},
+        {"id": "hygiene", "desc": "Checks missing/duplicate/outlier values and selection/survivor bias",
+         "any_of": ["duplicate", "outlier", "missing", "selection bias", "survivor"]},
+        {"id": "uncertainty", "desc": "Quantifies uncertainty (CI/SE + n), not a bare point estimate, and effect size",
+         "any_of": ["confidence interval", "standard error", "effect size", "sample size", "interval"]},
+        {"id": "causal-care", "desc": "Uses causal language only when design supports it; considers confounders",
+         "any_of": ["associated", "confounder", "correlation is not", "causal", "association"]},
+        {"id": "integrity", "desc": "No p-hacking / cherry-picking; pre-set hypothesis, exploratory labeled",
+         "any_of": ["pre-registered", "pre-specified", "primary metric", "exploratory", "multiple comparisons"],
+         "must_avoid": ["just keep slicing until", "cherry-pick", "p-hack", "drop the data that hurts", "peek until it's significant"]}
+      ],
+      "golden": "Frame the decision first: we should ship variant B if its conversion lift is positive and we're confident it's real, so let's define the decision threshold and what would change the conclusion before touching the numbers. Document provenance: name the data source, confirm the unit of analysis is per user (not per session) so a user isn't double-counted, and state the time window. Run data hygiene: check for duplicate assignments, missing rows, and outliers, and consider selection bias from who reached checkout. For inference, report the effect size with a confidence interval and the sample size rather than a bare point estimate, so we know whether the lift is precise. Keep causal language disciplined: the test was randomized so a causal read is defensible, but flag any confounder like a concurrent promo. On integrity, stick to the pre-specified primary metric; if other slices look interesting, label them exploratory rather than confirmatory.",
+      "decoy": "Variant B is higher, so it definitely caused more conversions and we should ship immediately. We don't need the sample size or any interval, the number went up which is all that matters. If the overall result is shaky, just keep slicing until you find a segment where B wins and report that one. Don't worry about how the data was collected."
+    }
+  ]
+}

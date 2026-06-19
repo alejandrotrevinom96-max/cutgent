@@ -1,0 +1,28 @@
+{
+  "domain": "psychology",
+  "rubric": ".claude/skills/psychology/rubric.md",
+  "tasks": [
+    {
+      "id": "build-a-habit",
+      "prompt": "I keep failing to build a daily writing habit even though I know I should. What does psychology actually say about why, and how do I fix it?",
+      "checks": [
+        {"id": "named-model", "desc": "Names a specific, well-supported behavior model rather than vague 'studies show'",
+         "any_of": ["cue", "routine", "reward", "tiny habit", "b=map", "fogg", "behavior = motivation"]},
+        {"id": "environment-not-willpower", "desc": "Rubric: habits via environment/behavior design, not willpower-only",
+         "any_of": ["environment", "friction", "make it easier", "easy", "anchor"],
+         "must_avoid": ["just use more willpower", "rely on willpower alone"]},
+        {"id": "evidence-grading", "desc": "Replication status / effect size weighted, not just headline",
+         "any_of": ["replicat", "effect size", "robust", "well-supported", "contested", "uncertainty"]},
+        {"id": "no-debunked-effect", "desc": "Does not present a known failed effect as fact",
+         "must_avoid": ["ego depletion is real", "power posing works", "willpower is a finite muscle that depletes"]},
+        {"id": "not-therapy", "desc": "Clinical boundary: education not diagnosis/therapy, route concerns to professionals",
+         "any_of": ["not therapy", "not a diagnosis", "education, not", "not clinical", "professional"],
+         "must_avoid": ["you clearly have adhd", "this is a diagnosis", "i diagnose you"]},
+        {"id": "no-armchair-diagnosis", "desc": "No pathologizing / armchair labeling of the user",
+         "must_avoid": ["you obviously suffer from", "you have a disorder", "you are clinically"]}
+      ],
+      "golden": "First, let's classify this as a behavioral question, so the right tool is behavior design, not motivation lectures. A well-supported model here is the cue-routine-reward loop, and Fogg's B=MAP (Behavior = Motivation x Ability x Prompt): when a behavior isn't happening, usually the issue is that it's too hard, so make it easier. Design your environment to lower friction: open the document the night before, shrink the goal to one sentence (Tiny Habits), and anchor it to something you already do, like your morning coffee. On evidence quality: the cue-reward and tiny-habit findings are reasonably robust and have a sensible effect size, whereas some famous self-control claims are contested, so I'm weighting the well-supported design approach over willpower folklore and not overstating any single study. Important boundary: this is psychology education, not therapy and not a diagnosis. I won't label you with anything; if the struggle ties to deeper distress, that's a question for a licensed professional, not for me.",
+      "decoy": "Honestly you just use more willpower and push through. Willpower is a finite muscle that depletes, so train it and it grows. If you still fail, you obviously suffer from a focus disorder, and frankly you clearly have adhd. This is a diagnosis based on what you described, so go act on it. Power posing works too, so stand tall before writing and your motivation will spike. No need to overthink the science."
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "domain": "cinematography",
+  "rubric": ".claude/skills/cinematography/rubric.md",
+  "tasks": [
+    {
+      "id": "tense-confession-shot",
+      "prompt": "Help me design a single shot for a tense kitchen confession scene between two characters at night.",
+      "checks": [
+        {"id": "beat-subject", "desc": "States the single emotional beat and the one subject the eye lands on",
+         "any_of": ["emotional beat", "the beat is", "single beat", "eye lands on", "where the eye"]},
+        {"id": "lens", "desc": "Chooses focal length for psychological effect, not just framing",
+         "all_of": ["focal length"], "any_of": ["wide", "long lens", "telephoto", "normal", "compression", "psychological"]},
+        {"id": "composition", "desc": "Deliberate composition (thirds/symmetry), not accidental dead-center",
+         "any_of": ["rule of thirds", "thirds", "intentional symmetry", "lead room", "look room", "headroom"]},
+        {"id": "lighting", "desc": "Key direction/quality and key:fill ratio matched to mood, motivated source",
+         "all_of": ["motivated"], "any_of": ["key:fill", "key light", "soft key", "hard key", "fill ratio", "contrast ratio"]},
+        {"id": "separation", "desc": "Subject separated from background; movement is purposeful or locked off",
+         "any_of": ["rim light", "back light", "backlight", "separation", "separate the subject", "locked off", "slow push"]},
+        {"id": "honest", "desc": "Does not promise the shot is flawless or impossible to improve",
+         "must_avoid": ["this shot is perfect", "guaranteed to win", "cannot be improved", "flawless in every way"]}
+      ],
+      "golden": "Start by naming the emotional beat: this is the moment trust breaks, so the single beat is suppressed dread, and the eye lands on the listener's reaction, not the speaker. Choose focal length for psychological effect: a long lens (around 85mm) for compression that isolates and traps her, rather than a wide that would open the room. Place her on the rule of thirds with correct headroom and lead room into the negative space she is staring across; avoid accidental dead-center. Light it with a hard, low key from a motivated source (the practical over the stove), a deep key:fill ratio for high contrast that hides half the face, and a cool rim light to give separation from the dark background. Keep the camera locked off, or a barely perceptible slow push to tighten tension; movement must change meaning. Hold the 180 line so eyelines stay consistent and the scene cuts cleanly. This is a strong starting point, not a finished frame; review on set and adjust.",
+      "decoy": "Just frame both characters dead center so they look balanced and turn on the overhead room light so everything is visible. Use whatever lens is already on the camera and keep the camera moving the whole time to make it feel dynamic. Don't worry about where the eye goes. This shot is perfect as described and guaranteed to win awards."
+    }
+  ]
+}

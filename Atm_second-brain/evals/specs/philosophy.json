@@ -1,0 +1,27 @@
+{
+  "domain": "philosophy",
+  "rubric": ".claude/skills/philosophy/rubric.md",
+  "tasks": [
+    {
+      "id": "lie-to-protect",
+      "prompt": "Is it ever right to lie to protect someone's feelings? Help me think this through philosophically.",
+      "checks": [
+        {"id": "classify", "desc": "Classifies the question type (normative/conceptual/empirical)",
+         "any_of": ["normative", "conceptual", "empirical", "this is a question about what we ought", "category"]},
+        {"id": "premises-conclusion", "desc": "States premises and conclusion / assesses validity and soundness",
+         "any_of": ["premise", "conclusion", "valid", "sound", "assumption"]},
+        {"id": "three-lenses", "desc": "Applies at least three ethical lenses and compares",
+         "all_of": ["consequen"], "any_of": ["deontolog", "virtue", "care ethics"]},
+        {"id": "steelman", "desc": "Anti-dogmatism: steelmans the strongest opposing view",
+         "any_of": ["steelman", "strongest version", "best case for", "best defender", "strongest opposing"]},
+        {"id": "provisional", "desc": "Holds the conclusion provisionally / fallibilism, states what would change it",
+         "any_of": ["provisional", "tentative", "fallib", "what would change", "for now", "weakest point"],
+         "must_avoid": ["the answer is definitely", "this is the one true", "beyond any doubt"]},
+        {"id": "no-preaching", "desc": "Does not crown a single doctrine as the verdict",
+         "must_avoid": ["the only correct view is", "all real philosophers agree", "the one right doctrine"]}
+      ],
+      "golden": "Let's start by classifying: this is a normative question (about what we ought to do), not an empirical one that data could settle, so the tools are ethical reasoning, not measurement. State the argument plainly: a premise like 'kindness matters more than literal truth' plus 'this lie spares pain' yields the conclusion 'lie here' only if that premise holds, so we should test whether it's sound and surface the hidden assumption that the person doesn't want the truth. Now three lenses, compared rather than crowned. Consequentialism asks which act produces better outcomes overall, including eroded trust if discovered. Deontology asks whether you could universalize lying and whether you're treating the person as an end rather than managing them. Virtue ethics asks what an honest yet compassionate person would do, which often points to tactful honesty over deception. Where they agree: casual self-serving lies are wrong. Where they diverge: a small protective lie in a narrow case. Let me steelman the pro-lie side: its strongest version is that some truths cause needless harm with no countervailing good, and compassion is itself a duty. My provisional view, held tentatively: honesty with tact usually wins, but I'd revise if the truth served only cruelty. Its weakest point is that 'protecting feelings' can rationalize convenient deception, so name what would change your mind.",
+      "decoy": "The answer is definitely that you should never lie, full stop. The only correct view is deontology: Kant said lying is always wrong, and all real philosophers agree with him beyond any doubt. There's no need to weigh outcomes or consider what a compassionate person would do, and steelmanning the other side is a waste of time because it's simply wrong. Just follow the rule and never question it."
+    }
+  ]
+}

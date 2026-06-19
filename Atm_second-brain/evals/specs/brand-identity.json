@@ -1,0 +1,26 @@
+{
+  "domain": "brand-identity",
+  "rubric": ".claude/skills/brand-identity/rubric.md",
+  "tasks": [
+    {
+      "id": "coffee-brand",
+      "prompt": "Help me build a brand identity for a new specialty coffee subscription aimed at busy young professionals.",
+      "checks": [
+        {"id": "positioning", "desc": "Writes positioning as one explicit sentence before visuals; names audience",
+         "all_of": ["positioning"], "any_of": ["audience", "category", "promise", "reason to believe", "differentiat"]},
+        {"id": "personality", "desc": "Brand personality as adjectives, each with a rejected opposite",
+         "any_of": ["not cute", "not corporate", "not cold", "not cheap", "not childish", "rejected opposite", "adjectives"]},
+        {"id": "logo-system", "desc": "Defines a logo system that survives small-size and monochrome tests",
+         "all_of": ["logo"], "any_of": ["monogram", "favicon", "system", "monochrome", "16px", "small-size"]},
+        {"id": "type-color", "desc": "Defines type and color systems as roles/tokens, not a mood image",
+         "any_of": ["type system", "typeface", "color system", "tokens", "primary", "functional"]},
+        {"id": "contrast", "desc": "Ensures text/background pairs meet WCAG AA; meaning not by hue alone",
+         "any_of": ["wcag aa", "contrast ratio", "wcag", "4.5:1", "not carried by hue", "color contrast"]},
+        {"id": "honest", "desc": "Does not clone a competitor or make misleading origin claims",
+         "must_avoid": ["copy starbucks", "clone a competitor", "knock off", "fake the origin", "mislead customers about"]}
+      ],
+      "golden": "Begin with positioning as one explicit sentence before any visual: for busy young professionals (audience) who want barista-grade coffee at home, [brand] is a specialty coffee subscription (category) that delivers freshly roasted beans matched to your taste, because we roast to order and ship within 24 hours (reason to believe and differentiated promise). Define personality as 3-5 adjectives each with a rejected opposite: refined not snobby, energetic not frantic, warm not cute. Build a logo system, not one lockup: primary wordmark, a stacked secondary, and a bean monogram that holds up as a favicon at 16px and passes the monochrome test in solid black. Specify a type system (one superfamily with a clear hierarchy) and a color system defined as named tokens with primary, secondary, and functional roles, not a mood image. Verify every text and background pair meets WCAG AA contrast, and never let meaning be carried by hue alone. Stay original; do not imitate an existing competitor or misstate where the beans come from.",
+      "decoy": "Pick a logo that looks cool and call it done, you only need one version. For the look, just grab a moodboard of vibes off Pinterest and match the feeling. Use green and a circle so it reads as premium coffee, basically copy Starbucks since that's what works. Don't worry about contrast or accessibility, designers overthink that. Ship it fast."
+    }
+  ]
+}

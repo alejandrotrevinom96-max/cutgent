@@ -8,6 +8,7 @@ Usage:
     python3 scripts/brain.py capture "<text>"  # model-free capture into the inbox
     python3 scripts/brain.py migrate [--apply] [--to=N]  # schema migration (dry-run default)
     python3 scripts/brain.py doctor            # health check (runtime, sqlite, vault, schema)
+    python3 scripts/brain.py eval [<domain>] [--task=ID] [--answer=FILE]  # score answers vs a pack rubric
 
 Everything here is stdlib-only and works offline. `selftest` is the canonical
 gate; CI and humans both run it.
@@ -125,9 +126,56 @@ def cmd_migrate(argv: list[str]) -> int:
     return 0 if not result["errors"] else 1
 
 
+def cmd_eval(argv: list[str]) -> int:
+    """Score answers against a pack's binary rubric (see evals/)."""
+    sys.path.insert(0, os.path.join(ROOT, "evals"))
+    import runner as evals
+
+    domain = next((a for a in argv if not a.startswith("--")), None)
+    task_id = next((a.split("=", 1)[1] for a in argv if a.startswith("--task=")), None)
+    answer_file = next((a.split("=", 1)[1] for a in argv if a.startswith("--answer=")), None)
+
+    if not domain:
+        specs = evals.all_specs()
+        print("available eval domains:")
+        for s in specs:
+            print(f"  {s['domain']:28s} ({len(s.get('tasks', []))} task(s))")
+        print("\nrun: brain.py eval <domain>            # golden/decoy discrimination demo")
+        print("     brain.py eval <domain> --task=ID --answer=FILE  # score your own answer")
+        return 0
+
+    spec = evals.load_spec(domain)
+    if not spec:
+        print(f"no eval spec for '{domain}'", file=sys.stderr)
+        return 2
+
+    # score a custom answer against one task
+    if answer_file:
+        with open(answer_file, encoding="utf-8") as fh:
+            answer = fh.read()
+        tasks = [t for t in spec["tasks"] if not task_id or t["id"] == task_id]
+        if not tasks:
+            print(f"no task '{task_id}' in {domain}", file=sys.stderr)
+            return 2
+        rc = 0
+        for t in tasks:
+            res = evals.score_answer(t, answer)
+            print(json.dumps(res, indent=2))
+            rc = rc or (0 if res["all_passed"] else 1)
+        return rc
+
+    # default: discrimination demo (proves the rubric checks bite)
+    rows = evals.discrimination(spec)
+    for r in rows:
+        mark = "✅" if r["discriminates"] else "❌"
+        print(f"{mark} {domain}/{r['task']}: golden {r['golden']['passed']}/{r['golden']['total']}, "
+              f"decoy {r['decoy']['passed']}/{r['decoy']['total']}")
+    return 0 if all(r["discriminates"] for r in rows) else 1
+
+
 COMMANDS = {"selftest": cmd_selftest, "reindex": cmd_reindex,
             "recall": cmd_recall, "capture": cmd_capture, "migrate": cmd_migrate,
-            "doctor": cmd_doctor}
+            "doctor": cmd_doctor, "eval": cmd_eval}
 
 
 def main(argv: list[str]) -> int:

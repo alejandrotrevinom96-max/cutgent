@@ -1,0 +1,26 @@
+{
+  "domain": "sound-audio",
+  "rubric": ".claude/skills/sound-audio/rubric.md",
+  "tasks": [
+    {
+      "id": "podcast-voice",
+      "prompt": "Help me record and mix a clean solo podcast voiceover in my untreated home office so it's ready to publish.",
+      "checks": [
+        {"id": "mic-room", "desc": "Matches mic/pattern to source and reduces room reflections at the source",
+         "any_of": ["cardioid", "polar pattern", "dead", "treat the room", "reflections", "off-axis"]},
+        {"id": "gain-staging", "desc": "Stages gain with headroom; peaks around -12 to -6 dBFS, no clipping",
+         "any_of": ["-12", "-6", "headroom", "dbfs", "without clipping", "peaks sit"]},
+        {"id": "chain-order", "desc": "Signal chain in correct order, EQ subtractive-first",
+         "all_of": ["eq"], "any_of": ["subtractive", "cut before", "compression", "de-ess", "limiter", "signal chain"]},
+        {"id": "loudness", "desc": "Meters to platform LUFS target with true peak under ceiling",
+         "any_of": ["lufs", "true peak", "-1 dbtp", "loudness target", "-16 lufs"]},
+        {"id": "intelligibility", "desc": "Checks voice intelligibility on consumer playback, references mix",
+         "any_of": ["phone", "laptop speaker", "consumer", "reference", "a/b", "intelligible"]},
+        {"id": "honesty", "desc": "Discloses any AI/cloned voice and licenses music",
+         "must_avoid": ["pass off the cloned voice", "use any music you find", "skip the license", "pretend it's a real recording"]}
+      ],
+      "golden": "Start at the source. Use a cardioid mic so its polar pattern rejects the room behind it, position it slightly off-axis to control plosives, and make the space as dead as you can with blankets and soft furnishings to kill reflections. Stage your gain so recorded peaks sit around -12 to -6 dBFS with headroom and nothing clips. In post, keep the signal chain in order and make your EQ subtractive-first, cutting problem frequencies before any boost, then gentle compression for consistency, de-ess, and a limiter last. Meter the final mix to your platform LUFS target (around -16 LUFS for podcasts) with true peak under -1 dBTP, not by ear. Check the voice is intelligible on a phone and laptop speaker, not just monitors, and A/B against a reference you trust. If you use any AI or cloned voice, disclose it, and license any music you add.",
+      "decoy": "Just talk into your laptop's built-in mic in the middle of the room, the echo gives it character. Crank the input so it's nice and loud even if the meters hit red. In editing, boost the bass and treble a lot to make it punchy. Don't bother metering loudness, set it by ear. You can use any music you find online for the intro."
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "domain": "web-design",
+  "rubric": ".claude/skills/web-design/rubric.md",
+  "tasks": [
+    {
+      "id": "saas-landing",
+      "prompt": "Design the hero and above-the-fold for a SaaS landing page that converts visitors to a free trial.",
+      "checks": [
+        {"id": "one-job", "desc": "One clear primary action, readable in seconds",
+         "any_of": ["one clear", "primary action", "single action", "primary cta", "within 3 seconds", "one job"]},
+        {"id": "hierarchy", "desc": "Visual hierarchy / squint test ordering attention",
+         "any_of": ["hierarchy", "squint test", "order of attention", "the eye lands", "focal"]},
+        {"id": "type-scale", "desc": "Real type scale, line-length and line-height discipline",
+         "any_of": ["type scale", "line-length", "line length", "45", "1.5", "line-height", "two font families", "modular scale"]},
+        {"id": "spacing", "desc": "Spacing maps to a 4/8px system",
+         "any_of": ["8px", "4px", "8-point", "spacing scale", "4/8", "spacing system"]},
+        {"id": "contrast-a11y", "desc": "Contrast meets WCAG AA and controls are accessible",
+         "any_of": ["wcag", "4.5:1", "3:1", "contrast", "visible focus", "semantic"]},
+        {"id": "honest-ux", "desc": "No dark patterns or deceptive conversion tricks",
+         "must_avoid": ["dark pattern", "fake countdown", "trick the user", "hidden unsubscribe", "deceptive"]}
+      ],
+      "golden": "Give the hero one job: the primary action (Start free trial) is the single obvious button, readable within 3 seconds. Build a clear hierarchy so the squint test passes: a large headline anchors the order of attention, subhead second, the primary CTA as the brightest element, secondary links muted. Use a real type scale (a 1.25 modular scale, not arbitrary px), keep body line-length to 45-75ch and line-height around 1.5, and limit yourself to two font families. Every margin and gap maps to an 8px spacing scale (4px for fine tuning), and grouping comes from space, not boxes everywhere. Reserve a single accent color for the CTA and keep neutrals restrained. Ensure contrast meets WCAG AA (4.5:1 for body, 3:1 for large text), use semantic structure with labelled controls and a visible focus ring, and design it to work at 360px and 1440px with tap targets at least 44px. Keep persuasion honest: real social proof, no manufactured urgency.",
+      "decoy": "Make the hero pop with five different bright colors and three big buttons so visitors have lots of options. Pick whatever font sizes look nice by eye and fill the space with boxes around everything. Add a fake countdown timer that resets to pressure people into signing up fast, and bury the close button so they stay. Don't worry about contrast or screen sizes; just make it look busy and exciting."
+    }
+  ]
+}

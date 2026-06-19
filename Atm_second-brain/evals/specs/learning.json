@@ -1,0 +1,26 @@
+{
+  "domain": "learning",
+  "rubric": ".claude/skills/learning/rubric.md",
+  "tasks": [
+    {
+      "id": "learn-spanish",
+      "prompt": "I want to get conversational in Spanish in 6 months. How should I actually learn it so it sticks?",
+      "checks": [
+        {"id": "concrete-goal", "desc": "States the skill as a concrete doable outcome with measurable success criteria",
+         "any_of": ["able to", "success criteria", "test of done", "measurable", "concrete", "what good looks like"]},
+        {"id": "active-recall", "desc": "Uses active recall / self-testing rather than rereading",
+         "any_of": ["active recall", "self-test", "self test", "retrieve", "recall", "test yourself"]},
+        {"id": "spaced", "desc": "Sets a spaced review schedule with expanding intervals",
+         "any_of": ["spaced", "spacing", "expanding interval", "srs", "review schedule", "1d", "review at"]},
+        {"id": "deliberate", "desc": "Deliberate practice at the edge of ability with feedback",
+         "any_of": ["edge of", "deliberate practice", "feedback", "correction", "fail some", "struggle"]},
+        {"id": "feynman-encode", "desc": "Feynman/teach-back or encode as evergreen notes in own words",
+         "any_of": ["feynman", "explain", "teach it", "in your own words", "evergreen note"]},
+        {"id": "honest-effort", "desc": "Does not promise effortless/passive cramming",
+         "must_avoid": ["effortless", "without any effort", "just listen passively", "cram the night before", "highlight and reread"]}
+      ],
+      "golden": "First make the goal concrete and measurable: not 'know Spanish' but 'able to hold a 10-minute unscripted conversation about daily life with a native speaker.' That's your test of done. Decompose it into sub-skills — listening, core vocabulary, speaking fluency, grammar patterns — and attack the bottleneck first, usually speaking and listening. Practice at the edge of ability: have real conversations where you fail some of the time and get immediate feedback or correction from a tutor or language partner. For vocabulary, use active recall — test yourself instead of rereading lists — and put words into an SRS with a spaced schedule at expanding intervals (1d, 3d, 7d, 21d) so a little forgetting strengthens the memory. Interleave topics rather than blocking one. Use the Feynman approach: try to explain a grammar rule in your own words and notice where you stall — that gap is your next lesson. Finally, encode what sticks as short evergreen notes in your own words. This takes daily struggle, but in six months it will stick.",
+      "decoy": "Honestly, just listen passively to Spanish podcasts in the background and let it soak in effortlessly. Highlight and reread your textbook a lot, and cram the night before any conversation. Six months is plenty of time without much work."
+    }
+  ]
+}

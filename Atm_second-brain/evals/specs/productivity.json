@@ -1,0 +1,26 @@
+{
+  "domain": "productivity",
+  "rubric": ".claude/skills/productivity/rubric.md",
+  "tasks": [
+    {
+      "id": "overwhelmed-week",
+      "prompt": "I have way too much on my plate this week and don't know where to start. Help me get a grip.",
+      "checks": [
+        {"id": "capture", "desc": "Captures everything into one trusted inbox / brain-dump first",
+         "any_of": ["brain-dump", "brain dump", "capture everything", "one inbox", "single inbox", "get it all out"]},
+        {"id": "next-action", "desc": "Clarifies items into concrete next physical actions",
+         "any_of": ["next action", "next physical action", "concrete action", "very next step"]},
+        {"id": "leverage", "desc": "Prioritizes by leverage/importance, not urgency; picks 1-3 daily",
+         "any_of": ["leverage", "importance", "1-3", "1 to 3", "most important", "moves a goal", "eisenhower"]},
+        {"id": "deep-work", "desc": "Schedules and protects a distraction-free deep-work block; single-task",
+         "any_of": ["deep-work", "deep work", "timeblock", "time block", "single-task", "single task", "notifications off"]},
+        {"id": "say-no", "desc": "Says no / descopes low-leverage commitments",
+         "any_of": ["say no", "decline", "descope", "drop", "defer", "delegate"]},
+        {"id": "no-hustle", "desc": "Does not prescribe hustle/cramming everything in",
+         "must_avoid": ["just work harder", "pull an all-nighter", "multitask everything", "do it all", "no time for breaks"]}
+      ],
+      "golden": "The overwhelm is usually un-captured open loops, not too little time — so start there. Do a full brain-dump: get every task, idea, and commitment out of your head and into one trusted inbox. Then clarify each item into a concrete next physical action ('draft the email to Sam'), not a vague heading; anything under two minutes, just do now. Next, prioritize by leverage, not by whatever's loudest: pick the 1-3 tasks that actually move a goal this week, and Eisenhower-sort the rest so urgent-but-unimportant noise gets batched, delegated, or declined. For each day, timeblock one defended deep-work block for the hardest task with notifications off, and single-task through it. Protect your recovery too — it's not slack to fill. And be willing to say no or descope: every yes is a no to something else, so it's fine to defer or drop the low-leverage commitments. Finish what you start before adding more.",
+      "decoy": "You just need to grind. Pull an all-nighter if you have to, multitask everything at once, and do it all — there's no time for breaks when you're this behind. Just work harder and power through the whole list today."
+    }
+  ]
+}

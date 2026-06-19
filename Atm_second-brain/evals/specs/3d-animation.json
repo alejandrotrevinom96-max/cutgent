@@ -1,0 +1,26 @@
+{
+  "domain": "3d-animation",
+  "rubric": ".claude/skills/3d-animation/rubric.md",
+  "tasks": [
+    {
+      "id": "character-walk-cycle",
+      "prompt": "Model a stylized character head and animate a basic walk cycle for a game cinematic. What should I get right?",
+      "checks": [
+        {"id": "topology", "desc": "Quad topology and edge loops that follow form in deforming areas",
+         "any_of": ["all-quad", "quad topology", "edge loop", "edge flow", "no tris", "no ngons", "deform"]},
+        {"id": "scale", "desc": "Correct scale/units, real-world sized, no flipped normals",
+         "any_of": ["scale", "units", "1 unit", "real-world size", "normals", "manifold"]},
+        {"id": "pbr-lighting", "desc": "Plausible PBR values and motivated, form-shaping lighting",
+         "any_of": ["pbr", "roughness", "metalness", "base-color", "key light", "motivated", "lighting", "texel density"]},
+        {"id": "principles", "desc": "Animation principles: timing/spacing, arcs, anticipation, follow-through",
+         "any_of": ["timing and spacing", "arcs", "anticipation", "follow-through", "overlapping action", "ease", "spacing"]},
+        {"id": "weight-contacts", "desc": "Weight reads and feet do not slide; no interpenetration",
+         "any_of": ["weight", "foot-skate", "foot skate", "contacts", "no sliding", "interpenetration", "no floaty"]},
+        {"id": "honest-gen3d", "desc": "Honest about where generative 3D needs hand cleanup",
+         "must_avoid": ["generative 3d is production-ready out of the box", "no cleanup needed", "ship the raw ai mesh", "skip retopology"]}
+      ],
+      "golden": "Start with topology: build the head as an all-quad mesh with edge loops that follow the form around the eyes and mouth so it deforms cleanly, no tris or ngons at the joints, no non-manifold geometry, and consistent normals. Get scale right from the start so 1 unit equals 1 meter and the character is real-world sized. For look-dev, keep PBR values plausible (no pure black or white base-color, sensible metalness, roughness that varies) with even texel density, and light it with a motivated key light that shapes the silhouette rather than a flat fill. For the walk cycle, work reference-and-blocking-first and lean on the principles: deliberate timing and spacing with eases, motion that travels in arcs, anticipation before the push-off, and follow-through and overlapping action so parts settle rather than all stopping at once. Make weight read at the contacts so it is not floaty, lock the planted foot so there is no foot-skate, and check for interpenetration of feet through the floor. On generative 3D: it is genuinely useful for blockouts and ideation, but it still needs retopology and hand cleanup before it is production-quality.",
+      "decoy": "Just sculpt whatever shape looks right and don't worry about whether the faces are quads or triangles; the engine handles it. Scale doesn't matter, you can resize later. For the walk, set two keyframes and let the software linearly interpolate between them so the feet glide along. Generative 3D is production-ready out of the box, so ship the raw ai mesh and call it done."
+    }
+  ]
+}

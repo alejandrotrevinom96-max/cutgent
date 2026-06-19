@@ -1,0 +1,27 @@
+{
+  "domain": "business-strategy",
+  "rubric": ".claude/skills/business-strategy/rubric.md",
+  "tasks": [
+    {
+      "id": "saas-launch-strategy",
+      "prompt": "I'm launching a SaaS tool for scheduling shifts. Help me put together a strategy.",
+      "checks": [
+        {"id": "icp-jtbd", "desc": "Names a specific ICP and the Job To Be Done / core problem",
+         "all_of": ["job to be done"], "any_of": ["icp", "target customer", "specific segment"]},
+        {"id": "value-prop", "desc": "Value proposition states who/problem/why-better and beats the status quo",
+         "any_of": ["value proposition", "status quo", "current alternative", "beats", "do nothing"]},
+        {"id": "unit-economics", "desc": "Pricing, margin, and CAC/LTV or payback are stated with assumptions",
+         "any_of": ["ltv", "cac", "payback", "unit economics", "gross margin", "contribution margin"]},
+        {"id": "moat", "desc": "Names a specific moat source and positioning vs competitors",
+         "any_of": ["switching cost", "network effect", "moat", "counter-positioning", "cornered resource", "positioning vs"]},
+        {"id": "north-star", "desc": "Picks exactly one north-star metric tied to delivered value, avoids vanity",
+         "any_of": ["north-star", "north star", "one metric"]},
+        {"id": "honesty", "desc": "Labels assumptions vs validated facts and states the strongest counter-argument",
+         "any_of": ["assumption", "counter-argument", "strongest objection", "biggest risk to this"],
+         "must_avoid": ["guaranteed to succeed", "this can't fail", "no real competition", "everyone is our customer"]}
+      ],
+      "golden": "Start with the customer: the ICP is operations managers at 20-100 person hospitality businesses, and their Job To Be Done is filling every shift without spreadsheets and last-minute texts. The value proposition is who/problem/why-better in a sentence: for those managers, we cut scheduling time in half versus the status quo of spreadsheets and group chats, which is the current alternative including do nothing. On economics, price at $4 per employee per month; with that ACV, estimate CAC, LTV, and payback, and state the assumption that gross margin holds near 80%. For defensibility, the moat source is switching costs once the schedule history and integrations are embedded, and positioning vs incumbents is on ease-of-onboarding rather than feature count. Choose one north-star metric tied to delivered value: weekly shifts filled through the product, not signups. Be explicit about what's assumption versus validated fact, and state the strongest counter-argument: incumbents could bundle this for free, so we need the beachhead moving fast.",
+      "decoy": "This is a huge market and everyone is our customer, so just build it and they will come. The product is obviously great and it's guaranteed to succeed once people see it. Track total signups and page views as the main success metric. Don't worry about pricing math or competitors, there's no real competition and this can't fail."
+    }
+  ]
+}

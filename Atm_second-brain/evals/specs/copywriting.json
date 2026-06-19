@@ -1,0 +1,26 @@
+{
+  "domain": "copywriting",
+  "rubric": ".claude/skills/copywriting/rubric.md",
+  "tasks": [
+    {
+      "id": "landing-hero-copy",
+      "prompt": "Write hero copy for a budgeting app that helps freelancers stop missing tax payments.",
+      "checks": [
+        {"id": "one-action", "desc": "Asks for exactly one thing with an explicit CTA",
+         "any_of": ["one action", "single cta", "explicit cta", "call to action", "start free", "one thing"]},
+        {"id": "reader-centered", "desc": "Speaks to the reader's desire/pain, not the company",
+         "any_of": ["reader's", "your", "you ", "their pain", "desire", "pain point"]},
+        {"id": "benefit-led", "desc": "Leads with the outcome/benefit, not the feature list",
+         "any_of": ["benefit", "outcome", "lead with", "never miss", "peace of mind", "result"]},
+        {"id": "specific-proof", "desc": "Concrete numbers/nouns and a credible proof element",
+         "any_of": ["proof", "testimonial", "specific", "concrete number", "re:\\d", "social proof"]},
+        {"id": "headline", "desc": "Headline earns the read with a clear promise under 12 words",
+         "any_of": ["headline", "clear promise", "under 12 words", "curiosity"]},
+        {"id": "honest", "desc": "Every claim is true; scarcity is real; no plagiarism",
+         "must_avoid": ["guaranteed to make you rich", "fake urgency", "copy a competitor", "made-up testimonial", "exaggerate"]}
+      ],
+      "golden": "Start with a headline that earns the read and makes a clear promise in under 12 words: 'Never miss a tax payment again.' This is reader-centered: it speaks to the freelancer's pain (the dread of a surprise tax bill) and their desire for peace of mind, not to the company. Lead with the benefit/outcome first, then let features support it: the app sets aside the right amount automatically so the result is you keep more and stress less. Make it specific with concrete numbers and proof: '12,000 freelancers saved an average of 3 hours a month at tax time,' and place a real testimonial near the claim as social proof. Ask for exactly one thing with an explicit CTA: 'Start free, no card required.' Reduce friction with a real risk reducer (cancel anytime). Keep every claim true and defensible and any scarcity genuine.",
+      "decoy": "Our company is the best budgeting software platform on the market with many powerful features and an industry-leading dashboard. Sign up now, or book a demo, or download our guide, or follow us on social. It is guaranteed to make you rich and everyone loves it. Act now before this incredible offer disappears forever."
+    }
+  ]
+}

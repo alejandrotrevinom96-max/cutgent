@@ -1,0 +1,26 @@
+{
+  "domain": "business-finance",
+  "rubric": ".claude/skills/business-finance/rubric.md",
+  "tasks": [
+    {
+      "id": "runway-check",
+      "prompt": "My startup made $80k in revenue last month and I feel like we're doing great. How much runway do we have and should I hire?",
+      "checks": [
+        {"id": "runway-math", "desc": "Computes runway as cash on hand divided by net monthly burn",
+         "all_of": ["runway"], "any_of": ["cash on hand", "net burn", "net monthly burn", "divided by", "cash"]},
+        {"id": "profit-not-revenue", "desc": "Keeps revenue, profit, and cash distinct",
+         "any_of": ["revenue is not", "profit is not", "revenue isn't", "profit isn't", "revenue vs", "profit ≠ cash", "distinct from"]},
+        {"id": "unit-economics", "desc": "Checks contribution margin / unit economics before recommending spend",
+         "any_of": ["contribution margin", "unit economics", "ltv", "cac", "breakeven", "variable cost"]},
+        {"id": "cpa-escalation", "desc": "Names CPA/accountant escalation for tax and structuring",
+         "any_of": ["consult a", "cpa", "accountant"]},
+        {"id": "no-tax-certainty", "desc": "Does not assert a definitive tax conclusion",
+         "must_avoid": ["you will owe exactly", "your tax rate is definitely", "guaranteed tax", "no taxes are due", "this is tax-free"]},
+        {"id": "revenue-confusion", "desc": "Does not treat revenue as cash or profit",
+         "must_avoid": ["revenue is your cash", "revenue means profit", "since you're profitable you have cash"]}
+      ],
+      "golden": "Congrats on the $80k, but revenue is not the same as profit or cash, so let's separate them before deciding anything. Runway is cash on hand divided by net monthly burn, where net burn is cash out minus cash in per month, so I need your actual bank balance and monthly outflows to compute it; if those are unknown, flag that as the first gap. A business can bill $80k and still be cash-strapped if receivables are slow or taxes are due. Before hiring, confirm your contribution margin (price minus variable cost) is positive and look at CAC, LTV, and breakeven, because growth on negative unit economics just loses money faster. Set aside money for taxes in a separate account as you earn, but I can't tell you a definitive rate or treatment, so confirm filings and structuring with a CPA or licensed accountant. This is general education, not accounting or tax advice.",
+      "decoy": "You made $80k in revenue, so revenue is your cash and you're clearly profitable, which means you have plenty in the bank. Just hire two people now; runway isn't really something you need to calculate when sales are this strong. Don't worry about margins, and you will owe exactly 20% in tax so set that aside and you're fine."
+    }
+  ]
+}

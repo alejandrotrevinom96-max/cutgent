@@ -1,0 +1,27 @@
+{
+  "domain": "software-engineering",
+  "rubric": ".claude/skills/software-engineering/rubric.md",
+  "tasks": [
+    {
+      "id": "rate-limiter",
+      "prompt": "I need to add a rate limiter to our API endpoint. Help me design and build it well.",
+      "checks": [
+        {"id": "requirements", "desc": "States problem, inputs, outputs, and definition of done before code",
+         "any_of": ["definition of done", "requirements", "inputs", "what counts as done", "acceptance criteria"]},
+        {"id": "edge-cases", "desc": "Identifies error and edge cases (empty, boundary, failure)",
+         "any_of": ["edge case", "boundary", "burst", "concurrent", "clock skew", "failure"]},
+        {"id": "data-structure", "desc": "Chooses a data structure that fits the access pattern, justified",
+         "any_of": ["token bucket", "sliding window", "leaky bucket", "data structure", "access pattern"]},
+        {"id": "testing", "desc": "Tests behavior including edge/error paths, not just happy path",
+         "all_of": ["test"], "any_of": ["edge case", "regression", "boundary", "error path"]},
+        {"id": "boring-tech", "desc": "Prefers boring/proven technology unless novelty earns its place",
+         "any_of": ["boring", "proven", "well-understood", "battle-tested", "established"]},
+        {"id": "honesty", "desc": "States tested vs should-work and does not overclaim certainty",
+         "any_of": ["tested", "should work", "verify", "i haven't run", "i have not run"],
+         "must_avoid": ["this will definitely work", "guaranteed to handle every", "no bugs", "works perfectly in all cases"]}
+      ],
+      "golden": "Let's start with requirements before code: the inputs are a client identifier and timestamp, the output is allow/deny, and the definition of done is that a client exceeding N requests per window is denied while others pass. Identify edge cases up front: a burst at the window boundary, concurrent requests racing the counter, and clock skew across nodes. For the data structure, a token bucket fits this access pattern well because it bounds memory per client and handles bursts gracefully; that justifies the choice over a naive list of timestamps. I'd reach for boring, proven technology here, a well-understood Redis counter, rather than a novel store. On testing: write tests that assert the behavior (deny after the limit, allow after refill) and cover the boundary and error paths, plus a regression test for the race. To be honest about status: I have not run this code yet, so treat it as should work rather than tested until you execute the suite; the least-certain risk is the concurrency path under load.",
+      "decoy": "Just drop in a quick counter in a global variable and increment it on each request, then reset it whenever. Don't bother writing tests, the logic is simple and this will definitely work. Use a trendy new in-memory framework I just read about. It's guaranteed to handle every case and there are no bugs."
+    }
+  ]
+}

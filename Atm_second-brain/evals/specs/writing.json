@@ -1,0 +1,26 @@
+{
+  "domain": "writing",
+  "rubric": ".claude/skills/writing/rubric.md",
+  "tasks": [
+    {
+      "id": "essay-revision",
+      "prompt": "Help me write and revise a short essay arguing that remote work improves focus.",
+      "checks": [
+        {"id": "controlling-idea", "desc": "A controlling idea statable in one sentence, with audience and purpose",
+         "any_of": ["controlling idea", "single sentence", "through-line", "throughline", "thesis", "purpose"]},
+        {"id": "audience", "desc": "Identifies the intended reader",
+         "any_of": ["intended reader", "audience", "who they are", "your reader", "the reader is"]},
+        {"id": "structure", "desc": "An outline/spine with a clear opening and an ending that lands",
+         "any_of": ["outline", "spine", "structure", "opening", "ending", "each section earns"]},
+        {"id": "concrete-evidence", "desc": "Claims made concrete with examples/evidence, not just asserted",
+         "any_of": ["concrete", "specific", "example", "evidence", "shown", "details"]},
+        {"id": "revise-tighten", "desc": "Revise rather than ship a first draft; cut needless words",
+         "any_of": ["revise", "cut", "needless words", "tighten", "read aloud", "read-aloud"]},
+        {"id": "honest", "desc": "No fabricated facts/quotes/stats and no padding to length",
+         "must_avoid": ["invent a statistic", "make up a quote", "fabricate a study", "add filler to reach", "pad it out"]}
+      ],
+      "golden": "Begin by fixing the controlling idea in a single sentence (your thesis: remote work improves focus because it removes the ambient interruptions of the open office) and name the purpose: what you want the reader to think or do after. Identify the intended reader so you pitch it right: skeptical managers who already know the productivity debate. Build a structure before you draft, an outline or narrative spine where each section earns its place, with a clear opening that orients and an ending that lands the argument. Make every claim concrete with examples and real evidence rather than leaving it abstract, and show the key claims instead of merely asserting them. Then revise rather than handing over a first draft: cut needless words and hedges, vary sentence length, prefer strong active verbs, and apply a read-aloud test to catch clunks. Keep it honest: cite real sources, never fabricate, and do not add padding just to reach a length.",
+      "decoy": "Just write whatever comes to mind about why working from home is great and send it as is, no need to revise. You don't need a thesis or to think about who's reading it. If you're short on length, pad it out with extra adjectives and repeat your points. To sound convincing, invent a statistic like '90% of workers are more productive at home' and make up a quote from a famous CEO."
+    }
+  ]
+}

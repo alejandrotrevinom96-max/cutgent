@@ -1,0 +1,26 @@
+{
+  "domain": "leadership-management",
+  "rubric": ".claude/skills/leadership-management/rubric.md",
+  "tasks": [
+    {
+      "id": "underperformer",
+      "prompt": "One of my engineers has been underperforming for two months. How should I handle it as their manager?",
+      "checks": [
+        {"id": "one-on-one", "desc": "Uses a recurring 1:1 on their agenda, not a status readout",
+         "any_of": ["1:1", "one-on-one", "one on one", "their agenda"]},
+        {"id": "feedback", "desc": "Gives specific, behavioral feedback close to the event (radical candor)",
+         "any_of": ["specific", "behavioral", "concrete example", "radical candor", "care personally", "challenge directly"]},
+        {"id": "outcomes", "desc": "Sets clear outcomes/expectations and what 'good' looks like, not surveillance",
+         "any_of": ["outcome", "expectation", "what good looks like", "what success looks like", "clear goal"]},
+        {"id": "support-plan", "desc": "Names the underperformance and supports it with a plan before acting",
+         "any_of": ["plan", "support", "improvement", "root cause", "what's getting in the way", "blocker"]},
+        {"id": "safety", "desc": "Protects psychological safety / curiosity over blame",
+         "any_of": ["psychological safety", "curiosity", "without fear", "blame", "context"]},
+        {"id": "no-snap-fire", "desc": "Does not jump to surveillance or summary firing without support",
+         "must_avoid": ["just fire them", "put them on a pip immediately", "micromanage every", "monitor their every", "write them up and move on"]}
+      ],
+      "golden": "Start in your next 1:1 — and run it on their agenda, not as a status readout. Before deciding anything, get curious about root cause: is this a skill gap, an unclear outcome, a blocker, or something going on outside work? Protecting psychological safety here matters; approach it with curiosity rather than blame so they'll tell you what's really getting in the way. Then give specific, behavioral feedback close to the event — name the exact pattern you've seen, not a vague 'you've been off,' in the spirit of radical candor: care personally and challenge directly. Make sure they actually know what good looks like; restate the outcomes and expectations clearly, because underperformance is often an unclear-expectations problem, not a motivation one. Agree on a concrete improvement plan with checkpoints and the support they need. Give it real time and document it. If, with clear outcomes and genuine support, it still doesn't move, then you escalate — but support first, and never substitute clarity with constant surveillance.",
+      "decoy": "Two months is plenty. Just fire them — or at minimum write them up and move on. Until then, micromanage every task and monitor their every commit so they know you're watching. People only shape up under pressure, so skip the soft stuff."
+    }
+  ]
+}
