@@ -117,6 +117,13 @@ INVARIANTS: dict[str, dict] = {
         "error_code": "n/a (property)",
         "covered_by": ["case:test_p7_skills"],
     },
+    "INV-PACK-TEMPLATE": {
+        "desc": "Each expertise pack conforms to the template: SKILL.md + "
+                "exemplars/rubric/anti-patterns/sources, with a binary rubric.",
+        "enforced_in": "pack authoring + selftest",
+        "error_code": "n/a (property)",
+        "covered_by": ["case:test_p8_expertise"],
+    },
 }
 
 

@@ -51,16 +51,34 @@ docs/adr/       Architecture Decision Records
 
 Built piece by piece, each gated by an audit before the next begins.
 
-- [x] **P0 — Scaffold + durability** (this commit): directory tree, schema v1
-      contract, conventions, template, example note.
-- [ ] P1 — MCP core skeleton (JSON-RPC 2.0 over stdio, FTS5 probe)
-- [ ] P2 — Parser + index + `reindex`
-- [ ] P3 — `recall` + graph + `resolve_tier` + `citation_verify`
-- [ ] P4 — `write_with_provenance` (validation gate)
-- [ ] P5 — `selftest` regression corpus
-- [ ] P6 — Hooks + `.mcp.json` + capture skills + MECH mode
-- [ ] P7 — Base skills + pack-supervisor
-- [ ] P8 — Pilot expertise packs (incl. image & video editing/generation)
+- [x] **P0 — Scaffold + durability**: directory tree, schema v1 contract,
+      conventions, template, example note.
+- [x] **P1 — MCP core skeleton**: stdlib JSON-RPC 2.0 over stdio, FTS5 probe,
+      canonical tool registry.
+- [x] **P2 — Parser + index + `reindex`**: stdlib YAML, SQLite index, idempotent
+      incremental reindex, link resolution.
+- [x] **P3 — `recall` + graph + `resolve_tier` + `citation_verify`**: ranked
+      retrieval with the human-information floor, anti-laundering tier resolution.
+- [x] **P4 — `write_with_provenance`**: the validation/provenance gate (schema,
+      immutability, anti-laundering, optimistic locking).
+- [x] **P5 — `selftest` regression corpus**: red/green fixtures + invariant
+      registry + 100% coverage-as-test.
+- [x] **P6 — Hooks + `.mcp.json` + capture + MECH mode**: model-free capture,
+      degraded-mode reporting.
+- [x] **P7 — Base skills + pack-supervisor**: vault-conventions/capture/review/git
+      + composition meta-skill + pack template.
+- [x] **P8 — Pilot expertise packs**: image & video editing/generation (requested),
+      web-design, copywriting — each with exemplars, binary rubric, anti-patterns,
+      sources.
+
+Run the full guardrail corpus any time with `python3 scripts/brain.py selftest`.
+
+### Adding more expertise domains
+
+The pilot packs prove the template. Adding the remaining life areas (counsel/
+friend, business, 3D/animation, and the rest) is a matter of copying
+`.claude/skills/expertise-pack-template/` and filling in the four companion files
+— no engine changes required.
 
 ## Principles that don't bend
 
