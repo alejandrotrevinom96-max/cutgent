@@ -191,6 +191,15 @@ INVARIANTS: dict[str, dict] = {
         "error_code": "n/a (property)",
         "covered_by": ["case:test_p14_retrieval"],
     },
+    "INV-SCALE-SANE": {
+        "desc": "Index + retrieval stay sane as the vault grows: full reindex covers "
+                "every note, an unchanged incremental reindex does zero work (mtime "
+                "fast-path keeps recall O(stat) not O(read+hash) per query), and recall "
+                "meets the human floor within a bounded latency at scale.",
+        "enforced_in": "index.reindex (mtime fast-path) + scripts/bench.py",
+        "error_code": "n/a (property)",
+        "covered_by": ["case:test_p16_scale"],
+    },
     "INV-EVAL-DISCRIMINATES": {
         "desc": "Every eval spec maps to a real pack and its checks bite: each task's "
                 "golden answer passes all operationalized rubric checks and its decoy "

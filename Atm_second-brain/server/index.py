@@ -61,7 +61,8 @@ CREATE INDEX IF NOT EXISTS idx_aliases_alias ON aliases(alias);
 CREATE TABLE IF NOT EXISTS manifest (
     path       TEXT PRIMARY KEY,
     file_hash  TEXT NOT NULL,
-    indexed_at TEXT NOT NULL
+    indexed_at TEXT NOT NULL,
+    mtime      REAL
 );
 CREATE TABLE IF NOT EXISTS meta (
     key TEXT PRIMARY KEY,
@@ -84,6 +85,11 @@ def connect(db_path: Optional[str] = None) -> sqlite3.Connection:
     con.execute("PRAGMA foreign_keys=ON")
     con.row_factory = sqlite3.Row
     con.executescript(SCHEMA_SQL)
+    # Back-compat for indexes created before the mtime fast-path column existed.
+    try:
+        con.execute("ALTER TABLE manifest ADD COLUMN mtime REAL")
+    except sqlite3.OperationalError:
+        pass  # column already present
     if has_fts5():
         con.executescript(FTS_SQL)
     con.commit()
@@ -169,21 +175,35 @@ def _resolve_links(con: sqlite3.Connection) -> int:
 def reindex(full: bool = False, db_path: Optional[str] = None) -> dict:
     con = connect(db_path)
     try:
-        manifest = {r["path"]: r["file_hash"] for r in con.execute("SELECT path, file_hash FROM manifest")}
+        manifest = {r["path"]: (r["file_hash"], r["mtime"])
+                    for r in con.execute("SELECT path, file_hash, mtime FROM manifest")}
         seen: set[str] = set()
         indexed = skipped = errors = 0
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
         for abs_path, rel in _iter_markdown(config.VAULT_DIR):
             seen.add(rel)
+            prev = manifest.get(rel)
+            try:
+                cur_mtime = os.path.getmtime(abs_path)
+            except OSError:
+                cur_mtime = None
+            # Fast path: unchanged mtime => assume unchanged content, skip parse+hash.
+            # This keeps recall O(stat) instead of O(read+hash) per query at scale; a
+            # full rebuild (full=True) is always the authoritative fallback.
+            if not full and prev is not None and prev[1] is not None and prev[1] == cur_mtime:
+                skipped += 1
+                continue
             note = parse_file(abs_path, rel)
-            if not full and manifest.get(rel) == note.file_hash:
+            # mtime moved but content identical (e.g. git checkout): refresh mtime only.
+            if not full and prev is not None and prev[0] == note.file_hash:
+                con.execute("UPDATE manifest SET mtime=? WHERE path=?", (cur_mtime, rel))
                 skipped += 1
                 continue
             _upsert_note(con, note)
             con.execute(
-                "INSERT OR REPLACE INTO manifest (path, file_hash, indexed_at) VALUES (?,?,?)",
-                (rel, note.file_hash, now),
+                "INSERT OR REPLACE INTO manifest (path, file_hash, indexed_at, mtime) VALUES (?,?,?,?)",
+                (rel, note.file_hash, now, cur_mtime),
             )
             indexed += 1
             if note.parse_error:
