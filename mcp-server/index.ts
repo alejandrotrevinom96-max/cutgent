@@ -954,6 +954,46 @@ server.registerTool(
   }),
 );
 
+server.registerTool(
+  "generate_media",
+  {
+    title: "Generar media con IA (BYO key)",
+    description:
+      "Genera imagen/video/audio con un proveedor usando la API key del usuario (Replicate, fal, OpenAI) y lo registra como asset. " +
+      "provider: replicate|fal|openai. kind: image|video|audio. Devuelve jobId (consulta con generate_status). " +
+      "COSTE: se factura DIRECTO al usuario en su proveedor, sin markup. Requiere la API key configurada en Ajustes. " +
+      "Tras done usa add_generated_media o add_clip para ponerlo en la línea de tiempo.",
+    inputSchema: {
+      provider: z.enum(["replicate", "fal", "openai"]),
+      kind: z.enum(["image", "video", "audio"]),
+      prompt: z.string(),
+      model: z.string().optional(),
+      imageUrl: z.string().optional(),
+      durationSec: z.number().optional(),
+      voiceId: z.string().optional(),
+      aspectRatio: z.string().optional(),
+    },
+  },
+  tool(async (args) => {
+    const res = (await postJson("/api/generate", args)) as { jobId?: string } | null;
+    const jobId = res?.jobId;
+    if (!jobId) return okJson(res);
+    return ok(`Generación lanzada (${args.provider}/${args.kind}). jobId=${jobId}. Consulta con generate_status.`);
+  }),
+);
+
+server.registerTool(
+  "generate_status",
+  {
+    title: "Estado de generación",
+    description:
+      "Consulta una generación por jobId: status (generating|done|error), progress (0..1), y el asset {id,src,kind,...} cuando esté listo. " +
+      "Tras done, usa add_generated_media o add_clip para colocarlo en la línea de tiempo.",
+    inputSchema: { jobId: z.string() },
+  },
+  tool(async (args) => okJson(await getJson(`/api/generate/status?id=${encodeURIComponent(args.jobId)}`))),
+);
+
 // ---------------------------------------------------------------------------
 // Consulta de documento (lectura)
 // ---------------------------------------------------------------------------

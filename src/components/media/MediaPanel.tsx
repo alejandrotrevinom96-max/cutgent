@@ -54,6 +54,18 @@ interface StockSearchResponse {
   warnings?: string[];
 }
 
+/** Tipo de media que se puede generar con IA. */
+type GenKindUi = "image" | "video" | "audio";
+/** Info de proveedor de generación expuesta por /api/generate/providers. */
+interface ProviderInfo {
+  id: string;
+  label: string;
+  requiredKey: string;
+  hasKey: boolean;
+  models: { id: string; label: string; kind: GenKindUi }[];
+}
+const GEN_KIND_LABEL: Record<GenKindUi, string> = { image: "Imagen", video: "Video", audio: "Audio" };
+
 /**
  * Panel izquierdo de medios: añade elementos rápidos, gestiona la biblioteca de
  * assets (subir, importar por URL, eliminar) y explica el flujo de medios IA.
@@ -89,9 +101,25 @@ export function MediaPanel() {
   const [stockError, setStockError] = useState<string | null>(null);
   const [importingId, setImportingId] = useState<string | null>(null);
 
+  // Estado de "Generar con IA" (BYO key)
+  const [providers, setProviders] = useState<ProviderInfo[]>([]);
+  const [genProvider, setGenProvider] = useState("replicate");
+  const [genKind, setGenKind] = useState<GenKindUi>("image");
+  const [genPrompt, setGenPrompt] = useState("");
+  const [genBusy, setGenBusy] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
+  const [genProgress, setGenProgress] = useState(0);
+
   useEffect(() => {
     void refreshAssets();
   }, [refreshAssets]);
+
+  useEffect(() => {
+    void fetch("/api/generate/providers")
+      .then((r) => r.json())
+      .then((d) => setProviders(Array.isArray(d) ? d : []))
+      .catch(() => {});
+  }, []);
 
   /** Devuelve el id de la primera pista del kind pedido; la crea si no existe. */
   function ensureTrack(kind: Track["kind"]): {
@@ -261,6 +289,67 @@ export function MediaPanel() {
       setImportingId(null);
     }
   }
+
+  /** Genera media con IA (BYO key), la registra como asset y la pone en la timeline. */
+  async function handleGenerate(): Promise<void> {
+    if (genBusy || !genPrompt.trim()) return;
+    setGenBusy(true);
+    setGenError(null);
+    setGenProgress(0);
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: genProvider, kind: genKind, prompt: genPrompt.trim() }),
+      });
+      if (!res.ok) {
+        const e = (await res.json().catch(() => ({}))) as { error?: string };
+        setGenError(e.error || "No se pudo iniciar la generación.");
+        return;
+      }
+      const { jobId } = (await res.json()) as { jobId: string };
+      let asset: Asset | undefined;
+      const startedAt = Date.now();
+      for (;;) {
+        await new Promise((r) => setTimeout(r, 2500));
+        if (Date.now() - startedAt > 6 * 60 * 1000) {
+          setGenError("La generación tardó demasiado. Revisa tu proveedor e intenta de nuevo.");
+          return;
+        }
+        const sres = await fetch(`/api/generate/status?id=${jobId}`);
+        if (!sres.ok) {
+          // 404 = el job expiró (TTL) o el proceso se reinició a mitad.
+          setGenError("Se perdió el trabajo de generación (pudo expirar). Intenta de nuevo.");
+          return;
+        }
+        const st = (await sres.json()) as { status?: string; progress?: number; asset?: Asset; error?: string };
+        setGenProgress(st.progress ?? 0);
+        if (st.status === "done") { asset = st.asset; break; }
+        if (st.status === "error") { setGenError(st.error || "La generación falló."); return; }
+      }
+      await refreshAssets();
+      if (asset?.src) {
+        const type = assetKindToClipType[asset.kind] ?? "image";
+        addClip(type, { src: asset.src, name: asset.name, ...(asset.durationInFrames ? { duration: asset.durationInFrames } : {}) });
+      }
+      setGenPrompt("");
+    } catch {
+      setGenError("Error de red durante la generación.");
+    } finally {
+      setGenBusy(false);
+    }
+  }
+
+  const selProvider = providers.find((p) => p.id === genProvider);
+  const genKinds: GenKindUi[] = selProvider ? Array.from(new Set(selProvider.models.map((m) => m.kind))) : ["image", "video", "audio"];
+  const onProviderChange = (id: string) => {
+    setGenProvider(id);
+    const np = providers.find((p) => p.id === id);
+    if (np) {
+      const ks = Array.from(new Set(np.models.map((m) => m.kind)));
+      if (!ks.includes(genKind)) setGenKind(ks[0]);
+    }
+  };
 
   return (
     <aside className="flex h-full w-[260px] shrink-0 flex-col overflow-y-auto border-r border-border bg-panel text-text">
@@ -520,26 +609,58 @@ export function MediaPanel() {
       {/* Generar con IA (informativo)                                       */}
       {/* ----------------------------------------------------------------- */}
       <Section title="Generar con IA">
-        <div className="rounded-md border border-border bg-panel-2 p-3">
-          <p className="flex items-center gap-1.5 text-xs font-medium text-accent-2">
-            <Sparkles size={14} /> Medios generados por IA
+        <div className="flex flex-col gap-2">
+          <p className="flex items-center gap-1.5 text-[11px] font-medium text-accent-2">
+            <Sparkles size={14} /> Genera con TU API key (sin markup)
           </p>
-          <p className="mt-2 text-[11px] leading-relaxed text-muted">
-            Los medios generados con IA se traen por URL: este panel no llama a
-            ninguna API de IA por sí mismo.
+          <div className="flex gap-2">
+            <select
+              value={genProvider}
+              onChange={(e) => onProviderChange(e.target.value)}
+              className="min-w-0 flex-1 rounded border border-border bg-panel-2 px-1.5 py-1 text-xs text-text outline-none focus:border-accent"
+            >
+              {(providers.length ? providers : [{ id: "replicate", label: "Replicate" }]).map((p) => (
+                <option key={p.id} value={p.id}>{p.label}</option>
+              ))}
+            </select>
+            <select
+              value={genKind}
+              onChange={(e) => setGenKind(e.target.value as GenKindUi)}
+              className="rounded border border-border bg-panel-2 px-1.5 py-1 text-xs text-text outline-none focus:border-accent"
+            >
+              {genKinds.map((k) => (
+                <option key={k} value={k}>{GEN_KIND_LABEL[k]}</option>
+              ))}
+            </select>
+          </div>
+          <textarea
+            value={genPrompt}
+            onChange={(e) => setGenPrompt(e.target.value)}
+            rows={2}
+            placeholder={genKind === "audio" ? "Texto a leer / describe el sonido…" : "Describe la imagen o el video…"}
+            className="w-full resize-y rounded border border-border bg-panel-2 px-2 py-1.5 text-xs text-text outline-none focus:border-accent"
+          />
+          {selProvider && !selProvider.hasKey && (
+            <p className="text-[11px] leading-snug text-[var(--warning,#d9a441)]">
+              Falta la API key <span className="font-mono">{selProvider.requiredKey}</span> — añádela en «Ajustes».
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={() => void handleGenerate()}
+            disabled={genBusy || !genPrompt.trim()}
+            className="flex items-center justify-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-white transition hover:bg-accent-2 disabled:opacity-50"
+          >
+            {genBusy ? (
+              <><Loader2 size={14} className="animate-spin" /> Generando… {Math.round(genProgress * 100)}%</>
+            ) : (
+              <><Sparkles size={14} /> Generar</>
+            )}
+          </button>
+          {genError && <p className="text-[11px] leading-snug text-[var(--danger,#e5484d)]">{genError}</p>}
+          <p className="text-[10px] leading-snug text-muted">
+            Replicate/fal: imagen y video · OpenAI: imagen y voz. Te factura tu proveedor directamente.
           </p>
-          <ul className="mt-2 flex list-disc flex-col gap-1.5 pl-4 text-[11px] leading-relaxed text-muted">
-            <li>
-              Pídeselo al asistente: él genera la imagen, el video o el audio y lo
-              importa automáticamente con la herramienta{" "}
-              <span className="text-text">MCP</span>.
-            </li>
-            <li>
-              O pega tú mismo el enlace del medio en{" "}
-              <span className="text-text">Importar por URL</span> para añadirlo a
-              la biblioteca y luego a la línea de tiempo.
-            </li>
-          </ul>
         </div>
       </Section>
     </aside>
