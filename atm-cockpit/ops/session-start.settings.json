@@ -1,0 +1,15 @@
+{
+  "_comment": "Merge this into .claude/settings.json to enable ops/session-start.sh. See ops/README.md.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
