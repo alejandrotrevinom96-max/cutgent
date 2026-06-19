@@ -159,6 +159,14 @@ INVARIANTS: dict[str, dict] = {
         "error_code": "n/a (property)",
         "covered_by": ["case:test_p10_vault"],
     },
+    "INV-PARA-TEMPLATES": {
+        "desc": "Daily/project/area/resource templates exist with correct types and are "
+                "skipped by the index; the first-run note is schema-valid, indexed, and "
+                "its links resolve.",
+        "enforced_in": "templates + first-run authoring + index skip rule",
+        "error_code": "n/a (property)",
+        "covered_by": ["case:test_p11_templates"],
+    },
 }
 
 

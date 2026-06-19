@@ -13,6 +13,8 @@ aliases: ["start here", "vault home", "index"]
 
 # Home
 
+**New here?** Start with [[first run]] — a 10-minute guided setup of your personal layer.
+
 Top-level entry point for the vault. Three spines:
 
 ## Capabilities
