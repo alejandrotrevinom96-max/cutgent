@@ -1,0 +1,5 @@
+# La landing es 100% estática: solo subimos site/ y la config de Vercel.
+# El resto del repo (editor de escritorio, MCP, etc.) no se despliega.
+/*
+!site
+!vercel.json
