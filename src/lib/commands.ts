@@ -155,8 +155,15 @@ export function applyCommand(doc: Project, command: Command): Project {
     case "load_document":
       return cloneDeep(command.document);
 
-    case "set_project_settings":
-      return { ...doc, ...command.patch };
+    case "set_project_settings": {
+      // Normaliza dimensiones a PAR (yuv420p) en un solo sitio → preview pixel-
+      // idéntico al export (el export ya las fuerza a par en Root.calculateMetadata).
+      const p = { ...command.patch };
+      const even = (n: number) => (n % 2 === 0 ? n : n + 1);
+      if (typeof p.width === "number") p.width = even(Math.max(2, p.width));
+      if (typeof p.height === "number") p.height = even(Math.max(2, p.height));
+      return { ...doc, ...p };
+    }
 
     case "add_track": {
       const at = command.index ?? doc.tracks.length;

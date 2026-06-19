@@ -4,6 +4,7 @@ import { CameraMotionBlur } from "@remotion/motion-blur";
 import type { Project } from "@/lib/schema";
 import { ClipView } from "./ClipView";
 import { TrialWatermark } from "./TrialWatermark";
+import { SafeZones, type SafePlatform } from "./SafeZones";
 
 /**
  * The single Remotion composition that renders the whole document. Used by
@@ -23,7 +24,10 @@ export const VideoComposition: React.FC<{
   /** Solo en EXPORT sin licencia: pinta la marca de agua de prueba. El preview
    *  nunca pasa este flag (se decide server-side en /api/render). */
   watermark?: boolean;
-}> = ({ document, preview, proxyMap, selectedClipId, watermark }) => {
+  /** Solo PREVIEW: dibuja guías de safe-zone (string = plataforma). La ruta de
+   *  render NUNCA pasa esta prop, así que NUNCA se exporta. */
+  safeZones?: SafePlatform;
+}> = ({ document, preview, proxyMap, selectedClipId, watermark, safeZones }) => {
   const layers = document.tracks.map((track) => {
     if (track.hidden) return null;
     return (
@@ -62,6 +66,9 @@ export const VideoComposition: React.FC<{
         layers
       )}
       {watermark ? <TrialWatermark width={document.width} height={document.height} /> : null}
+      {safeZones ? (
+        <SafeZones width={document.width} height={document.height} platform={safeZones} />
+      ) : null}
     </AbsoluteFill>
   );
 };

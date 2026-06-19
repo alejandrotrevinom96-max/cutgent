@@ -413,6 +413,16 @@ export function TopBar() {
   );
 }
 
+/** Presets de resolución comunes. fps fijo solo en 16:9/9:16; 1:1 y 4:5 conservan
+ *  el actual. La duración NUNCA se toca. */
+const RESOLUTION_PRESETS: { label: string; w: number; h: number; fps?: number }[] = [
+  { label: "16:9 1080p", w: 1920, h: 1080, fps: 30 },
+  { label: "16:9 4K", w: 3840, h: 2160, fps: 30 },
+  { label: "9:16 Reels/TikTok", w: 1080, h: 1920, fps: 30 },
+  { label: "1:1", w: 1080, h: 1080 },
+  { label: "4:5", w: 1080, h: 1350 },
+];
+
 /** Popover de ajustes de composición: resolución, fps y duración. */
 function SettingsPopover({ onClose }: { onClose: () => void }) {
   const document = useEditor((s) => s.document);
@@ -441,17 +451,41 @@ function SettingsPopover({ onClose }: { onClose: () => void }) {
         </button>
       </div>
 
+      <div className="mb-3">
+        <span className="mb-1 block text-[11px] text-muted">Presets</span>
+        <div className="flex flex-wrap gap-1.5">
+          {RESOLUTION_PRESETS.map((p) => {
+            const active = document.width === p.w && document.height === p.h;
+            return (
+              <button
+                key={p.label}
+                type="button"
+                onClick={() => patch({ width: p.w, height: p.h, ...(p.fps ? { fps: p.fps } : {}) })}
+                className={`rounded-md border px-2 py-1 text-[11px] transition-colors ${
+                  active ? "border-accent bg-accent/15 text-text" : "border-border text-muted hover:text-text"
+                }`}
+              >
+                {p.label}
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-1.5 text-[10px] leading-tight text-muted">
+          Cambiar de aspecto no recoloca los clips; usa las guías «Safe» del preview para reencuadrar.
+        </p>
+      </div>
+
       <div className="grid grid-cols-2 gap-2">
         <NumberField
           label="Ancho"
           value={document.width}
-          min={1}
+          min={2}
           onChange={(v) => patch({ width: v })}
         />
         <NumberField
           label="Alto"
           value={document.height}
-          min={1}
+          min={2}
           onChange={(v) => patch({ height: v })}
         />
         <NumberField

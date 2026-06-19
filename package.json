@@ -1,6 +1,6 @@
 {
   "name": "cutgent",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "private": true,
   "description": "Editor de video full-stack controlable 100% por Claude vía MCP",
   "main": "electron/main.cjs",

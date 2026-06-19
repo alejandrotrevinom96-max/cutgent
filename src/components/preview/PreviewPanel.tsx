@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, LayoutTemplate } from "lucide-react";
 import { Player, type PlayerRef } from "@remotion/player";
 import { VideoComposition } from "@/remotion/VideoComposition";
+import type { SafePlatform } from "@/remotion/SafeZones";
 import { useEditor } from "@/lib/store";
 import { TransportControls } from "./TransportControls";
 import { ScopesPanel } from "./ScopesPanel";
@@ -24,6 +25,14 @@ export function PreviewPanel() {
   const setCurrentFrame = useEditor((s) => s.setCurrentFrame);
   const setPlaying = useEditor((s) => s.setPlaying);
   const [showScopes, setShowScopes] = useState(false);
+  const [showSafe, setShowSafe] = useState(false);
+  const [safePlatform, setSafePlatform] = useState<SafePlatform | null>(null); // null = auto
+
+  // Auto-preselección por aspect ratio (overridable). Solo ~9:16 (ratio ≥ 1.7) →
+  // guía social; el resto (incl. 4:5) → broadcast (title/action-safe). Los insets
+  // sociales están calibrados para 9:16, no para 4:5.
+  const autoPlatform: SafePlatform = document.height / document.width >= 1.7 ? "reels" : "broadcast";
+  const effPlatform = safePlatform ?? autoPlatform;
 
   // Mapa src→proxy para preview fluido (el render usa el original).
   const proxyMap = useMemo(() => {
@@ -34,8 +43,15 @@ export function PreviewPanel() {
 
   // Memoizado para no recrear el objeto (evita re-renders del Player).
   const inputProps = useMemo(
-    () => ({ document, preview: true, proxyMap, selectedClipId }),
-    [document, proxyMap, selectedClipId],
+    () => ({
+      document,
+      preview: true,
+      proxyMap,
+      selectedClipId,
+      // Solo preview: guías de safe-zone (jamás llegan a /api/render).
+      safeZones: showSafe ? effPlatform : undefined,
+    }),
+    [document, proxyMap, selectedClipId, showSafe, effPlatform],
   );
 
   // Player -> store: escucha eventos del Player y refleja su estado.
@@ -94,6 +110,35 @@ export function PreviewPanel() {
       {showScopes && (
         <div className="absolute right-2 top-11 z-20">
           <ScopesPanel />
+        </div>
+      )}
+
+      {/* Toggle de safe-zones (esquina sup-izq). Solo guía: NO se exporta. */}
+      <button
+        type="button"
+        onClick={() => setShowSafe((v) => !v)}
+        title="Guías de safe-zone (no se exportan)"
+        className={`absolute left-2 top-2 z-20 flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs transition-colors ${
+          showSafe ? "bg-accent text-white" : "bg-panel/90 text-muted hover:text-text"
+        }`}
+      >
+        <LayoutTemplate size={14} /> Safe
+      </button>
+      {showSafe && (
+        <div className="absolute left-2 top-11 z-20 flex flex-col gap-0.5 rounded-md border border-border bg-panel/95 p-1 text-xs shadow-lg backdrop-blur">
+          {(["broadcast", "tiktok", "reels", "shorts"] as SafePlatform[]).map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => setSafePlatform(p)}
+              className={`rounded px-2 py-1 text-left capitalize ${
+                effPlatform === p ? "bg-accent text-white" : "text-muted hover:text-text"
+              }`}
+            >
+              {p}
+              {safePlatform === null && p === autoPlatform ? " · auto" : ""}
+            </button>
+          ))}
         </div>
       )}
 
