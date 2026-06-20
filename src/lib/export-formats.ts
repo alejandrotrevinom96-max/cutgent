@@ -34,3 +34,25 @@ export function resolveExportFormat(format: string | undefined): ExportSpec {
 /** Presets de calidad → CRF (h264/vp9). Menor = mejor calidad / más peso. */
 export type ExportQuality = "high" | "balanced" | "fast";
 export const QUALITY_CRF: Record<ExportQuality, number> = { high: 18, balanced: 23, fast: 28 };
+
+/** Preset de export por lotes. width/height undefined = usa las dims del proyecto
+ *  (solo cambia el formato). Con width/height se re-renderiza a esas dims. */
+export interface SocialPreset {
+  id: string;
+  label: string;
+  format: ExportFormat;
+  quality: ExportQuality;
+  gpu: boolean;
+  width?: number;
+  height?: number;
+}
+export const SOCIAL_PRESETS: SocialPreset[] = [
+  { id: "yt-1080p", label: "YouTube 1080p (MP4)", format: "h264", quality: "high", gpu: true, width: 1920, height: 1080 },
+  { id: "yt-4k", label: "YouTube 4K (MP4)", format: "h264", quality: "high", gpu: true, width: 3840, height: 2160 },
+  { id: "shorts", label: "Shorts/Reels/TikTok 9:16", format: "h264", quality: "high", gpu: true, width: 1080, height: 1920 },
+  { id: "square", label: "Instagram 1:1", format: "h264", quality: "balanced", gpu: true, width: 1080, height: 1080 },
+  { id: "portrait45", label: "Instagram 4:5", format: "h264", quality: "balanced", gpu: true, width: 1080, height: 1350 },
+  { id: "web-vp9", label: "Web ligero (WebM/VP9)", format: "vp9", quality: "balanced", gpu: false },
+  { id: "gif", label: "GIF (sin audio)", format: "gif", quality: "fast", gpu: false },
+];
+export const SOCIAL_PRESET_IDS = SOCIAL_PRESETS.map((p) => p.id) as [string, ...string[]];

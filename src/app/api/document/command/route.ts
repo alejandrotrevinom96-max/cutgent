@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { dispatch } from "@/lib/server-store";
+import { dispatch, dispatchBatch } from "@/lib/server-store";
 import { CommandSchema } from "@/lib/commands";
 
 export const runtime = "nodejs";
@@ -28,10 +28,10 @@ export async function POST(req: NextRequest) {
     // tanda: o se aplican todos o ninguno).
     for (const command of commands) CommandSchema.parse(command);
 
-    let doc;
-    for (const command of commands) {
-      doc = await dispatch(command, origin);
-    }
+    // Un lote = una sola operación de historial (un Ctrl+Z lo deshace todo).
+    const doc = commands.length > 1
+      ? await dispatchBatch(commands, origin)
+      : await dispatch(commands[0], origin);
     return NextResponse.json({ ok: true, document: doc });
   } catch (err) {
     return NextResponse.json(

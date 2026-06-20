@@ -955,6 +955,49 @@ server.registerTool(
 );
 
 server.registerTool(
+  "export_batch",
+  {
+    title: "Exportar en lote (varios formatos)",
+    description:
+      "Exporta el proyecto a VARIOS formatos/resoluciones de una, en serie (reusa un solo bundle). presets: ids sociales (yt-1080p, yt-4k, shorts, square, portrait45, web-vp9, gif) y/o items personalizados {format,quality,gpu,width,height,label}. Cada item es un re-render completo. Devuelve batchId (consulta con batch_status). OJO: multi-resolución NO recoloca clips — usa reframe_clips antes si hace falta.",
+    inputSchema: {
+      presets: z.array(z.string()).optional(),
+      items: z.array(z.object({
+        format: z.enum(["h264", "prores", "vp9", "gif"]).optional(),
+        quality: z.enum(["high", "balanced", "fast"]).optional(),
+        gpu: z.boolean().optional(),
+        width: z.number().optional(),
+        height: z.number().optional(),
+        label: z.string().optional(),
+      })).optional(),
+    },
+  },
+  tool(async (args) => {
+    const res = (await postJson("/api/render/batch", { presetIds: args.presets, items: args.items })) as { batchId?: string; jobIds?: string[]; error?: string };
+    if (!res?.batchId) return okJson(res);
+    return ok(`Lote lanzado. batchId=${res.batchId} (${res.jobIds?.length ?? 0} exportaciones). Consulta con batch_status.`);
+  }),
+);
+
+server.registerTool(
+  "batch_status",
+  {
+    title: "Estado del export en lote",
+    description:
+      "Estado de un export por lotes (batchId): status agregado + por item (label, status, progress, url). Las URLs de los archivos listos vienen en el texto.",
+    inputSchema: { batchId: z.string() },
+  },
+  tool(async (args) => {
+    const s = (await getJson(`/api/render/batch/status?id=${encodeURIComponent(args.batchId)}`)) as {
+      status?: string; done?: number; total?: number; items?: { label: string; status: string; progress: number; url?: string; error?: string }[];
+    };
+    if (!s?.items) return okJson(s);
+    const lines = s.items.map((i) => `${i.status === "done" ? "✓" : i.status === "error" ? "✗" : "…"} ${i.label}: ${i.url ? getBase() + i.url : i.error || Math.round((i.progress || 0) * 100) + "%"}`);
+    return ok(`Lote ${s.status} (${s.done}/${s.total}):\n${lines.join("\n")}`);
+  }),
+);
+
+server.registerTool(
   "generate_media",
   {
     title: "Generar media con IA (BYO key)",
@@ -1142,15 +1185,43 @@ server.registerTool(
   {
     title: "Preset de resolución",
     description:
-      "Ajusta dimensiones y fps a un preset: youtube-1080p, youtube-1080p60, youtube-4k, shorts (vertical), square.",
+      "Ajusta dimensiones y fps a un preset: youtube-1080p, youtube-1080p60, youtube-4k, shorts (vertical), square. reframe:true (por defecto) reencuadra los clips existentes al nuevo lienzo.",
     inputSchema: {
       preset: z.enum(["youtube-1080p", "youtube-1080p60", "youtube-4k", "shorts", "square"]),
+      reframe: z.boolean().optional(),
     },
   },
   tool(async (args) => {
     const p = RES_PRESETS[args.preset];
-    await postCommands([{ type: "set_project_settings", patch: p }]);
-    return ok(`Resolución ${args.preset}: ${p.width}x${p.height} @${p.fps}fps.`);
+    const doc = await getDoc();
+    const cmds: Command[] = [{ type: "set_project_settings", patch: p }];
+    if (args.reframe !== false && (doc.width !== p.width || doc.height !== p.height)) {
+      cmds.push({ type: "reframe_clips", oldWidth: doc.width, oldHeight: doc.height, newWidth: p.width, newHeight: p.height, mode: "fit", scaleText: false });
+    }
+    await postCommands(cmds);
+    return ok(`Resolución ${args.preset}: ${p.width}x${p.height} @${p.fps}fps.${args.reframe !== false ? " Clips reencuadrados." : ""}`);
+  }),
+);
+
+server.registerTool(
+  "reframe_clips",
+  {
+    title: "Reencuadrar clips al lienzo",
+    description:
+      "Reescala y reposiciona TODOS los clips para encajar en el lienzo actual tras un cambio de aspecto. mode: fit (cabe todo) | fill (cubre, puede recortar). Úsalo tras cambiar width/height si los clips quedaron fuera de cuadro.",
+    inputSchema: {
+      oldWidth: z.number().positive(),
+      oldHeight: z.number().positive(),
+      mode: z.enum(["fit", "fill"]).optional(),
+      scaleText: z.boolean().optional(),
+    },
+  },
+  tool(async (args) => {
+    const doc = await getDoc();
+    await postCommands([
+      { type: "reframe_clips", oldWidth: args.oldWidth, oldHeight: args.oldHeight, newWidth: doc.width, newHeight: doc.height, mode: args.mode ?? "fit", scaleText: args.scaleText ?? false },
+    ]);
+    return ok(`Clips reencuadrados de ${args.oldWidth}x${args.oldHeight} a ${doc.width}x${doc.height} (${args.mode ?? "fit"}).`);
   }),
 );
 
@@ -2395,6 +2466,135 @@ server.registerTool(
     return ok(
       `Recortados ${ranges.length} silencios (${removed} frames ≈ ${(removed / fps).toFixed(1)}s) de ${args.clipId}.`,
     );
+  }),
+);
+
+// Muletillas por idioma. Conservadoras por defecto; las ambiguas (like, so, bueno…)
+// se añaden con extraWords. Whole-token match (nunca substring).
+// Conservadoras por defecto (interjecciones puras, casi nunca legítimas). Las
+// léxicas ambiguas (este, pues, o sea, like, you know) se añaden con extraWords.
+const FILLER_WORDS: Record<string, string[]> = {
+  es: ["eh", "em", "mmm", "ah"],
+  en: ["um", "uh", "uhm", "er", "mm", "hmm"],
+};
+const normFiller = (s: string) =>
+  s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
+
+server.registerTool(
+  "remove_fillers",
+  {
+    title: "Quitar muletillas",
+    description:
+      "Transcribe el clip a nivel palabra (local) y ELIMINA muletillas con ripple. Por defecto solo interjecciones puras (um, uh, eh, em…). Las léxicas ambiguas (este, o sea, pues, like, you know) NO van por defecto — añádelas con extraWords. language es/en (auto si se omite). ignoreWords excluye. dryRun:true devuelve las detecciones SIN cortar (RECOMENDADO la primera vez). OJO: solo riplea la pista del clip — quita muletillas ANTES de subtitular.",
+    inputSchema: {
+      clipId: z.string(),
+      language: z.string().optional(),
+      extraWords: z.array(z.string()).optional(),
+      ignoreWords: z.array(z.string()).optional(),
+      paddingMs: z.number().optional(),
+      dryRun: z.boolean().optional(),
+    },
+  },
+  tool(async (args) => {
+    const doc = await getDoc();
+    const f = locateClip(doc, args.clipId);
+    if (!f) return ok(`Clip ${args.clipId} no encontrado.`);
+    const clip = f.clip;
+    const src = clip.src as string | undefined;
+    if (!src) return fail("El clip no tiene src.");
+    const fps = doc.fps;
+    const start = clip.start as number;
+    const duration = clip.duration as number;
+    const trim = (clip.trimStart as number) ?? 0;
+    const rate = (clip.playbackRate as number) ?? 1;
+
+    // Transcripción a nivel palabra (reusa el flujo de auto_caption animated).
+    const wr = (await postJson("/api/transcribe", { src, language: args.language, words: true })) as {
+      status?: string; words?: { words: WordStampMcp[]; language?: string }; jobId?: string;
+      detection?: { top: { language: string; prob: number }[] };
+    };
+    if (wr.status === "needs_language" && wr.detection) {
+      const opts = wr.detection.top.map((t) => `${t.language} ${(t.prob * 100).toFixed(0)}%`).join(", ");
+      return ok(`IDIOMA INCIERTO. Candidatos: ${opts}. Vuelve a llamar con language="<código>".`);
+    }
+    let wordData = wr.words;
+    if (!wordData && wr.jobId) {
+      const t0 = Date.now();
+      while (Date.now() - t0 < 900000) {
+        await sleep(3000);
+        const s = (await getJson(`/api/transcribe?id=${wr.jobId}`)) as { status: string; words?: { words: WordStampMcp[]; language?: string } };
+        if (s.status === "done" && s.words) { wordData = s.words; break; }
+        if (s.status === "error") return fail("Error transcribiendo (palabras).");
+      }
+    }
+    if (!wordData) return ok("Transcripción por palabra no disponible (reintenta).");
+
+    const lang = (args.language || wordData.language || "es").slice(0, 2).toLowerCase();
+    const ignore = new Set((args.ignoreWords ?? []).map(normFiller));
+    const fillers = [...(FILLER_WORDS[lang] ?? FILLER_WORDS.es), ...(args.extraWords ?? [])]
+      .map(normFiller).filter((w) => w && !ignore.has(w));
+    const unigrams = new Set(fillers.filter((w) => !w.includes(" ")));
+    const ngrams = fillers.filter((w) => w.includes(" ")).map((w) => w.split(" "));
+    const maxN = ngrams.reduce((m, g) => Math.max(m, g.length), 1);
+
+    // Normaliza cada palabra a su(s) token(s); ignora palabras vacías tras normalizar.
+    const words = wordData.words
+      .map((w) => ({ ...w, tok: normFiller(w.text) }))
+      .filter((w) => w.tok.length > 0);
+
+    const padF = Math.round(((args.paddingMs ?? 0) / 1000) * fps);
+    const toTimeline = (sec: number) => start + (sec * fps - trim) / rate;
+    type Hit = { text: string; s: number; e: number };
+    const hits: Hit[] = [];
+    for (let i = 0; i < words.length; ) {
+      let matched = 0;
+      // n-gramas primero (greedy, el más largo).
+      for (let n = Math.min(maxN, words.length - i); n >= 2 && !matched; n--) {
+        const phrase = words.slice(i, i + n).map((w) => w.tok).join(" ");
+        if (ngrams.some((g) => g.join(" ") === phrase)) matched = n;
+      }
+      if (!matched && unigrams.has(words[i].tok)) matched = 1;
+      if (matched) {
+        hits.push({ text: words.slice(i, i + matched).map((w) => w.text.trim()).join(" "), s: words[i].start, e: words[i + matched - 1].end });
+        i += matched;
+      } else i += 1;
+    }
+
+    // Mapeo a frames de timeline (envuelve la muletilla con padding).
+    const minCut = Math.max(1, Math.round(0.05 * fps));
+    const gapF = Math.round(0.08 * fps);
+    let ranges = hits
+      .map((h) => ({ text: h.text, fs: Math.floor(toTimeline(h.s)) - padF, fe: Math.ceil(toTimeline(h.e)) + padF }))
+      .map((r) => ({ text: r.text, fs: Math.max(start + 1, r.fs), fe: Math.min(start + duration - 1, r.fe) }))
+      .filter((r) => r.fe - r.fs >= minCut)
+      .sort((a, b) => a.fs - b.fs);
+    // Fusiona cortes adyacentes (muletillas con micro-pausa).
+    const merged: typeof ranges = [];
+    for (const r of ranges) {
+      const last = merged[merged.length - 1];
+      if (last && r.fs - last.fe <= gapF) { last.fe = Math.max(last.fe, r.fe); last.text += " " + r.text; }
+      else merged.push({ ...r });
+    }
+    ranges = merged;
+
+    if (ranges.length === 0) return ok("No se detectaron muletillas en el clip.");
+    const totalFrames = ranges.reduce((n, r) => n + (r.fe - r.fs), 0);
+    const summary = ranges.map((r) => `"${r.text.trim()}" @${(((r.fs - start) * rate + trim) / fps).toFixed(1)}s`).join(", ");
+
+    if (args.dryRun) {
+      return ok(`[dryRun] ${ranges.length} muletillas (${totalFrames} frames ≈ ${(totalFrames / fps).toFixed(1)}s): ${summary}. Vuelve a llamar sin dryRun para cortarlas.`);
+    }
+
+    const commands: Command[] = [];
+    for (const r of [...ranges].sort((a, b) => b.fs - a.fs)) { // derecha → izquierda
+      const idB = newId("clip");
+      const idA = newId("clip");
+      commands.push({ type: "split_clip", clipId: args.clipId, frame: r.fe, newId: idB });
+      commands.push({ type: "split_clip", clipId: args.clipId, frame: r.fs, newId: idA });
+      commands.push({ type: "ripple_delete", clipId: idA });
+    }
+    await postCommands(commands);
+    return ok(`Quitadas ${ranges.length} muletillas (${totalFrames} frames ≈ ${(totalFrames / fps).toFixed(1)}s) de ${args.clipId}: ${summary}.`);
   }),
 );
 

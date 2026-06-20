@@ -62,6 +62,18 @@ export const CommandSchema = z.discriminatedUnion("type", [
   }),
 
   z.object({
+    // Reencuadra TODOS los clips al pasar de oldW×oldH a newW×newH (escala +
+    // reposiciona x/y desde el centro). Independiente de set_project_settings.
+    type: z.literal("reframe_clips"),
+    oldWidth: z.number().positive(),
+    oldHeight: z.number().positive(),
+    newWidth: z.number().positive(),
+    newHeight: z.number().positive(),
+    mode: z.enum(["fit", "fill"]).default("fit"),
+    scaleText: z.boolean().default(false),
+  }),
+
+  z.object({
     type: z.literal("set_animation"),
     clipId: z.string(),
     in: AnimationSchema.optional(),
@@ -163,6 +175,57 @@ export function applyCommand(doc: Project, command: Command): Project {
       if (typeof p.width === "number") p.width = even(Math.max(2, p.width));
       if (typeof p.height === "number") p.height = even(Math.max(2, p.height));
       return { ...doc, ...p };
+    }
+
+    case "reframe_clips": {
+      const { oldWidth: oW, oldHeight: oH, newWidth: W, newHeight: H, mode, scaleText } = command;
+      if (oW <= 0 || oH <= 0 || (oW === W && oH === H)) return doc;
+      const f = mode === "fill" ? Math.max(W / oW, H / oH) : Math.min(W / oW, H / oH);
+      const sx = W / oW;
+      const sy = H / oH;
+      const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+      const reframe = (c: Clip): Clip => {
+        // Audio y solid no tienen transform visual reposicionable.
+        if (c.type === "audio" || c.type === "solid") return c;
+        const candidate: Record<string, unknown> = {
+          ...c,
+          x: clamp(c.x * sx, -W / 2, W / 2),
+          y: clamp(c.y * sy, -H / 2, H / 2),
+        };
+        // scaleK = factor aplicado a `scale` (1 = no tocar; coherente con el render).
+        let scaleK = 1;
+        if (c.type === "text") {
+          scaleK = f; // el texto escala vía scale (no fontSize salvo opt-in).
+          if (scaleText) candidate.fontSize = (c as Extract<Clip, { type: "text" }>).fontSize * f;
+        } else if (typeof c.width === "number" || typeof c.height === "number") {
+          if (typeof c.width === "number") candidate.width = c.width * f;
+          if (typeof c.height === "number") candidate.height = c.height * f;
+        } else if (c.type === "video" || c.type === "image") {
+          // Sin width/height la caja YA sigue el lienzo nuevo (objectFit) → NO escalar.
+        } else {
+          scaleK = f; // shape sin width/height: escala su transform.
+        }
+        if (scaleK !== 1) candidate.scale = c.scale * scaleK;
+        // Reencuadra los KEYFRAMES de x/y/scale (si no, un keyframe x=900 quedaría
+        // fuera de cuadro tras 16:9→9:16 y el clip "desaparecería").
+        if (c.keyframeTracks?.length) {
+          candidate.keyframeTracks = c.keyframeTracks.map((t) => {
+            if (t.property === "x")
+              return { ...t, keyframes: t.keyframes.map((k) => ({ ...k, value: clamp(k.value * sx, -W / 2, W / 2) })) };
+            if (t.property === "y")
+              return { ...t, keyframes: t.keyframes.map((k) => ({ ...k, value: clamp(k.value * sy, -H / 2, H / 2) })) };
+            if (t.property === "scale" && scaleK !== 1)
+              return { ...t, keyframes: t.keyframes.map((k) => ({ ...k, value: k.value * scaleK })) };
+            return t;
+          });
+        }
+        const parsed = ClipSchema.safeParse(candidate);
+        return parsed.success ? parsed.data : c;
+      };
+      const tracks = doc.tracks.map((t) =>
+        t.kind === "audio" ? t : { ...t, clips: t.clips.map(reframe) },
+      );
+      return { ...doc, tracks };
     }
 
     case "add_track": {

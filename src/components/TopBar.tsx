@@ -9,6 +9,7 @@ import {
   Undo2,
   Redo2,
   History,
+  MonitorPlay,
   FolderOpen,
   ChevronDown,
   Plus,
@@ -22,6 +23,7 @@ import { EXPORT_FORMATS, type ExportFormat } from "@/lib/export-formats";
 import { ThemeSwitcher } from "./ThemeSwitcher";
 import { MenuPortal } from "./ui/MenuPortal";
 import { VersionsPanel } from "./VersionsPanel";
+import { BatchExportMenu } from "./BatchExportMenu";
 import { SettingsModal } from "./SettingsModal";
 import { CutgentMark } from "./Logo";
 
@@ -354,6 +356,23 @@ export function TopBar() {
           )}
         </button>
 
+        {/* Preview en ventana aparte (2º monitor) */}
+        <button
+          type="button"
+          onClick={() => {
+            const api = (window as unknown as { cutgent?: { openPreviewWindow?: () => void } }).cutgent;
+            if (api?.openPreviewWindow) api.openPreviewWindow();
+            else window.open("/preview", "cutgent-preview", "width=1280,height=720");
+          }}
+          title="Abrir el preview en una ventana aparte (2º monitor)"
+          className="flex items-center gap-1.5 rounded-md border border-border bg-panel-2 px-2 py-1.5 text-xs text-muted transition-colors hover:text-text"
+        >
+          <MonitorPlay size={14} />
+        </button>
+
+        {/* Exportar en lote (varios formatos) */}
+        <BatchExportMenu disabled={rendering} />
+
         {/* Exportar: botón principal + selector de formato */}
         <div className="relative flex items-stretch">
           <button
@@ -451,6 +470,7 @@ const RESOLUTION_PRESETS: { label: string; w: number; h: number; fps?: number }[
 function SettingsPopover({ onClose }: { onClose: () => void }) {
   const document = useEditor((s) => s.document);
   const runCommand = useEditor((s) => s.runCommand);
+  const runCommands = useEditor((s) => s.runCommands);
 
   const patch = (p: {
     width?: number;
@@ -460,6 +480,17 @@ function SettingsPopover({ onClose }: { onClose: () => void }) {
     motionBlur?: { samples: number; shutterAngle: number } | null;
   }) => {
     void runCommand({ type: "set_project_settings", patch: p });
+  };
+
+  /** Aplica un preset Y reencuadra los clips al nuevo lienzo (un solo lote =
+   *  un solo undo). Captura las dims viejas ANTES de despachar (estado optimista). */
+  const applyPreset = (p: { w: number; h: number; fps?: number }) => {
+    const oldWidth = document.width;
+    const oldHeight = document.height;
+    void runCommands([
+      { type: "set_project_settings", patch: { width: p.w, height: p.h, ...(p.fps ? { fps: p.fps } : {}) } },
+      { type: "reframe_clips", oldWidth, oldHeight, newWidth: p.w, newHeight: p.h, mode: "fit", scaleText: false },
+    ]);
   };
 
   return (
@@ -484,7 +515,7 @@ function SettingsPopover({ onClose }: { onClose: () => void }) {
               <button
                 key={p.label}
                 type="button"
-                onClick={() => patch({ width: p.w, height: p.h, ...(p.fps ? { fps: p.fps } : {}) })}
+                onClick={() => applyPreset(p)}
                 className={`rounded-md border px-2 py-1 text-[11px] transition-colors ${
                   active ? "border-accent bg-accent/15 text-text" : "border-border text-muted hover:text-text"
                 }`}
@@ -495,7 +526,7 @@ function SettingsPopover({ onClose }: { onClose: () => void }) {
           })}
         </div>
         <p className="mt-1.5 text-[10px] leading-tight text-muted">
-          Cambiar de aspecto no recoloca los clips; usa las guías «Safe» del preview para reencuadrar.
+          Aplica el formato y reencuadra los clips al nuevo lienzo (Ctrl+Z para revertir).
         </p>
       </div>
 

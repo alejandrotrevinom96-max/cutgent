@@ -21,6 +21,16 @@ interface RenderOpts {
   format?: string;
   quality?: ExportQuality;
   gpu?: boolean;
+  /** Override de dimensiones (export por lotes multi-resolución). */
+  width?: number;
+  height?: number;
+}
+
+/** Contexto opcional para reusar un bundle de Remotion entre renders (batch). */
+export interface RenderCtx {
+  serveUrl?: string;
+  watermark?: boolean;
+  onProgress?: (p: number) => void;
 }
 
 /**
@@ -50,24 +60,33 @@ export async function POST(req: Request) {
   }
 }
 
-/** Pipeline de render completo para un trabajo. Nunca lanza: captura todo. */
-async function runRender(
+/** Pipeline de render completo para un trabajo. Nunca lanza: captura todo.
+ *  ctx (opcional) reusa un bundle compartido (export por lotes) y NO lo borra. */
+export async function runRender(
   jobId: string,
   rawDocument: Project,
   origin: string,
   opts: RenderOpts,
+  ctx?: RenderCtx,
 ): Promise<void> {
-  let serveUrl: string | undefined;
+  const ownsBundle = !ctx?.serveUrl;
+  let serveUrl: string | undefined = ctx?.serveUrl;
   const spec = resolveExportFormat(opts.format);
   try {
-    const document = absolutizeAssets(rawDocument, origin);
-    await ensureBrowser();
-    serveUrl = await bundleRemotion();
+    // Override de dims (batch multi-resolución) antes de absolutizar.
+    const sized =
+      opts.width && opts.height ? { ...rawDocument, width: opts.width, height: opts.height } : rawDocument;
+    const document = absolutizeAssets(sized, origin);
+    if (ownsBundle) {
+      await ensureBrowser();
+      serveUrl = await bundleRemotion();
+    }
 
     // Gate SERVER-SIDE: sin licencia válida → marca de agua en el deliverable.
     // El flag NO se lee del body del cliente; fail-closed (watermark) ante error.
-    const inputProps = { document, watermark: await shouldWatermark() };
-    const composition = await selectComposition({ serveUrl, id: "MainVideo", inputProps });
+    const watermark = ctx?.watermark ?? (await shouldWatermark());
+    const inputProps = { document, watermark };
+    const composition = await selectComposition({ serveUrl: serveUrl!, id: "MainVideo", inputProps });
 
     const rendersDir = rendersDirPath();
     await fs.mkdir(rendersDir, { recursive: true });
@@ -81,7 +100,7 @@ async function runRender(
 
     await renderMedia({
       composition,
-      serveUrl,
+      serveUrl: serveUrl!,
       codec: spec.codec as Codec,
       outputLocation,
       inputProps,
@@ -94,7 +113,9 @@ async function runRender(
       concurrency: Math.max(2, os.cpus().length - 2),
       onProgress: ({ progress }) => {
         // Reserva el último 5% para un posible transcode GPU.
-        updateJob(jobId, { progress: opts.gpu && spec.codec === "h264" ? progress * 0.95 : progress });
+        const p = opts.gpu && spec.codec === "h264" ? progress * 0.95 : progress;
+        updateJob(jobId, { progress: p });
+        ctx?.onProgress?.(p);
       },
     });
 
@@ -120,6 +141,7 @@ async function runRender(
       error: err instanceof Error ? err.message : String(err),
     });
   } finally {
-    if (serveUrl) await fs.rm(serveUrl, { recursive: true, force: true }).catch(() => {});
+    // Solo borra el bundle si ES NUESTRO (en batch lo borra el orquestador).
+    if (ownsBundle && serveUrl) await fs.rm(serveUrl, { recursive: true, force: true }).catch(() => {});
   }
 }

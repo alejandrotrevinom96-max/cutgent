@@ -1,0 +1,5 @@
+# Config de Supabase para el webhook de licencias de Cutgent.
+# Stripe NO envía Authorization: el webhook NO debe verificar el JWT de Supabase
+# (si no, Supabase responde 401 antes de llegar al handler).
+[functions.stripe-webhook]
+verify_jwt = false

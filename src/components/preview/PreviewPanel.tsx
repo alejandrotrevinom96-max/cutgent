@@ -54,14 +54,27 @@ export function PreviewPanel() {
     [document, proxyMap, selectedClipId, showSafe, effPlatform],
   );
 
-  // Player -> store: escucha eventos del Player y refleja su estado.
+  // Player -> store: escucha eventos del Player y refleja su estado. Además
+  // emite frame/playing a la ventana de preview desprendible (BroadcastChannel).
   useEffect(() => {
     const ref = playerRef.current;
     if (!ref) return;
 
-    const onFrame = (e: { detail: { frame: number } }) => setCurrentFrame(e.detail.frame);
-    const onPlay = () => setPlaying(true);
-    const onPause = () => setPlaying(false);
+    const bc = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("cutgent-transport") : null;
+    let lastPost = 0;
+    const postFrame = (frame: number, playing: boolean) => {
+      const now = Date.now();
+      if (now - lastPost < 66) return; // ~15 Hz
+      lastPost = now;
+      bc?.postMessage({ frame, playing });
+    };
+
+    const onFrame = (e: { detail: { frame: number } }) => {
+      setCurrentFrame(e.detail.frame);
+      postFrame(e.detail.frame, ref.isPlaying?.() ?? false);
+    };
+    const onPlay = () => { setPlaying(true); bc?.postMessage({ frame: ref.getCurrentFrame(), playing: true }); };
+    const onPause = () => { setPlaying(false); bc?.postMessage({ frame: ref.getCurrentFrame(), playing: false }); };
 
     ref.addEventListener("frameupdate", onFrame);
     ref.addEventListener("play", onPlay);
@@ -71,6 +84,7 @@ export function PreviewPanel() {
       ref.removeEventListener("frameupdate", onFrame);
       ref.removeEventListener("play", onPlay);
       ref.removeEventListener("pause", onPause);
+      bc?.close();
     };
   }, [setCurrentFrame, setPlaying]);
 

@@ -388,6 +388,28 @@ export async function dispatch(rawCommand: unknown, origin: string | null = null
   return h.doc;
 }
 
+/** Aplica un LOTE de comandos como UNA sola operación: un único registro de
+ *  historial (un Ctrl+Z deshace todo el lote) y un solo broadcast (snapshot). */
+export async function dispatchBatch(rawCommands: unknown[], origin: string | null = null): Promise<Project> {
+  await ensureLoaded();
+  const commands = rawCommands.map((c) => CommandSchema.parse(c));
+  const h = hub();
+  const prev = h.doc;
+  let next = prev;
+  for (const command of commands) next = applyCommand(next, command);
+  if (next === prev) return prev; // no-op
+  if (next.id !== h.currentId) next.id = h.currentId;
+  h.doc = next;
+  recordHistory(prev); // UNA entrada para todo el lote
+  h.version++;
+  schedulePersist();
+  maybeAutoSnapshot();
+  // Snapshot único: otros clientes se sincronizan; el originador re-aplica el
+  // mismo doc que ya tenía optimista (no hay supresión de eco para snapshots).
+  broadcast({ kind: "snapshot", version: h.version, document: h.doc, origin });
+  return h.doc;
+}
+
 export async function undo(origin: string | null = null): Promise<Project> {
   await ensureLoaded();
   const h = hub();

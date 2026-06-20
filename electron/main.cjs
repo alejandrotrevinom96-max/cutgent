@@ -3,7 +3,7 @@
 // que lo carga. Redirige TODA la escritura (data/proyectos, assets, renders,
 // modelos) a la carpeta del usuario, porque los recursos instalados son de
 // solo lectura.
-const { app, BrowserWindow, shell, Menu, clipboard, dialog, session } = require("electron");
+const { app, BrowserWindow, shell, Menu, clipboard, dialog, session, ipcMain, screen } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
@@ -126,6 +126,51 @@ function ensureModels() {
 }
 
 let serverInfo = null;
+/** URL base de la app (dev: localhost; prod: 127.0.0.1:<port>). La fija createWindow. */
+let appBaseUrl = "http://localhost:3000";
+/** Ventana de preview desprendible (una sola). */
+let previewWin = null;
+
+/** Abre (o enfoca) la ventana de preview en el 2º monitor a pantalla completa. */
+function openPreviewWindow() {
+  if (previewWin && !previewWin.isDestroyed()) {
+    previewWin.focus();
+    return;
+  }
+  const displays = screen.getAllDisplays();
+  const primary = screen.getPrimaryDisplay();
+  const ext = displays.find((d) => d.id !== primary.id) || primary;
+  previewWin = new BrowserWindow({
+    x: ext.bounds.x + 40,
+    y: ext.bounds.y + 40,
+    width: 1280,
+    height: 720,
+    backgroundColor: "#000000",
+    title: "Cutgent — Preview",
+    webPreferences: {
+      preload: path.join(__dirname, "preload.cjs"),
+      contextIsolation: true,
+      // La ventana nunca recibe gesto de usuario propio; permite reproducir.
+      autoplayPolicy: "no-user-gesture-required",
+    },
+  });
+  previewWin.removeMenu?.();
+  // En prod, no abrir antes de que el servidor esté listo (evita ventana fantasma).
+  if (app.isPackaged && !serverInfo) {
+    log("[preview] servidor aún no listo");
+    previewWin.destroy();
+    previewWin = null;
+    return;
+  }
+  if (ext.id !== primary.id) previewWin.setFullScreen(true);
+  previewWin.loadURL(`${appBaseUrl}/preview`).catch(() => {});
+  previewWin.on("closed", () => { previewWin = null; });
+}
+
+ipcMain.handle("cutgent:open-preview", () => {
+  try { openPreviewWindow(); } catch (e) { log("[preview] error", e && e.message); }
+  return true;
+});
 
 /**
  * Auto-actualización: al arrancar (solo empaquetado) comprueba si hay una nueva
@@ -201,9 +246,10 @@ async function createWindow() {
     reveal();
   };
 
-  // Abre enlaces externos en el navegador del sistema, no en la app.
+  // Abre enlaces externos en el navegador del sistema; los del MISMO origin
+  // (p.ej. /preview como fallback) se permiten como ventana interna.
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith("http")) {
+    if (url.startsWith("http") && !url.startsWith(appBaseUrl)) {
       shell.openExternal(url);
       return { action: "deny" };
     }
@@ -221,6 +267,7 @@ async function createWindow() {
   });
 
   if (isDev) {
+    appBaseUrl = "http://localhost:3000";
     await win.loadURL("http://localhost:3000");
   } else {
     try {
@@ -233,6 +280,7 @@ async function createWindow() {
         new Promise((_r, rej) => setTimeout(() => rej(new Error("El servidor tardó demasiado en iniciar (timeout 30s).")), 30000)),
       ]);
       const baseUrl = `http://127.0.0.1:${serverInfo.port}`;
+      appBaseUrl = baseUrl;
       log("[server] escuchando en", baseUrl, "pid", process.pid);
       // La UI lleva el token por cookie (se envía sola en fetch/EventSource/<video>).
       try {
