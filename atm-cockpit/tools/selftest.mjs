@@ -21,7 +21,7 @@ import { ALL_WIDGET_TYPES } from "../src/shared/sdui/registry.mjs";
 import { evaluate } from "../src/shared/widgets/calc.mjs";
 import { toggle, progress } from "../src/shared/widgets/checklist.mjs";
 import { formatClock, tick } from "../src/shared/widgets/timer.mjs";
-import { computeAffect, blendAffect, domainBaseline, VRM_EXPRESSIONS } from "../src/shared/affect/affect.mjs";
+import { computeAffect, blendAffect, domainBaseline, speechProsody, VRM_EXPRESSIONS } from "../src/shared/affect/affect.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const J = (p) => JSON.parse(readFileSync(join(ROOT, p), "utf8"));
@@ -176,6 +176,14 @@ check("affect: blendAffect eases between states (fluid transition)",
       `${prev.expressions.happy} -> ${eased.expressions.happy} -> ${target.expressions.happy}`);
 check("affect: computeAffect is deterministic",
       JSON.stringify(computeAffect({ domain: "philosophy", text: "haha" })) === JSON.stringify(target));
+// voice tracks affect: playful speaks faster/brighter than a serious baseline, all in safe range
+const proSerious = speechProsody(computeAffect({ domain: "philosophy" }));
+const proPlayful = speechProsody(computeAffect({ domain: "philosophy", text: "haha" }));
+check("affect: voice prosody is faster + brighter when playful than serious",
+      proPlayful.rate > proSerious.rate && proPlayful.pitch > proSerious.pitch,
+      `serious ${proSerious.rate}/${proSerious.pitch} vs playful ${proPlayful.rate}/${proPlayful.pitch}`);
+check("affect: prosody stays in SpeechSynthesis-safe range",
+      proPlayful.rate >= 0.5 && proPlayful.rate <= 2 && proPlayful.pitch >= 0.5 && proPlayful.pitch <= 1.6);
 
 console.log("");
 console.log("COCKPIT SELFTEST:", ok ? "ALL GREEN ✅" : "FAILURES ❌");

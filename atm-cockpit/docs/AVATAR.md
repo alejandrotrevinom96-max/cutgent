@@ -49,9 +49,30 @@ Once `public/avatar.vrm` exists, no extra wiring is needed:
 - `src/shared/avatar/visemeMap.mjs` → lip-sync on the audio clock.
 - `src/shared/affect/affect.mjs` → demeanor by **topic** (serious for philosophy,
   focused for business, warm for counsel) + **moment** (laughs at something funny,
-  softens to concern if you're overwhelmed).
+  softens to concern if you're overwhelmed). Also emits a **voice prosody** hint.
 - `VrmStage.tsx` → applies expression weights with frame-smoothing (fluid, never
   snapped), plus blink / gaze / idle breathing that gets livelier with arousal.
+- `providers/tts.ts` → the **voice** tracks that prosody (serious = steadier/slower,
+  playful = brighter/faster, concerned = softer). See `docs/VOICE.md`.
 
-So she reacts and shifts on her own as the conversation changes — which is exactly
-the behavior you asked for.
+So she reacts and shifts on her own as the conversation changes — face, body energy,
+AND voice — which is exactly the behavior you asked for.
+
+## VRoid build — detailed checklist
+
+Do it in this order; check each box as you go.
+
+- [ ] Install **VRoid Studio** (free) and open `docs/avatar-refs/` next to it for reference.
+- [ ] **Face:** start from a base, then match `portrait.png` — soft youthful-adult face, large eyes.
+- [ ] **Eyes:** set iris to **muted amethyst / violet** (the signature accent). Add a soft highlight.
+- [ ] **Skin:** fair, soft; minimal harsh shadow (soft-goth = gentle, not severe).
+- [ ] **Hair color:** **platinum white / silver** with a faint cool tint; add subtle gradient at the tips.
+- [ ] **Hair shape:** long, past mid-back, with flowing strands and a few face-framing pieces (matches `fullbody.png`). Keep front/side/back hair as separate groups.
+- [ ] **Hair physics:** enable **spring bones / hair sway** on the long groups (this is the fluid movement you wanted — verify it swings in the pose preview).
+- [ ] **Outfit:** short above-the-knee dark dress (velvet feel), **black thigh-high stockings**, boots; antique-silver accents, faint plum. Use the texture editor or import items to match `fullbody.png`. Keep the skirt as its own piece for spring bones.
+- [ ] **Skirt physics:** enable spring bones on the skirt so it moves with her.
+- [ ] **Body:** clean appealing anime proportions; slightly fuller bust (per the final ref).
+- [ ] **Expressions (BlendShapes / Expression Editor):** sculpt and confirm **Joy, Sorrow, Angry, Surprised, Relaxed** so they read like `expressions.png`. The affect engine sets these by VRM name — get them expressive (big readable smile, soft sad, etc.).
+- [ ] **Blink + LookAt:** make sure Blink and look-at are present (VrmStage uses them).
+- [ ] **Export:** File → Export → **VRM** (choose VRM 1.0). Keep polygon/material reduction sane for real-time.
+- [ ] Drop the file at **`public/avatar.vrm`**, run `npm run dev`, and talk to her — check the hair/skirt sway and that her face changes with the topic.

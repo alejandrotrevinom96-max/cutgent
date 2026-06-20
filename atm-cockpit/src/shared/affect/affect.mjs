@@ -135,3 +135,19 @@ export function blendAffect(prev, target, alpha = 0.25) {
     energy: round(lerp(prev.energy, target.energy, alpha)),
   };
 }
+
+/**
+ * Map an affect state to browser SpeechSynthesis-safe prosody so the VOICE shifts
+ * with mood too (serious = steadier/slower, playful = brighter/faster, concerned =
+ * softer). Clamped to safe ranges (rate 0.5-2, pitch 0.5-1.6). Pure.
+ */
+export function speechProsody(affect) {
+  const v = (affect && affect.voice) || MOODS.neutral.voice;
+  const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+  return {
+    rate: round(clamp(v.rate ?? 1, 0.5, 2)),
+    pitch: round(clamp(v.pitch ?? 1, 0.5, 1.6)),
+    energy: round(clamp(v.energy ?? 0.55, 0, 1)),
+  };
+}
+

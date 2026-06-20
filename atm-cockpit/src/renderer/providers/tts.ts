@@ -14,8 +14,10 @@ export interface VisemeEvent {
   weight: number;
 }
 
+export interface Prosody { rate?: number; pitch?: number; energy?: number }
+
 export interface TtsProvider {
-  speak(text: string, turnId: string, onVisemes: (e: VisemeEvent[]) => void): Promise<void>;
+  speak(text: string, turnId: string, onVisemes: (e: VisemeEvent[]) => void, prosody?: Prosody): Promise<void>;
   stop(): void;
 }
 
@@ -43,11 +45,16 @@ function estimatePhonemes(text: string, turnId: string) {
 export class BrowserTts implements TtsProvider {
   private current: SpeechSynthesisUtterance | null = null;
 
-  async speak(text: string, turnId: string, onVisemes: (e: VisemeEvent[]) => void): Promise<void> {
+  async speak(text: string, turnId: string, onVisemes: (e: VisemeEvent[]) => void, prosody?: Prosody): Promise<void> {
     onVisemes(buildLipsync(estimatePhonemes(text, turnId)) as VisemeEvent[]);
     if (typeof window === "undefined" || !window.speechSynthesis) return;
     return new Promise((resolve) => {
       const u = new SpeechSynthesisUtterance(text);
+      // voice tracks the affect engine's prosody hint (serious -> steadier, playful
+      // -> brighter/faster). Defaults to 1 when no affect is supplied.
+      if (prosody?.rate) u.rate = prosody.rate;
+      if (prosody?.pitch) u.pitch = prosody.pitch;
+      if (prosody?.energy != null) u.volume = Math.max(0.4, Math.min(1, 0.6 + prosody.energy * 0.4));
       this.current = u;
       u.onend = () => resolve();
       u.onerror = () => resolve();

@@ -19,8 +19,9 @@ knowledge graph that animates the brain's *actual* recall traversal), plus
    and an **affect engine** (`src/shared/affect/`) so her demeanor adapts to the
    conversation: a baseline by topic (serious for philosophy, focused for business,
    warm for counsel) plus moment overrides (she can laugh at something funny, soften
-   to concern if you're overwhelmed). Drives VRM expression weights + voice prosody,
-   eased frame-by-frame so transitions are fluid, never snapped. Pure + headless-tested.
+   to concern if you're overwhelmed). Drives VRM expression weights AND voice prosody
+   (serious = steadier, playful = brighter/faster), eased frame-by-frame so it's fluid.
+   Pure + headless-tested. Design + build + voice guides in `docs/AVATAR.md` / `docs/VOICE.md`.
 3. **Live-transcript widget** — local, ephemeral transcription (mic), the data path
    for things like live deal negotiation.
 4. **Generative workspace composition** — the agent emits a validated

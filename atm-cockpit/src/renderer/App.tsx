@@ -6,7 +6,7 @@ import { pickStt, pickTts, type VisemeEvent, type SttEvent } from "./providers";
 // @ts-ignore shared pure ESM
 import { reduceTranscript } from "../shared/transcript/store.mjs";
 // @ts-ignore shared pure ESM
-import { computeAffect } from "../shared/affect/affect.mjs";
+import { computeAffect, speechProsody } from "../shared/affect/affect.mjs";
 import manifest from "../../fixtures/negotiation-cockpit.workspace.json";
 
 const tts = pickTts();
@@ -25,6 +25,8 @@ export function App() {
   const [affect, setAffect] = useState<any>(() => computeAffect({}));
   const stateRef = useRef(avatarState);
   stateRef.current = avatarState;
+  const affectRef = useRef(affect);
+  affectRef.current = affect;
 
   // load the static graph + subscribe to turn/effect events
   useEffect(() => {
@@ -37,7 +39,7 @@ export function App() {
         const domain = e.results?.[0]?.domain;
         if (domain) setAffect(computeAffect({ domain, text: lastQueryRef.current }));
       }
-      else if (e.t === "speak") tts.speak(e.text, e.turnId, setVisemes).then(() => setAvatarState("idle"));
+      else if (e.t === "speak") tts.speak(e.text, e.turnId, setVisemes, speechProsody(affectRef.current)).then(() => setAvatarState("idle"));
     });
     const offGraph = cockpit.onAnimateGraph((e) => setTrace(e.trace));
     return () => { offTurn(); offGraph(); };
