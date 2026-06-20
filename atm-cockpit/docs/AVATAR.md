@@ -24,6 +24,11 @@ into `docs/avatar-refs/` with the filename below, so the pack lives in the repo.
 | `avatar-refs/portrait.png`     | face + style (canonical)            | `e30edbe3-597f-4b60-8a54-71bd929a47e0` |
 | `avatar-refs/fullbody.png`     | silhouette, outfit, legs (canonical)| `f745fe4f-2f82-4c3a-9af2-4ac80e0364de` |
 | `avatar-refs/expressions.png`  | 5 expressions for the affect engine | `2bc84e24-8b6e-48ec-8cde-6507ae3d2b9e` |
+| `avatar-refs/turnaround.png`   | front/side/back A-pose modeling sheet | `fff3851a-7021-43c6-971f-5659776a7e10` or `8df0492f-0c78-4742-bb86-91fd51bad6c7` (pick the cleaner) |
+
+The turnaround is the modeling reference: in Blender / for a commissioned artist it
+loads as a true front/side backdrop; in VRoid Studio (parametric) keep it open on a
+second screen and eyeball the face/hair/proportions against it.
 
 The expression sheet is **neutral · warm smile · serious · laughing · concerned** —
 exactly the states `src/shared/affect/affect.mjs` produces (happy / relaxed / neutral
