@@ -13,7 +13,9 @@
 import Stripe from "https://esm.sh/stripe@17?target=deno";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", { apiVersion: "2025-03-31" });
+// Solo se usa webhooks.constructEventAsync (verifica con el WEBHOOK_SECRET, NO
+// llama a la API), así que no hace falta una sk_live real: un placeholder basta.
+const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "sk_webhook_only", { apiVersion: "2025-03-31" });
 const WEBHOOK_SECRET = Deno.env.get("STRIPE_WEBHOOK_SECRET") ?? "";
 const PRIV_B64 = Deno.env.get("LICENSE_PRIVATE_KEY") ?? ""; // PKCS8 base64url (== privateKeyB64 del .json local)
 const RESEND_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
@@ -58,7 +60,7 @@ async function sendEmail(to: string, token: string, tier: string): Promise<boole
 Deno.serve(async (req: Request) => {
   // Falla con diagnóstico claro si falta config (en vez de crashear críptico en
   // el primer pago real → reintentos de Stripe).
-  for (const k of ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "LICENSE_PRIVATE_KEY", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"]) {
+  for (const k of ["STRIPE_WEBHOOK_SECRET", "LICENSE_PRIVATE_KEY", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"]) {
     if (!Deno.env.get(k)) return new Response(`config error: missing env ${k}`, { status: 500 });
   }
   const sig = req.headers.get("stripe-signature");

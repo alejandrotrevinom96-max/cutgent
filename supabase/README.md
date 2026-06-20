@@ -16,15 +16,17 @@ funciona y guarda en la tabla, pero loguea el email en vez de enviarlo.
 
 ## Secrets (placeholders → pega los reales)
 
-```bash
-supabase secrets set \
-  STRIPE_SECRET_KEY=sk_live_...           # Stripe → Developers → API keys (LIVE)
-  STRIPE_WEBHOOK_SECRET=whsec_...         # lo da Stripe al crear el endpoint (paso 3)
-  LICENSE_PRIVATE_KEY=<privateKeyB64>     # = campo "privateKeyB64" de .cutgent-license.local.json (NUNCA a git)
-  RESEND_API_KEY=re_...                   # tu cuenta Resend
-  FROM_EMAIL="Cutgent <licencias@cutgent.com>"   # dominio verificado en Resend (mientras: onboarding@resend.dev)
-  LICENSE_DRY_RUN=1                        # 1 = no envía (loguea); quítalo/0 para enviar de verdad
+Secrets (en el **dashboard de Supabase → Edge Functions → stripe-webhook → Secrets**,
+o con `supabase secrets set` si tienes el CLI):
+
+```
+STRIPE_WEBHOOK_SECRET=whsec_...         # lo da Stripe al crear el endpoint (paso 3)
+LICENSE_PRIVATE_KEY=<privateKeyB64>     # = campo "privateKeyB64" de .cutgent-license.local.json (NUNCA a git)
+RESEND_API_KEY=re_...                   # tu cuenta Resend
+FROM_EMAIL="Cutgent <licencias@cutgent.com>"   # dominio verificado en Resend (mientras: onboarding@resend.dev)
+LICENSE_DRY_RUN=1                        # 1 = no envía (loguea); quítalo/0 para enviar de verdad
 # SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY los inyecta Supabase solo.
+# STRIPE_SECRET_KEY NO hace falta: el webhook solo verifica firma, no llama a la API.
 ```
 
 ## Despliegue
