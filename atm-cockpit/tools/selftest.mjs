@@ -22,6 +22,7 @@ import { evaluate } from "../src/shared/widgets/calc.mjs";
 import { toggle, progress } from "../src/shared/widgets/checklist.mjs";
 import { formatClock, tick } from "../src/shared/widgets/timer.mjs";
 import { computeAffect, blendAffect, domainBaseline, speechProsody, VRM_EXPRESSIONS } from "../src/shared/affect/affect.mjs";
+import { VOICE, pickTtsKind } from "../src/shared/voice/profile.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const J = (p) => JSON.parse(readFileSync(join(ROOT, p), "utf8"));
@@ -184,6 +185,14 @@ check("affect: voice prosody is faster + brighter when playful than serious",
       `serious ${proSerious.rate}/${proSerious.pitch} vs playful ${proPlayful.rate}/${proPlayful.pitch}`);
 check("affect: prosody stays in SpeechSynthesis-safe range",
       proPlayful.rate >= 0.5 && proPlayful.rate <= 2 && proPlayful.pitch >= 0.5 && proPlayful.pitch <= 1.6);
+
+// ---- voice profile: chosen voice locked + engine selection rule ----
+check("voice: chosen voice is Luna with a preset id",
+      VOICE.name === "Luna" && VOICE.voiceId === "375a3398-e3b4-4f91-845d-42181e352899" && VOICE.voiceType === "preset",
+      `${VOICE.name}/${VOICE.voiceId}`);
+check("voice: defaults to browser engine with no key (zero-key $0)", pickTtsKind({}) === "browser");
+check("voice: uses cloud engine when a TTS key is present",
+      pickTtsKind({ HIGGSFIELD_API_KEY: "x" }) === "cloud" && pickTtsKind({ ELEVENLABS_API_KEY: "y" }) === "cloud");
 
 console.log("");
 console.log("COCKPIT SELFTEST:", ok ? "ALL GREEN ✅" : "FAILURES ❌");

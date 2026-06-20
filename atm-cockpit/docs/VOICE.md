@@ -5,6 +5,25 @@ gently mysterious — not childish-breathy, not robotic). And it already **react
 the affect engine emits a prosody hint and the TTS applies it, so she sounds
 different by topic and moment.
 
+## Chosen voice — **Luna** (locked)
+
+Picked by ear from a Higgsfield audition (Vesper vs Luna, calm + playful lines).
+Recorded in `src/shared/voice/profile.mjs` and gated in `tools/selftest.mjs`.
+
+| field | value |
+|-------|-------|
+| name | **Luna** |
+| engine | Higgsfield TTS (ElevenLabs under the hood) |
+| model | `text2speech_v2_elevenlabs` |
+| voice_id | `375a3398-e3b4-4f91-845d-42181e352899` (preset) |
+
+**Runtime wiring (next step):** synthesize through the **main process** (ADR D3 — the
+key never reaches the renderer) by calling Higgsfield TTS with `VOICE.voiceId`, then
+hand the audio + an estimated phoneme track to the avatar. `pickTts()` already
+selects "cloud" when a TTS key is configured and falls back to the browser engine
+(zero-key, $0, still affect-driven) otherwise. Drop the cloud provider behind the
+existing `TtsProvider` interface and nothing downstream changes.
+
 ## Target voice character
 
 - **Timbre:** mid / mid-low, warm and smooth, a touch sultry. Youthful-adult, not a
