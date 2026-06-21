@@ -34,7 +34,25 @@ the ids the cockpit drives:
 - **Visemes:** `aa ih ou ee oh`
 - **Extras:** `blink` · humanoid skeleton · spring-bone physics
 
-`src/validate.mjs` asserts all of it on every output (headless, no WebGL).
+`src/validate.mjs` asserts all of it on every output (headless, no WebGL), including
+that required expressions actually **drive** something (have binds), not just exist.
+
+## Capabilities (the headless SOTA pass)
+- **Dual format:** reads & writes **VRM 0.x and 1.0** via one neutral model
+  (`Joy/Sorrow/Fun → happy/sad/relaxed`, `extensions.VRM ↔ VRMC_vrm`, …).
+- **Recolor to the pixel:** glTF `baseColorFactor` **+** MToon `shadeColorFactor`
+  **+ baked PNG textures** (a from-scratch zlib PNG codec tints the actual pixels
+  and repacks the GLB binary — see `src/png.mjs`, `src/texture.mjs`).
+- **Proportions:** humanoid bone scaling. **Physics:** spring profiles
+  (`soft/natural/bouncy`) for fluid hair/skirt.
+- **License-aware:** refuses a commercial forge from a base that forbids it;
+  stamps the output license.
+- **Reproducible:** every forge returns a `manifest` of what changed.
+- **MCP tools:** `create_living_avatar`, `validate_vrm`, `inspect_vrm`.
+
+See [`docs/ADR.md`](docs/ADR.md) for the decisions and **AF8 for the honest
+technological ceiling** (no new geometry / blendshapes / AI mesh — that needs a 3D
+engine; cross it later with an adapter behind the same contract).
 
 ## Use it
 ```bash
@@ -66,12 +84,16 @@ Palette keys match material names (case-insensitive substring) and recolor
 ```bash
 npm test    # node tools/selftest.mjs — must be ALL GREEN
 ```
-Covers: GLB round-trip, fixture validity, forge correctness, recolor, metadata,
-the cockpit-linkage guard, a negative test, and an MCP boot/`tools/call` smoke test.
+**32 checks** across both VRM specs: GLB round-trip, dual-format detection,
+fixture validity, normalized accessors, forge correctness (factor + MToon +
+**texture pixel** recolor), proportions, spring tuning, license guard, deep
+drivability, repack integrity (untinted views byte-preserved), negative tests,
+the cockpit-linkage guard, and an MCP boot/`tools/call` smoke test.
 
-## Roadmap
-- Texture-atlas recolor (not just `baseColorFactor`) for textured bases.
+## Roadmap (beyond the current ceiling)
 - Hair/outfit **mesh** swaps (needs a base with separable parts).
-- Proportion morphing via humanoid bone scaling.
-- Batch/variant generation; license-aware base registry.
+- Hue/HSV-aware texture recolor (current is multiplicative tint).
+- Batch/variant matrices; a license-aware base registry.
 - Direct write-through to a running cockpit (hot reload).
+- **Crossing AF8:** a Blender-headless or Higgsfield-3D *adapter* (new geometry /
+  blendshapes) behind the same living contract.

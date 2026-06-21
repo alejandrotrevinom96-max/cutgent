@@ -1,5 +1,6 @@
 import { writeGlb } from "./glb.mjs";
 import { REQUIRED_EXPRESSIONS, REQUIRED_BONES } from "./contract.mjs";
+import { encodePng } from "./png.mjs";
 
 // Schema-correct "living" VRMs used as CI fixtures AND as the default base when
 // none is supplied. They carry the full living rig (skeleton, every expression +
@@ -88,3 +89,56 @@ export function buildFixtureVrm0() {
 }
 
 function pbr(name) { return { name, pbrMetallicRoughness: { baseColorFactor: [0.8, 0.8, 0.8, 1] } }; }
+
+// ---- VRM 1.0 fixture WITH baked textures (Hair + Skin) in the BIN chunk ----
+// Used to gate the texture-recolor path (decode -> tint -> re-encode -> repack).
+export function buildFixtureVrmTextured() {
+  const nodes = [];
+  const humanBones = {};
+  REQUIRED_BONES.forEach((bone, i) => { humanBones[bone] = { node: i }; nodes.push({ name: bone, translation: [0, i * 0.1, 0] }); });
+  const hairNode = nodes.length; nodes.push({ name: "hairRoot", translation: [0, 1.6, 0] });
+
+  const expressions = { preset: {}, custom: {} };
+  REQUIRED_EXPRESSIONS.forEach((e, i) => {
+    expressions.preset[e] = { morphTargetBinds: [], materialColorBinds: [{ material: 2, type: "color", targetValue: [1, (i % 5) / 5, 0.5, 1] }], textureTransformBinds: [], isBinary: e === "blink", overrideBlink: "none", overrideLookAt: "none", overrideMouth: "none" };
+  });
+
+  // two 4x4 RGBA gray textures (mid gray so a tint visibly shifts them)
+  const gray = (n) => { const px = Buffer.alloc(n * n * 4, 128); for (let i = 3; i < px.length; i += 4) px[i] = 255; return encodePng({ width: n, height: n, bpp: 4, colorType: 6, pixels: px }); };
+  const hairPng = gray(4), skinPng = gray(4);
+
+  // pack the two PNGs into the BIN with 4-byte alignment
+  const parts = []; const bufferViews = []; let off = 0;
+  for (const png of [hairPng, skinPng]) {
+    const pad = (4 - (off % 4)) % 4; if (pad) { parts.push(Buffer.alloc(pad, 0)); off += pad; }
+    bufferViews.push({ buffer: 0, byteOffset: off, byteLength: png.length });
+    parts.push(png); off += png.length;
+  }
+  const bin = Buffer.concat(parts);
+
+  const materials = [
+    { name: "Hair", pbrMetallicRoughness: { baseColorFactor: [1, 1, 1, 1], baseColorTexture: { index: 0 } } },
+    mtoon("Iris", [0.4, 0.4, 0.4, 1]),
+    mtoon("Outfit", [0.5, 0.5, 0.5, 1]),
+    { name: "Skin", pbrMetallicRoughness: { baseColorFactor: [1, 1, 1, 1], baseColorTexture: { index: 1 } } },
+  ];
+
+  const json = {
+    asset: { version: "2.0", generator: "avatar-forge/fixtureTextured" },
+    extensionsUsed: ["VRMC_vrm", "VRMC_springBone", "VRMC_materials_mtoon"],
+    scene: 0, scenes: [{ nodes: nodes.map((_, i) => i) }], nodes, materials,
+    buffers: [{ byteLength: bin.length }],
+    bufferViews,
+    images: [{ bufferView: 0, mimeType: "image/png" }, { bufferView: 1, mimeType: "image/png" }],
+    textures: [{ source: 0 }, { source: 1 }],
+    extensions: {
+      VRMC_vrm: {
+        specVersion: "1.0",
+        meta: { name: "avatar-forge textured base", version: "1.0", authors: ["avatar-forge"], licenseUrl: "https://vrm.dev/licenses/1.0/", avatarPermission: "onlyAuthor", commercialUsage: "personalNonProfit", modification: "allowModification" },
+        humanoid: { humanBones }, firstPerson: {}, lookAt: { type: "bone" }, expressions,
+      },
+      VRMC_springBone: { specVersion: "1.0", colliders: [], colliderGroups: [], springs: [{ name: "hair", joints: [{ node: hairNode, hitRadius: 0.02, stiffness: 1.0, gravityPower: 0.0, gravityDir: [0, -1, 0], dragForce: 0.4 }] }] },
+    },
+  };
+  return writeGlb({ json, bin });
+}

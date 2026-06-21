@@ -5,8 +5,9 @@ import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildFixtureVrm, buildFixtureVrm0 } from "../src/fixture.mjs";
+import { buildFixtureVrm, buildFixtureVrm0, buildFixtureVrmTextured } from "../src/fixture.mjs";
 import { readGlb, writeGlb } from "../src/glb.mjs";
+import { decodePng } from "../src/png.mjs";
 import { load, getMeta, getBones, getExpressions, getSpringCount, hexToRgba, SPRING_PROFILES } from "../src/vrm.mjs";
 import { validateLivingVrm } from "../src/validate.mjs";
 import { createLivingAvatar } from "../src/forge.mjs";
@@ -60,6 +61,27 @@ const out0 = readGlb(r0.buffer).json;
 const hp = out0.extensions.VRM.materialProperties.find((p) => p.name.toLowerCase().includes("hair"));
 check("forge(0.x): VRM0 _Color recolored", hp && want.every((x, i) => Math.abs(hp.vectorProperties._Color[i] - x) < 1e-9));
 check("forge(0.x): meta.title stamped", out0.extensions.VRM.meta.title === spec.name);
+
+// ---- texture recolor (the technological ceiling: tint baked pixels) ----
+const fxt = buildFixtureVrmTextured();
+check("textured fixture: is a valid living VRM", validateLivingVrm(fxt).ok);
+const rt = createLivingAvatar(fxt, spec);
+check("forge(tex): output still a valid living VRM", validateLivingVrm(rt.buffer).ok);
+check("forge(tex): tinted the hair texture", rt.manifest.textures.some((t) => /hair/i.test(t)), rt.manifest.textures.join(" | "));
+{
+  const j = readGlb(rt.buffer);
+  const hairBv = j.json.bufferViews[j.json.images[0].bufferView];
+  const skinBv = j.json.bufferViews[j.json.images[1].bufferView];
+  const hairPx = decodePng(j.bin.subarray(hairBv.byteOffset, hairBv.byteOffset + hairBv.byteLength)).pixels;
+  const skinPx = decodePng(j.bin.subarray(skinBv.byteOffset, skinBv.byteOffset + skinBv.byteLength)).pixels;
+  const wantHair = hexToRgba(spec.palette.hair);
+  // gray 128 tinted toward hair hex => ~128*factor; and changed from 128
+  check("forge(tex): hair pixels shifted toward spec color",
+    Math.abs(hairPx[0] - 128 * wantHair[0]) <= 2 && hairPx[0] !== 128,
+    `R=${hairPx[0]} (want ~${Math.round(128 * wantHair[0])})`);
+  // skin texture (not in palette) must survive the repack byte-for-byte (still gray)
+  check("repack: untinted skin texture preserved", skinPx[0] === 128 && skinPx[1] === 128 && skinPx[2] === 128, `R=${skinPx[0]}`);
+}
 
 // ---- license guard ----
 let threw = false;

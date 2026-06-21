@@ -1,4 +1,5 @@
 import { load, getMeta, recolorByName, scaleHeight, tuneSprings, writeGlb } from "./vrm.mjs";
+import { tintTextures } from "./texture.mjs";
 
 // createLivingAvatar — the core pipeline. Takes a "living" base VRM (0.x or 1.0;
 // its rig is REUSED, never rebuilt — that's the thesis) plus a design spec, and
@@ -10,7 +11,8 @@ export function createLivingAvatar(baseBuffer, spec = {}) {
   const { json, bin, version, spec: vspec } = load(baseBuffer);
   if (!vspec) throw new Error("base is not a VRM (no VRMC_vrm / VRM extension)");
 
-  const manifest = { baseSpec: vspec, name: spec.name || null, recolor: [], proportions: null, springProfile: null, license: null, warnings: [] };
+  const manifest = { baseSpec: vspec, name: spec.name || null, recolor: [], textures: [], proportions: null, springProfile: null, license: null, warnings: [] };
+  let outBin = bin;
 
   // license guard — refuse to forge a commercial avatar from a base that forbids it
   const baseMeta = getMeta(json);
@@ -22,7 +24,14 @@ export function createLivingAvatar(baseBuffer, spec = {}) {
   applyMeta(json, vspec, spec);
   manifest.license = getMeta(json).commercialUsage || null;
 
-  if (spec.palette) manifest.recolor = recolorByName(json, spec.palette);
+  if (spec.palette) {
+    manifest.recolor = recolorByName(json, spec.palette);
+    // also recolor baked textures (the real ceiling: hair/skin color lives in pixels)
+    if (spec.recolorTextures !== false) {
+      const t = tintTextures(json, outBin, spec.palette, spec.textureStrength == null ? 1 : spec.textureStrength);
+      outBin = t.bin; manifest.textures = t.applied; manifest.warnings.push(...t.warnings);
+    }
+  }
 
   if (spec.proportions && spec.proportions.height) {
     const ok = scaleHeight(json, spec.proportions.height);
@@ -36,7 +45,7 @@ export function createLivingAvatar(baseBuffer, spec = {}) {
 
   json.asset = json.asset || {};
   json.asset.generator = "avatar-forge";
-  return { buffer: writeGlb({ json, bin, version }), manifest, applied: manifest.recolor };
+  return { buffer: writeGlb({ json, bin: outBin, version }), manifest, applied: manifest.recolor };
 }
 
 function applyMeta(json, vspec, spec) {
