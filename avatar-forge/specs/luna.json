@@ -1,0 +1,16 @@
+{
+  "name": "Luna",
+  "author": "avatar-forge",
+  "palette": {
+    "hair": "#E9E7F2",
+    "iris": "#7B4FA6",
+    "outfit": "#171019"
+  },
+  "license": {
+    "commercialUsage": "personalNonProfit",
+    "avatarPermission": "onlyAuthor",
+    "url": "https://vrm.dev/licenses/1.0/"
+  },
+  "voice": "Luna",
+  "notes": "Design = soft-goth: platinum-white hair (#E9E7F2), amethyst eyes (#7B4FA6), dark velvet dress (#171019). Palette recolors the base's Hair/Iris/Outfit materials. Bespoke hair/outfit GEOMETRY is a roadmap item — it needs a base that already has those meshes (your VRoid export) or a modeling step."
+}
