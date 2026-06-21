@@ -308,7 +308,18 @@ export function applyCommand(doc: Project, command: Command): Project {
       copy.id = command.newId;
       copy.name = `${found.clip.name} copia`;
       copy.start = found.clip.start + found.clip.duration;
-      return mapTrack(doc, found.track.id, (t) => ({ ...t, clips: [...t.clips, copy] }));
+      const dupDur = found.clip.duration;
+      // Inserta la copia justo después del original y EMPUJA (ripple) los clips
+      // posteriores de la misma pista, para que la copia no se solape con el
+      // siguiente (antes se añadía sin correr nada → solape + descuadre al
+      // hacer ripple_delete de la copia después).
+      return mapTrack(doc, found.track.id, (t) => ({
+        ...t,
+        clips: [
+          ...t.clips.map((c) => (c.start >= copy.start ? { ...c, start: c.start + dupDur } : c)),
+          copy,
+        ],
+      }));
     }
 
     case "split_clip": {

@@ -5,7 +5,7 @@ import path from "path";
 import { nanoid } from "nanoid";
 import ffmpegStatic from "ffmpeg-static";
 import { resolveMediaInput } from "./media-source";
-import { hasAudioStream } from "./audio-tools";
+import { hasAudioStream, hasVideoStream } from "./audio-tools";
 import { assetsDir } from "./paths";
 
 /**
@@ -26,7 +26,11 @@ export async function normalizeAudio(
   try {
     if (!(await hasAudioStream(file))) throw new Error("El clip no tiene pista de audio.");
     const id = `asset_${nanoid(8)}`;
-    const outFile = path.join(ASSETS_DIR, `${id}.m4a`);
+    // Conserva el video si la entrada lo tiene (no destruir el clip de video al
+    // normalizar su audio); audio puro → .m4a con -vn.
+    const keepVideo = await hasVideoStream(file);
+    const ext = keepVideo ? "mp4" : "m4a";
+    const outFile = path.join(ASSETS_DIR, `${id}.${ext}`);
     const i = opts.i ?? -14;
     const tp = opts.tp ?? -1;
     const lra = opts.lra ?? 11;
@@ -39,14 +43,14 @@ export async function normalizeAudio(
       `loudnorm=I=${i}:TP=${tp}:LRA=${lra}`,
       "-ar",
       "48000",
+      ...(keepVideo ? ["-c:v", "copy"] : ["-vn"]),
       "-c:a",
       "aac",
       "-b:a",
       "192k",
-      "-vn",
       outFile,
     ]);
-    return { id, src: `/assets/${id}.m4a` };
+    return { id, src: `/assets/${id}.${ext}` };
   } finally {
     if (cleanup) await cleanup();
   }

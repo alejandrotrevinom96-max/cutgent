@@ -441,6 +441,20 @@ server.registerTool(
   }),
 );
 
+server.registerTool(
+  "reorder_track",
+  {
+    title: "Reordenar pista",
+    description:
+      "Mueve una pista a otra posición (orden de composición). index 0 = capa de abajo; índices mayores quedan por encima (se dibujan al frente).",
+    inputSchema: { trackId: z.string(), index: z.coerce.number().int().min(0) },
+  },
+  tool(async (args) => {
+    await postCommands([{ type: "reorder_track", trackId: args.trackId, index: args.index }]);
+    return ok(`Pista ${args.trackId} movida al índice ${args.index}.`);
+  }),
+);
+
 // ---- Añadir clips ---------------------------------------------------------
 
 server.registerTool(

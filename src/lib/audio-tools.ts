@@ -46,6 +46,23 @@ export async function hasAudioStream(file: string): Promise<boolean> {
   });
 }
 
+/**
+ * Detecta si un archivo tiene pista de VIDEO. Se usa para no destruir el video
+ * al limpiar/normalizar el audio de un clip de video: si hay video, se copia el
+ * stream de video y solo se re-encodea el audio (en vez de tirar el video con -vn).
+ */
+export async function hasVideoStream(file: string): Promise<boolean> {
+  if (!ffmpegStatic) return false;
+  return new Promise((resolve) => {
+    const proc = spawn(ffmpegStatic as string, ["-hide_banner", "-i", file]);
+    let err = "";
+    proc.stderr.on("data", (d: Buffer) => (err += d.toString()));
+    proc.on("error", () => resolve(false));
+    // "Video:" pero NO "Video: png/mjpeg" de cover art → exige fps/resolución típica.
+    proc.on("close", () => resolve(/Stream #\d+:\d+.*: Video:(?!.*\b(png|mjpeg|bmp)\b)/i.test(err)));
+  });
+}
+
 export interface CleanAudioOpts {
   /** Reducción de ruido FFT (afftdn). */
   denoise?: boolean;
@@ -68,7 +85,13 @@ export async function cleanAudio(
     if (!(await hasAudioStream(file))) throw new Error("El clip no tiene pista de audio.");
     await fs.mkdir(ASSETS_DIR, { recursive: true });
     const id = `asset_${nanoid(8)}`;
-    const out = path.join(ASSETS_DIR, `${id}.m4a`);
+    // Si la entrada tiene video, conservarlo (copiar stream de video) y salir a
+    // .mp4; si es audio puro, salir a .m4a con -vn. Evita destruir el video al
+    // aplicar la limpieza a un clip de video (el src del clip se reemplaza por
+    // este asset).
+    const keepVideo = await hasVideoStream(file);
+    const ext = keepVideo ? "mp4" : "m4a";
+    const out = path.join(ASSETS_DIR, `${id}.${ext}`);
 
     const chain: string[] = [];
     if (opts.highpass !== undefined) chain.push(`highpass=f=${Math.round(opts.highpass)}`);
@@ -77,8 +100,9 @@ export async function cleanAudio(
     if (opts.deEss) chain.push("deesser=i=0.4");
     if (opts.lowpass !== undefined) chain.push(`lowpass=f=${Math.round(opts.lowpass)}`);
 
-    await runCapture(["-y", "-i", file, "-af", chain.join(","), "-c:a", "aac", "-b:a", "192k", "-vn", out]);
-    return { id, src: `/assets/${id}.m4a` };
+    const vargs = keepVideo ? ["-c:v", "copy"] : ["-vn"];
+    await runCapture(["-y", "-i", file, "-af", chain.join(","), ...vargs, "-c:a", "aac", "-b:a", "192k", out]);
+    return { id, src: `/assets/${id}.${ext}` };
   } finally {
     if (cleanup) await cleanup();
   }
