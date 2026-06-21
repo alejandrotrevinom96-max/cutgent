@@ -1,0 +1,24 @@
+[
+  {
+    "id": "fixture",
+    "format": "VRM 1.0",
+    "builtin": true,
+    "license": { "commercial": false, "modify": true },
+    "source": "avatar-forge/src/fixture.mjs",
+    "notes": "Built-in placeholder rig for CI and dry runs. NOT for shipping."
+  },
+  {
+    "id": "your-vroid-export",
+    "format": "VRM 1.0",
+    "license": { "commercial": true, "modify": true },
+    "source": "(you author this once in VRoid Studio; you own it)",
+    "notes": "Recommended base for Luna: you own it, so commercial use is yours to grant. Drop the .vrm path here once exported."
+  },
+  {
+    "id": "cc0-example",
+    "format": "VRM 0.x or 1.0",
+    "license": { "commercial": true, "modify": true },
+    "source": "(a CC0 base you have verified)",
+    "notes": "Placeholder for a verified CC0 model. ALWAYS confirm the embedded VRM license metadata before commercial use — registry flags are claims, not proof."
+  }
+]

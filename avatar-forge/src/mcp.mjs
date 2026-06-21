@@ -8,6 +8,9 @@ import { createLivingAvatar } from "./forge.mjs";
 import { buildFixtureVrm } from "./fixture.mjs";
 import { validateLivingVrm } from "./validate.mjs";
 import { getMeta, getBones, getExpressions, getSpringCount, load } from "./vrm.mjs";
+import { forgeVariants } from "./variants.mjs";
+import { listBases } from "./registry.mjs";
+import { listAdapters } from "./adapters/index.mjs";
 
 const TOOLS = [
   {
@@ -33,6 +36,13 @@ const TOOLS = [
     description: "Summarize a VRM: spec version, metadata/license, bone count, expression coverage + drivability, spring count. Pass basePath or omit for the fixture.",
     inputSchema: { type: "object", properties: { basePath: { type: "string" } } },
   },
+  {
+    name: "forge_variants",
+    description: "Forge many avatars from one base in a single call. variants = array of partial specs (palette deep-merged over baseSpec).",
+    inputSchema: { type: "object", properties: { spec: { type: "object" }, variants: { type: "array" }, basePath: { type: "string" } }, required: ["spec", "variants"] },
+  },
+  { name: "list_bases", description: "List the license-aware base registry (which bases are OK for commercial use).", inputSchema: { type: "object", properties: {} } },
+  { name: "list_adapters", description: "List AF8 base-producing adapters (Blender / Higgsfield-3D) and what they can/can't do.", inputSchema: { type: "object", properties: {} } },
 ];
 
 const reply = (id, result, error) => (error ? { jsonrpc: "2.0", id, error } : { jsonrpc: "2.0", id, result });
@@ -64,6 +74,13 @@ function handle(msg) {
         const expr = getExpressions(json); const bound = [...expr.values()].filter((e) => e.bound).length;
         return text(id, JSON.stringify({ spec, name: meta.name, commercial: meta.commercial, commercialUsage: meta.commercialUsage, bones: getBones(json).size, expressions: expr.size, drivable: bound, springs: getSpringCount(json) }, null, 2));
       }
+      if (params.name === "forge_variants") {
+        const results = forgeVariants(loadBase(a), a.spec || {}, a.variants || []);
+        const rows = results.map((r) => `${r.name}: valid=${validateLivingVrm(r.buffer).ok} bytes=${r.buffer.length} recolor=[${r.manifest.recolor.join(",")}]`);
+        return text(id, `forged ${results.length} variant(s):\n` + rows.join("\n"), results.some((r) => !validateLivingVrm(r.buffer).ok));
+      }
+      if (params.name === "list_bases") return text(id, JSON.stringify(listBases(), null, 2));
+      if (params.name === "list_adapters") return text(id, JSON.stringify(listAdapters(), null, 2));
       return text(id, "unknown tool: " + params.name, true);
     } catch (e) {
       return text(id, "error: " + e.message, true);

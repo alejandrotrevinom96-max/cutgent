@@ -1,6 +1,17 @@
-import { writeGlb } from "./glb.mjs";
+import { writeGlb, readGlb } from "./glb.mjs";
 import { REQUIRED_EXPRESSIONS, REQUIRED_BONES } from "./contract.mjs";
 import { encodePng } from "./png.mjs";
+
+// VRM 1.0 fixture with two optional, named mesh parts (Jacket, Glasses) in the
+// scene — used to gate part toggling (show/hide), without new geometry.
+export function buildFixtureWithParts() {
+  const g = readGlb(buildFixtureVrm());
+  const j = g.json;
+  const jacket = j.nodes.length; j.nodes.push({ name: "Jacket" });
+  const glasses = j.nodes.length; j.nodes.push({ name: "Glasses" });
+  j.scenes[0].nodes.push(jacket, glasses);
+  return writeGlb({ json: j, bin: g.bin });
+}
 
 // Schema-correct "living" VRMs used as CI fixtures AND as the default base when
 // none is supplied. They carry the full living rig (skeleton, every expression +

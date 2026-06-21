@@ -41,24 +41,36 @@ that required expressions actually **drive** something (have binds), not just ex
 - **Dual format:** reads & writes **VRM 0.x and 1.0** via one neutral model
   (`Joy/Sorrow/Fun → happy/sad/relaxed`, `extensions.VRM ↔ VRMC_vrm`, …).
 - **Recolor to the pixel:** glTF `baseColorFactor` **+** MToon `shadeColorFactor`
-  **+ baked PNG textures** (a from-scratch zlib PNG codec tints the actual pixels
-  and repacks the GLB binary — see `src/png.mjs`, `src/texture.mjs`).
+  **+ baked PNG textures**, in `multiply` or shading-preserving **`hue`** mode (a
+  from-scratch zlib PNG codec tints actual pixels and repacks the GLB binary).
+- **Part toggling:** show/hide existing named parts (jacket, glasses…) — never
+  invents geometry (that's AF8).
 - **Proportions:** humanoid bone scaling. **Physics:** spring profiles
   (`soft/natural/bouncy`) for fluid hair/skirt.
-- **License-aware:** refuses a commercial forge from a base that forbids it;
-  stamps the output license.
+- **Batch / variants:** forge a whole matrix of editions from one base in one call.
+- **License-aware registry:** pick/verify bases by commercial rights; forge
+  refuses a commercial output from a base that forbids it, and stamps the license.
 - **Reproducible:** every forge returns a `manifest` of what changed.
-- **MCP tools:** `create_living_avatar`, `validate_vrm`, `inspect_vrm`.
+- **MCP tools (6):** `create_living_avatar`, `validate_vrm`, `inspect_vrm`,
+  `forge_variants`, `list_bases`, `list_adapters`.
+- **AF8 adapter seam:** `blender` / `higgsfield-3d` adapters define how to PRODUCE
+  a base later (new geometry/rig) behind the same contract — honest stubs today.
 
 See [`docs/ADR.md`](docs/ADR.md) for the decisions and **AF8 for the honest
 technological ceiling** (no new geometry / blendshapes / AI mesh — that needs a 3D
-engine; cross it later with an adapter behind the same contract).
+engine; cross it with an adapter behind the same contract).
 
 ## Use it
 ```bash
-# forge from the Luna spec onto your base, write into the cockpit
-node bin/forge.mjs --spec specs/luna.json --base /path/to/base.vrm \
-                   --out ../atm-cockpit/public/avatar.vrm
+# forge from the Luna spec onto your base, straight into the cockpit
+node bin/forge.mjs --spec specs/luna.json --base /path/to/base.vrm --cockpit
+
+# shading-preserving hue recolor; require a commercial-OK base
+node bin/forge.mjs --spec specs/luna.json --base base.vrm --texture-mode hue --require-commercial
+
+# batch a matrix of editions from one base
+node bin/forge.mjs --spec specs/luna.json --base base.vrm \
+                   --variants specs/variants.example.json --outdir out/variants
 
 # no base? uses the fixture (placeholder rig) so you can see the pipeline run
 node bin/forge.mjs --spec specs/luna.json --out out/luna.vrm
@@ -84,16 +96,17 @@ Palette keys match material names (case-insensitive substring) and recolor
 ```bash
 npm test    # node tools/selftest.mjs — must be ALL GREEN
 ```
-**32 checks** across both VRM specs: GLB round-trip, dual-format detection,
+**44 checks** across both VRM specs: GLB round-trip, dual-format detection,
 fixture validity, normalized accessors, forge correctness (factor + MToon +
-**texture pixel** recolor), proportions, spring tuning, license guard, deep
-drivability, repack integrity (untinted views byte-preserved), negative tests,
-the cockpit-linkage guard, and an MCP boot/`tools/call` smoke test.
+texture pixel recolor in multiply & **hue**), part toggling, proportions, spring
+tuning, batch variants + matrix, license registry + mismatch detection, the AF8
+adapter seam (honest), deep drivability, repack integrity (untinted views
+byte-preserved), negative tests, the cockpit-linkage guard, and an MCP
+boot/`tools/call` smoke test (6 tools).
 
-## Roadmap (beyond the current ceiling)
-- Hair/outfit **mesh** swaps (needs a base with separable parts).
-- Hue/HSV-aware texture recolor (current is multiplicative tint).
-- Batch/variant matrices; a license-aware base registry.
-- Direct write-through to a running cockpit (hot reload).
-- **Crossing AF8:** a Blender-headless or Higgsfield-3D *adapter* (new geometry /
-  blendshapes) behind the same living contract.
+## Roadmap (genuinely beyond the ceiling now)
+- True hair/outfit **mesh swaps** (new geometry) — needs an AF8 adapter.
+- HSV recolor that also shifts hue per-region / segmentation masks.
+- Live hot-reload watcher on the cockpit side (write-through exists today).
+- **Crossing AF8:** implement `blender` / `higgsfield-3d` `produceBase()` for real
+  (geometry + a facial-rig authoring step) behind the same living contract.

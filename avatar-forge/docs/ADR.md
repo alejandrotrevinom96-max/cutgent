@@ -44,6 +44,14 @@ aren't allowed to sell.
 texture repack, and an MCP boot/`tools/call` smoke test). The interface is MCP
 (`create_living_avatar`, `validate_vrm`, `inspect_vrm`) so an AI is a first-class user.
 
+## AF9 — Productization: variants + a license-aware registry
+The commercial use case is *many* avatars, safely. `src/variants.mjs` forges a
+matrix of editions from one base in a call; `src/registry.mjs` + `bases.json` track
+which bases may be used commercially and `verifyBase()` checks a real file's
+embedded license against the claim — so you can't accidentally ship on the wrong
+license. Part toggling (`src/mesh.mjs`) only shows/hides geometry the base already
+has; it never invents parts (that stays behind AF8).
+
 ## AF8 — The wall (honest technological ceiling)
 avatar-forge **cannot** synthesize new geometry, author new blendshapes/visemes
 from nothing, retopologize, or AI-generate a mesh. Those require a 3D engine

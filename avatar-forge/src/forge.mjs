@@ -1,5 +1,6 @@
 import { load, getMeta, recolorByName, scaleHeight, tuneSprings, writeGlb } from "./vrm.mjs";
 import { tintTextures } from "./texture.mjs";
+import { setParts } from "./mesh.mjs";
 
 // createLivingAvatar — the core pipeline. Takes a "living" base VRM (0.x or 1.0;
 // its rig is REUSED, never rebuilt — that's the thesis) plus a design spec, and
@@ -11,7 +12,7 @@ export function createLivingAvatar(baseBuffer, spec = {}) {
   const { json, bin, version, spec: vspec } = load(baseBuffer);
   if (!vspec) throw new Error("base is not a VRM (no VRMC_vrm / VRM extension)");
 
-  const manifest = { baseSpec: vspec, name: spec.name || null, recolor: [], textures: [], proportions: null, springProfile: null, license: null, warnings: [] };
+  const manifest = { baseSpec: vspec, name: spec.name || null, recolor: [], textures: [], parts: [], proportions: null, springProfile: null, license: null, warnings: [] };
   let outBin = bin;
 
   // license guard — refuse to forge a commercial avatar from a base that forbids it
@@ -28,7 +29,7 @@ export function createLivingAvatar(baseBuffer, spec = {}) {
     manifest.recolor = recolorByName(json, spec.palette);
     // also recolor baked textures (the real ceiling: hair/skin color lives in pixels)
     if (spec.recolorTextures !== false) {
-      const t = tintTextures(json, outBin, spec.palette, spec.textureStrength == null ? 1 : spec.textureStrength);
+      const t = tintTextures(json, outBin, spec.palette, { strength: spec.textureStrength == null ? 1 : spec.textureStrength, mode: spec.textureMode || "multiply" });
       outBin = t.bin; manifest.textures = t.applied; manifest.warnings.push(...t.warnings);
     }
   }
@@ -41,6 +42,11 @@ export function createLivingAvatar(baseBuffer, spec = {}) {
   if (spec.springProfile) {
     const ok = tuneSprings(json, spec.springProfile);
     if (ok) manifest.springProfile = spec.springProfile; else manifest.warnings.push(`no springs to tune / unknown profile '${spec.springProfile}'`);
+  }
+
+  if (spec.parts) {
+    const p = setParts(json, spec.parts);
+    manifest.parts = p.applied; manifest.warnings.push(...p.warnings);
   }
 
   json.asset = json.asset || {};

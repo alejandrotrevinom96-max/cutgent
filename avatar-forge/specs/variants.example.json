@@ -1,0 +1,5 @@
+[
+  { "name": "Luna-Noir", "palette": { "hair": "#0B0B10", "outfit": "#0E0A12" } },
+  { "name": "Luna-Frost", "palette": { "hair": "#EAF2FF", "iris": "#4FA6C2" } },
+  { "name": "Luna-Ember", "palette": { "hair": "#F2D9C0", "iris": "#C24F4F", "outfit": "#241015" } }
+]

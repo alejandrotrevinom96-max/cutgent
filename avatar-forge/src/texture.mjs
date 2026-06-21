@@ -1,4 +1,4 @@
-import { isPng, tintPng } from "./png.mjs";
+import { isPng, recolorPng } from "./png.mjs";
 
 // Recolor a base's BAKED textures: find each material's base-color image, tint
 // its pixels, and write it back into the GLB binary — repacking bufferViews so
@@ -27,7 +27,8 @@ export function repackBin(json, bin, replacements) {
   return newBin;
 }
 
-export function tintTextures(json, bin, palette, strength = 1) {
+export function tintTextures(json, bin, palette, opts = {}) {
+  const { strength = 1, mode = "multiply" } = opts;
   const applied = [], warnings = [];
   const mats = json.materials || [], textures = json.textures || [], images = json.images || [];
   const imageToHex = new Map();
@@ -51,12 +52,12 @@ export function tintTextures(json, bin, palette, strength = 1) {
       const bv = json.bufferViews[img.bufferView];
       const bytes = bin.subarray(bv.byteOffset || 0, (bv.byteOffset || 0) + bv.byteLength);
       if (!isPng(bytes)) { warnings.push(`${mat}: base texture not PNG, skipped`); continue; }
-      try { replacements.set(img.bufferView, tintPng(Buffer.from(bytes), hex, strength)); applied.push(`tex ${mat}<-${key}:${hex}`); }
+      try { replacements.set(img.bufferView, recolorPng(Buffer.from(bytes), hex, { mode, strength })); applied.push(`tex ${mat}<-${key}:${hex}`); }
       catch (e) { warnings.push(`${mat}: ${e.message}`); }
     } else if (img.uri && img.uri.startsWith("data:")) {
       const bytes = Buffer.from((img.uri.split(",")[1] || ""), "base64");
       if (!isPng(bytes)) { warnings.push(`${mat}: data-uri texture not PNG, skipped`); continue; }
-      try { img.uri = "data:image/png;base64," + tintPng(bytes, hex, strength).toString("base64"); applied.push(`tex ${mat}<-${key}:${hex}`); }
+      try { img.uri = "data:image/png;base64," + recolorPng(bytes, hex, { mode, strength }).toString("base64"); applied.push(`tex ${mat}<-${key}:${hex}`); }
       catch (e) { warnings.push(`${mat}: ${e.message}`); }
     } else {
       warnings.push(`${mat}: external/unsupported texture, skipped`);

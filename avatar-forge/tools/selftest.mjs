@@ -5,9 +5,13 @@ import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildFixtureVrm, buildFixtureVrm0, buildFixtureVrmTextured } from "../src/fixture.mjs";
+import { buildFixtureVrm, buildFixtureVrm0, buildFixtureVrmTextured, buildFixtureWithParts } from "../src/fixture.mjs";
 import { readGlb, writeGlb } from "../src/glb.mjs";
-import { decodePng } from "../src/png.mjs";
+import { decodePng, encodePng, recolorPng } from "../src/png.mjs";
+import { setParts, listParts } from "../src/mesh.mjs";
+import { forgeVariants, expandMatrix } from "../src/variants.mjs";
+import { listBases, pickBases, validateRegistry, verifyBase } from "../src/registry.mjs";
+import { listAdapters, getAdapter } from "../src/adapters/index.mjs";
 import { load, getMeta, getBones, getExpressions, getSpringCount, hexToRgba, SPRING_PROFILES } from "../src/vrm.mjs";
 import { validateLivingVrm } from "../src/validate.mjs";
 import { createLivingAvatar } from "../src/forge.mjs";
@@ -94,6 +98,49 @@ check("validate: rejects VRM with no spring bones", !validateLivingVrm(noSpring)
 const unbound = (() => { const j = readGlb(fx1).json; j.extensions.VRMC_vrm.expressions.preset.happy.materialColorBinds = []; return writeGlb({ json: j }); })();
 check("validate: rejects VRM with an undrivable required expression", !validateLivingVrm(unbound).ok);
 
+// ---- HSV recolor (preserves shading; colorizes even a gray texture) ----
+{
+  const gray = (n) => { const px = Buffer.alloc(n * n * 4, 128); for (let i = 3; i < px.length; i += 4) px[i] = 255; return encodePng({ width: n, height: n, bpp: 4, colorType: 6, pixels: px }); };
+  const hsv = decodePng(recolorPng(gray(2), "#7B4FA6", { mode: "hue", strength: 1 })).pixels;
+  check("png(hsv): gray recolored toward purple hue (b>r>g), value preserved", hsv[2] > hsv[0] && hsv[0] > hsv[1] && hsv[0] !== 128, `rgb=${hsv[0]},${hsv[1]},${hsv[2]}`);
+}
+
+// ---- mesh part toggling (hide existing parts; no new geometry) ----
+{
+  const fp = readGlb(buildFixtureWithParts()).json;
+  const jacketIdx = fp.nodes.findIndex((n) => n.name === "Jacket");
+  check("parts: base exposes Jacket/Glasses", listParts(fp).includes("Jacket") && listParts(fp).includes("Glasses"));
+  const res = setParts(fp, { Jacket: false });
+  const out = writeGlb({ json: fp });
+  check("parts: hiding Jacket detaches it from the scene", !fp.scenes[0].nodes.includes(jacketIdx) && res.applied.includes("Jacket:off"));
+  check("parts: still a valid living VRM after toggle", validateLivingVrm(out).ok);
+}
+
+// ---- batch variants ----
+{
+  const vs = forgeVariants(fx1, spec, [{ name: "Luna-Red", palette: { hair: "#ff0000" } }, { name: "Luna-Green", palette: { hair: "#00ff00" } }]);
+  const hairOf = (b) => readGlb(b).json.materials.find((m) => m.name.toLowerCase().includes("hair")).pbrMetallicRoughness.baseColorFactor;
+  check("variants: forged 2 valid variants", vs.length === 2 && vs.every((v) => validateLivingVrm(v.buffer).ok));
+  check("variants: each variant has its own hair color", hairOf(vs[0].buffer)[0] === 1 && hairOf(vs[1].buffer)[1] === 1, `${vs[0].name},${vs[1].name}`);
+  const matrix = expandMatrix({ hair: ["#111111", "#222222"], outfit: ["#333333"] }, "Luna");
+  check("variants: matrix expands to cartesian product", matrix.length === 2 && matrix.every((m) => m.palette.hair && m.palette.outfit));
+}
+
+// ---- license-aware base registry ----
+{
+  check("registry: schema valid", validateRegistry().ok, validateRegistry().errs.join(";"));
+  const commercial = pickBases({ commercial: true }).map((b) => b.id);
+  check("registry: commercial filter excludes the non-commercial fixture", !commercial.includes("fixture") && listBases().length >= 2, commercial.join(","));
+  check("registry: verifyBase catches a license mismatch", verifyBase("your-vroid-export", fx1).ok === false, "claims commercial, fixture file is personalNonProfit");
+}
+
+// ---- AF8 adapters (honest seam: present but do not fake a living base here) ----
+{
+  const ad = listAdapters().map((a) => a.id);
+  check("adapters: blender + higgsfield-3d registered", ad.includes("blender") && ad.includes("higgsfield-3d"), ad.join(","));
+  check("adapters: none fabricates a living base in this env (honest)", listAdapters().every((a) => getAdapter(a.id).produceBase(spec).living === false));
+}
+
 // ---- contract linkage to the cockpit ----
 const cockpitDrives = ["happy", "angry", "sad", "relaxed", "surprised", "neutral", "aa", "ih", "ou", "ee", "oh", "blink"];
 check("contract: covers every id the cockpit drives", cockpitDrives.every((id) => REQUIRED_EXPRESSIONS.includes(id)), `${REQUIRED_EXPRESSIONS.length} presets`);
@@ -110,7 +157,7 @@ function mcpSmoke() {
     let outBuf = "", listed = null, called = null, validated = null, done = false;
     const finish = () => {
       if (done) return; done = true; try { p.kill(); } catch { /* noop */ }
-      check("mcp: tools/list exposes create_living_avatar + validate_vrm", listed === true, String(listed));
+      check("mcp: tools/list exposes all 6 tools", listed === true, String(listed));
       check("mcp: tools/call create_living_avatar forges valid", called === true, String(called));
       check("mcp: tools/call validate_vrm works", validated === true, String(validated));
       res();
@@ -121,7 +168,7 @@ function mcpSmoke() {
         const line = outBuf.slice(0, nl); outBuf = outBuf.slice(nl + 1);
         if (!line.trim()) continue;
         let m; try { m = JSON.parse(line); } catch { continue; }
-        if (m.id === 2) { const names = ((m.result && m.result.tools) || []).map((t) => t.name); listed = names.includes("create_living_avatar") && names.includes("validate_vrm"); }
+        if (m.id === 2) { const names = ((m.result && m.result.tools) || []).map((t) => t.name); listed = ["create_living_avatar", "validate_vrm", "inspect_vrm", "forge_variants", "list_bases", "list_adapters"].every((n) => names.includes(n)); }
         if (m.id === 3) called = !!(m.result && m.result.isError === false);
         if (m.id === 4) { validated = !!(m.result && m.result.isError === false); finish(); }
       }
