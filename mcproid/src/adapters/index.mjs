@@ -1,4 +1,4 @@
-// AF8 seam: base-PRODUCING adapters. Everything else in avatar-forge customizes an
+// AF8 seam: base-PRODUCING adapters. Everything else in mcproid customizes an
 // existing living base; adapters are how you'd eventually PRODUCE one (new geometry
 // / rig) by delegating to a 3D engine or a generative-3D service. They live behind
 // one interface so the core never changes when the wall is crossed.

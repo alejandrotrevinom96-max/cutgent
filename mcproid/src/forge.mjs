@@ -6,7 +6,7 @@ import { setParts } from "./mesh.mjs";
 // its rig is REUSED, never rebuilt — that's the thesis) plus a design spec, and
 // returns a new VRM with the design applied: palette recolor (PBR + MToon shade),
 // proportions, spring-physics profile, and identity/license metadata. Geometry
-// and the living rig pass through untouched, so the output stays cockpit-drivable.
+// and the living rig pass through untouched, so the output stays drivable by any VRM app.
 // Returns { buffer, manifest } — the manifest is the reproducible record of edits.
 export function createLivingAvatar(baseBuffer, spec = {}) {
   const { json, bin, version, spec: vspec } = load(baseBuffer);
@@ -50,7 +50,7 @@ export function createLivingAvatar(baseBuffer, spec = {}) {
   }
 
   json.asset = json.asset || {};
-  json.asset.generator = "avatar-forge";
+  json.asset.generator = "mcproid";
   return { buffer: writeGlb({ json, bin: outBin, version }), manifest, applied: manifest.recolor };
 }
 

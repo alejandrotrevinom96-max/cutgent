@@ -41,13 +41,13 @@ export function buildFixtureVrm() {
   const materials = [mtoon("Hair", [0.9, 0.9, 0.92, 1]), mtoon("Iris", [0.4, 0.4, 0.4, 1]), mtoon("Outfit", [0.5, 0.5, 0.5, 1]), mtoon("Skin", [1, 0.86, 0.78, 1])];
 
   const json = {
-    asset: { version: "2.0", generator: "avatar-forge/fixture" },
+    asset: { version: "2.0", generator: "mcproid/fixture" },
     extensionsUsed: ["VRMC_vrm", "VRMC_springBone", "VRMC_materials_mtoon"],
     scene: 0, scenes: [{ nodes: nodes.map((_, i) => i) }], nodes, materials,
     extensions: {
       VRMC_vrm: {
         specVersion: "1.0",
-        meta: { name: "avatar-forge base", version: "1.0", authors: ["avatar-forge"], licenseUrl: "https://vrm.dev/licenses/1.0/", avatarPermission: "onlyAuthor", commercialUsage: "personalNonProfit", modification: "allowModification" },
+        meta: { name: "mcproid base", version: "1.0", authors: ["mcproid"], licenseUrl: "https://vrm.dev/licenses/1.0/", avatarPermission: "onlyAuthor", commercialUsage: "personalNonProfit", modification: "allowModification" },
         humanoid: { humanBones }, firstPerson: {}, lookAt: { type: "bone" }, expressions,
       },
       VRMC_springBone: { specVersion: "1.0", colliders: [], colliderGroups: [], springs: [{ name: "hair", joints: [{ node: hairNode, hitRadius: 0.02, stiffness: 1.0, gravityPower: 0.0, gravityDir: [0, -1, 0], dragForce: 0.4 }] }] },
@@ -83,12 +83,12 @@ export function buildFixtureVrm0() {
   const materialProperties = ["Hair", "Iris", "Outfit", "Skin"].map((n) => ({ name: n, shader: "VRM/MToon", vectorProperties: { _Color: [0.8, 0.8, 0.8, 1], _ShadeColor: [0.5, 0.5, 0.5, 1] } }));
 
   const json = {
-    asset: { version: "2.0", generator: "avatar-forge/fixture0" },
+    asset: { version: "2.0", generator: "mcproid/fixture0" },
     extensionsUsed: ["VRM"], scene: 0, scenes: [{ nodes: nodes.map((_, i) => i) }], nodes, materials,
     extensions: {
       VRM: {
         specVersion: "0.0",
-        meta: { title: "avatar-forge base0", author: "avatar-forge", commercialUssageName: "Disallow", licenseName: "CC_BY_NC", otherLicenseUrl: "https://vrm.dev/licenses/0.0/" },
+        meta: { title: "mcproid base0", author: "mcproid", commercialUssageName: "Disallow", licenseName: "CC_BY_NC", otherLicenseUrl: "https://vrm.dev/licenses/0.0/" },
         humanoid: { humanBones },
         blendShapeMaster: { blendShapeGroups },
         secondaryAnimation: { boneGroups: [{ comment: "hair", stiffiness: 1.0, dragForce: 0.4, gravityPower: 0.0, bones: [hairNode] }], colliderGroups: [] },
@@ -135,7 +135,7 @@ export function buildFixtureVrmTextured() {
   ];
 
   const json = {
-    asset: { version: "2.0", generator: "avatar-forge/fixtureTextured" },
+    asset: { version: "2.0", generator: "mcproid/fixtureTextured" },
     extensionsUsed: ["VRMC_vrm", "VRMC_springBone", "VRMC_materials_mtoon"],
     scene: 0, scenes: [{ nodes: nodes.map((_, i) => i) }], nodes, materials,
     buffers: [{ byteLength: bin.length }],
@@ -145,7 +145,7 @@ export function buildFixtureVrmTextured() {
     extensions: {
       VRMC_vrm: {
         specVersion: "1.0",
-        meta: { name: "avatar-forge textured base", version: "1.0", authors: ["avatar-forge"], licenseUrl: "https://vrm.dev/licenses/1.0/", avatarPermission: "onlyAuthor", commercialUsage: "personalNonProfit", modification: "allowModification" },
+        meta: { name: "mcproid textured base", version: "1.0", authors: ["mcproid"], licenseUrl: "https://vrm.dev/licenses/1.0/", avatarPermission: "onlyAuthor", commercialUsage: "personalNonProfit", modification: "allowModification" },
         humanoid: { humanBones }, firstPerson: {}, lookAt: { type: "bone" }, expressions,
       },
       VRMC_springBone: { specVersion: "1.0", colliders: [], colliderGroups: [], springs: [{ name: "hair", joints: [{ node: hairNode, hitRadius: 0.02, stiffness: 1.0, gravityPower: 0.0, gravityDir: [0, -1, 0], dragForce: 0.4 }] }] },

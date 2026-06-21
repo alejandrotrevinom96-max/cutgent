@@ -4,7 +4,7 @@
     "format": "VRM 1.0",
     "builtin": true,
     "license": { "commercial": false, "modify": true },
-    "source": "avatar-forge/src/fixture.mjs",
+    "source": "mcproid/src/fixture.mjs",
     "notes": "Built-in placeholder rig for CI and dry runs. NOT for shipping."
   },
   {

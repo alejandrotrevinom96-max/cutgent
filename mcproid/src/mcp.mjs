@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// MCP-first interface: exposes avatar-forge as agent-callable tools over the
+// MCP-first interface: exposes mcproid as agent-callable tools over the
 // Model Context Protocol (stdio, newline-delimited JSON-RPC 2.0). This is the
 // thin layer that makes "an AI forges/validates a living avatar" one tool call.
 // The heavy lifting is the gated core (forge.mjs / validate.mjs / vrm.mjs).
@@ -15,7 +15,7 @@ import { listAdapters } from "./adapters/index.mjs";
 const TOOLS = [
   {
     name: "create_living_avatar",
-    description: "Forge a 'living' VRM avatar (rigged: expressions + visemes + spring bones) from a base VRM + a design spec. Recolors (PBR+MToon), proportions, spring physics, identity/license. Output drops straight into atm-cockpit.",
+    description: "Forge a 'living' VRM avatar (rigged: expressions + visemes + spring bones) from a base VRM + a design spec. Recolors (PBR+MToon), proportions, spring physics, identity/license. Output is standard VRM 1.0, loadable by any VRM/three-vrm app (web, Unity, engines).",
     inputSchema: {
       type: "object",
       properties: {
@@ -51,7 +51,7 @@ const loadBase = (a) => (a.basePath ? readFileSync(a.basePath) : buildFixtureVrm
 
 function handle(msg) {
   const { id, method, params = {} } = msg;
-  if (method === "initialize") return reply(id, { protocolVersion: "2024-11-05", capabilities: { tools: {} }, serverInfo: { name: "avatar-forge", version: "0.2.0" } });
+  if (method === "initialize") return reply(id, { protocolVersion: "2024-11-05", capabilities: { tools: {} }, serverInfo: { name: "mcproid", version: "0.2.0" } });
   if (method === "tools/list") return reply(id, { tools: TOOLS });
   if (method === "tools/call") {
     const a = params.arguments || {};

@@ -1,4 +1,4 @@
-// avatar-forge selftest — the gate. Pure, headless, deterministic. Every piece
+// mcproid selftest — the gate. Pure, headless, deterministic. Every piece
 // of the pipeline is asserted here on BOTH VRM 0.x and 1.0; nothing ships unless
 // this is ALL GREEN.
 import { spawn } from "node:child_process";
@@ -42,7 +42,7 @@ const v0 = validateLivingVrm(fx0); check("validate: VRM 0.x fixture is living", 
 check("vrm: bones normalized on both specs", getBones(fx1).has("hips") && getBones(fx0).has("leftHand"));
 check("vrm: VRM0 Joy/Sorrow/Fun mapped to happy/sad/relaxed", ["happy", "sad", "relaxed", "surprised"].every((e) => getExpressions(fx0).has(e)));
 check("vrm: drivability detected (binds present)", REQUIRED_EXPRESSIONS.filter((e) => e !== "neutral").every((e) => getExpressions(fx1).get(e).bound));
-check("vrm: meta normalized (name) on both", getMeta(fx1).name === "avatar-forge base" && getMeta(fx0).name === "avatar-forge base0");
+check("vrm: meta normalized (name) on both", getMeta(fx1).name === "mcproid base" && getMeta(fx0).name === "mcproid base0");
 check("vrm: spring count on both", getSpringCount(fx1) === 1 && getSpringCount(fx0) === 1);
 
 // ---- forge: VRM 1.0 (recolor + MToon shade + meta + proportions + springs) ----
@@ -141,14 +141,14 @@ check("validate: rejects VRM with an undrivable required expression", !validateL
   check("adapters: none fabricates a living base in this env (honest)", listAdapters().every((a) => getAdapter(a.id).produceBase(spec).living === false));
 }
 
-// ---- contract linkage to the cockpit ----
-const cockpitDrives = ["happy", "angry", "sad", "relaxed", "surprised", "neutral", "aa", "ih", "ou", "ee", "oh", "blink"];
-check("contract: covers every id the cockpit drives", cockpitDrives.every((id) => REQUIRED_EXPRESSIONS.includes(id)), `${REQUIRED_EXPRESSIONS.length} presets`);
+// ---- contract = the standard VRM driver ids any VRM app uses ----
+const standardDriven = ["happy", "angry", "sad", "relaxed", "surprised", "neutral", "aa", "ih", "ou", "ee", "oh", "blink"];
+check("contract: covers the standard VRM driver ids", standardDriven.every((id) => REQUIRED_EXPRESSIONS.includes(id)), `${REQUIRED_EXPRESSIONS.length} presets`);
 
 // ---- MCP layer ----
 await mcpSmoke();
 
-console.log(`\nAVATAR-FORGE SELFTEST: ${fail === 0 ? "ALL GREEN ✅" : fail + " FAILED ❌"}  (${pass} passed)`);
+console.log(`\nMCPROID SELFTEST: ${fail === 0 ? "ALL GREEN ✅" : fail + " FAILED ❌"}  (${pass} passed)`);
 process.exit(fail === 0 ? 0 : 1);
 
 function mcpSmoke() {

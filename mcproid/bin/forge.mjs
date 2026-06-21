@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // CLI: forge a living VRM (or a batch of variants) from a spec (+ optional base).
 //   node bin/forge.mjs --spec specs/luna.json --base base.vrm --out out/luna.vrm
-//   node bin/forge.mjs --spec specs/luna.json --cockpit            # write into atm-cockpit
 //   node bin/forge.mjs --spec specs/luna.json --variants variants.json --outdir out/
 // Flags: --require-commercial  --strict  --texture-mode multiply|hue  --manifest <path>
-// Omit --base to use the built-in fixture base.
+// Omit --base to use the built-in fixture base. --out can point at any VRM
+// consumer's asset path (a web app's public/, a Unity StreamingAssets/, …).
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,7 +16,6 @@ import { validateLivingVrm } from "../src/validate.mjs";
 const here = dirname(fileURLToPath(import.meta.url));
 const arg = (flag, def) => { const i = process.argv.indexOf(flag); return i >= 0 ? process.argv[i + 1] : def; };
 const has = (flag) => process.argv.includes(flag);
-const COCKPIT_VRM = resolve(here, "../../atm-cockpit/public/avatar.vrm");
 
 const spec = JSON.parse(readFileSync(arg("--spec", resolve(here, "../specs/luna.json")), "utf8"));
 if (has("--require-commercial")) spec.requireCommercial = true;
@@ -43,7 +42,7 @@ if (variantsPath) {
 }
 
 // single mode
-const outPath = has("--cockpit") ? COCKPIT_VRM : arg("--out", resolve(here, "../out/avatar.vrm"));
+const outPath = arg("--out", resolve(here, "../out/avatar.vrm"));
 const { buffer, manifest } = createLivingAvatar(base, spec);
 mkdirSync(dirname(outPath), { recursive: true });
 writeFileSync(outPath, buffer);
@@ -56,5 +55,4 @@ console.log(`proportions: ${JSON.stringify(manifest.proportions)} | spring: ${ma
 if (manifest.warnings.length) console.log(`warnings: ${manifest.warnings.join("; ")}`);
 for (const c of checks) console.log(`  ${c.pass ? "✅" : "❌"} ${c.name}${c.detail ? ` — ${c.detail}` : ""}`);
 console.log(ok ? "\nLIVING VRM: VALID ✅" : "\nLIVING VRM: INVALID ❌");
-if (has("--cockpit")) console.log("→ wrote into atm-cockpit/public/avatar.vrm (run the cockpit to see her)");
 process.exit(ok ? 0 : 1);

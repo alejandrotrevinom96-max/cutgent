@@ -1,4 +1,4 @@
-// Unified accessor over VRM 0.x and VRM 1.0 so every avatar-forge feature works
+// Unified accessor over VRM 0.x and VRM 1.0 so every mcproid feature works
 // on real-world bases regardless of version. It speaks a NEUTRAL model (VRM 1.0
 // preset names + a normalized license); VRM 0.x is mapped on the way in/out
 // (Joy/Sorrow/Fun -> happy/sad/relaxed, extensions.VRM -> VRMC_vrm, etc.).
