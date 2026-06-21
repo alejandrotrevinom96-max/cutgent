@@ -1,70 +1,90 @@
 import { writeGlb } from "./glb.mjs";
 import { REQUIRED_EXPRESSIONS, REQUIRED_BONES } from "./contract.mjs";
 
-// A tiny, schema-correct "living" VRM used as the CI fixture AND as the default
-// base when no real base is supplied. It carries the full living rig (skeleton,
-// every expression + viseme + blink, one hair spring) and three recolorable
-// materials (Hair / Iris / Outfit) so the forge pipeline can be exercised
-// end-to-end WITHOUT shipping a heavyweight third-party asset. A real base
-// (your VRoid export or a CC0 model) plugs in identically — same code path.
+// Schema-correct "living" VRMs used as CI fixtures AND as the default base when
+// none is supplied. They carry the full living rig (skeleton, every expression +
+// viseme + blink WITH binds so they're "drivable", one hair spring) and three
+// recolorable MToon materials (Hair / Iris / Outfit). A real base (your VRoid
+// export or a CC0 model) plugs into the SAME code path — that's the whole point.
+
+// ---- VRM 1.0 fixture ----
 export function buildFixtureVrm() {
   const nodes = [];
   const humanBones = {};
-  REQUIRED_BONES.forEach((bone, i) => {
-    humanBones[bone] = { node: i };
-    nodes.push({ name: bone, translation: [0, i * 0.1, 0] });
-  });
+  REQUIRED_BONES.forEach((bone, i) => { humanBones[bone] = { node: i }; nodes.push({ name: bone, translation: [0, i * 0.1, 0] }); });
   const hairNode = nodes.length;
   nodes.push({ name: "hairRoot", translation: [0, 1.6, 0] });
 
   const expressions = { preset: {}, custom: {} };
-  for (const e of REQUIRED_EXPRESSIONS) {
+  REQUIRED_EXPRESSIONS.forEach((e, i) => {
     expressions.preset[e] = {
-      morphTargetBinds: [], materialColorBinds: [], textureTransformBinds: [],
+      // a materialColorBind makes the preset actually drive something (no mesh needed)
+      morphTargetBinds: [],
+      materialColorBinds: [{ material: 2, type: "color", targetValue: [1, (i % 5) / 5, 0.5, 1] }],
+      textureTransformBinds: [],
       isBinary: e === "blink", overrideBlink: "none", overrideLookAt: "none", overrideMouth: "none",
     };
-  }
+  });
 
-  const materials = [
-    mat("Hair", [0.9, 0.9, 0.92, 1]),
-    mat("Iris", [0.4, 0.4, 0.4, 1]),
-    mat("Outfit", [0.5, 0.5, 0.5, 1]),
-    mat("Skin", [1, 0.86, 0.78, 1]),
-  ];
+  const materials = [mtoon("Hair", [0.9, 0.9, 0.92, 1]), mtoon("Iris", [0.4, 0.4, 0.4, 1]), mtoon("Outfit", [0.5, 0.5, 0.5, 1]), mtoon("Skin", [1, 0.86, 0.78, 1])];
 
   const json = {
     asset: { version: "2.0", generator: "avatar-forge/fixture" },
-    extensionsUsed: ["VRMC_vrm", "VRMC_springBone"],
-    scene: 0,
-    scenes: [{ nodes: nodes.map((_, i) => i) }],
-    nodes,
-    materials,
+    extensionsUsed: ["VRMC_vrm", "VRMC_springBone", "VRMC_materials_mtoon"],
+    scene: 0, scenes: [{ nodes: nodes.map((_, i) => i) }], nodes, materials,
     extensions: {
       VRMC_vrm: {
         specVersion: "1.0",
-        meta: {
-          name: "avatar-forge base", version: "1.0", authors: ["avatar-forge"],
-          licenseUrl: "https://vrm.dev/licenses/1.0/",
-          avatarPermission: "onlyAuthor", commercialUsage: "personalNonProfit",
-        },
-        humanoid: { humanBones },
-        firstPerson: {},
-        lookAt: { type: "bone" },
-        expressions,
+        meta: { name: "avatar-forge base", version: "1.0", authors: ["avatar-forge"], licenseUrl: "https://vrm.dev/licenses/1.0/", avatarPermission: "onlyAuthor", commercialUsage: "personalNonProfit", modification: "allowModification" },
+        humanoid: { humanBones }, firstPerson: {}, lookAt: { type: "bone" }, expressions,
       },
-      VRMC_springBone: {
-        specVersion: "1.0",
-        colliders: [], colliderGroups: [],
-        springs: [{
-          name: "hair",
-          joints: [{ node: hairNode, hitRadius: 0.02, stiffness: 1.0, gravityPower: 0.0, gravityDir: [0, -1, 0], dragForce: 0.4 }],
-        }],
+      VRMC_springBone: { specVersion: "1.0", colliders: [], colliderGroups: [], springs: [{ name: "hair", joints: [{ node: hairNode, hitRadius: 0.02, stiffness: 1.0, gravityPower: 0.0, gravityDir: [0, -1, 0], dragForce: 0.4 }] }] },
+    },
+  };
+  return writeGlb({ json, bin: null });
+}
+
+function mtoon(name, baseColorFactor) {
+  return {
+    name,
+    pbrMetallicRoughness: { baseColorFactor, metallicFactor: 0, roughnessFactor: 1 },
+    extensions: { VRMC_materials_mtoon: { shadeColorFactor: [baseColorFactor[0] * 0.7, baseColorFactor[1] * 0.7, baseColorFactor[2] * 0.7] } },
+  };
+}
+
+// ---- VRM 0.x fixture (to prove dual-format support) ----
+export function buildFixtureVrm0() {
+  const nodes = [];
+  const humanBones = [];
+  REQUIRED_BONES.forEach((bone, i) => { humanBones.push({ bone, node: i }); nodes.push({ name: bone, translation: [0, i * 0.1, 0] }); });
+  const hairNode = nodes.length;
+  nodes.push({ name: "hairRoot", translation: [0, 1.6, 0] });
+
+  // VRM0 standard presets + a custom "Surprised" group (VRM0 has no surprised preset)
+  const presetMap = { neutral: "neutral", happy: "joy", angry: "angry", sad: "sorrow", relaxed: "fun", aa: "a", ih: "i", ou: "u", ee: "e", oh: "o", blink: "blink" };
+  const blendShapeGroups = [];
+  for (const [neutralName, vrm0Preset] of Object.entries(presetMap))
+    blendShapeGroups.push({ name: neutralName, presetName: vrm0Preset, binds: [], materialValues: [{ materialName: "Outfit", propertyName: "_Color", targetValue: [1, 0.5, 0.5, 1] }], isBinary: vrm0Preset === "blink" });
+  blendShapeGroups.push({ name: "Surprised", presetName: "unknown", binds: [], materialValues: [{ materialName: "Outfit", propertyName: "_Color", targetValue: [1, 1, 0.5, 1] }] });
+
+  const materials = [pbr("Hair"), pbr("Iris"), pbr("Outfit"), pbr("Skin")];
+  const materialProperties = ["Hair", "Iris", "Outfit", "Skin"].map((n) => ({ name: n, shader: "VRM/MToon", vectorProperties: { _Color: [0.8, 0.8, 0.8, 1], _ShadeColor: [0.5, 0.5, 0.5, 1] } }));
+
+  const json = {
+    asset: { version: "2.0", generator: "avatar-forge/fixture0" },
+    extensionsUsed: ["VRM"], scene: 0, scenes: [{ nodes: nodes.map((_, i) => i) }], nodes, materials,
+    extensions: {
+      VRM: {
+        specVersion: "0.0",
+        meta: { title: "avatar-forge base0", author: "avatar-forge", commercialUssageName: "Disallow", licenseName: "CC_BY_NC", otherLicenseUrl: "https://vrm.dev/licenses/0.0/" },
+        humanoid: { humanBones },
+        blendShapeMaster: { blendShapeGroups },
+        secondaryAnimation: { boneGroups: [{ comment: "hair", stiffiness: 1.0, dragForce: 0.4, gravityPower: 0.0, bones: [hairNode] }], colliderGroups: [] },
+        materialProperties,
       },
     },
   };
   return writeGlb({ json, bin: null });
 }
 
-function mat(name, baseColorFactor) {
-  return { name, pbrMetallicRoughness: { baseColorFactor, metallicFactor: 0, roughnessFactor: 1 } };
-}
+function pbr(name) { return { name, pbrMetallicRoughness: { baseColorFactor: [0.8, 0.8, 0.8, 1] } }; }

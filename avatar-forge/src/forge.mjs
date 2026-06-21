@@ -1,48 +1,61 @@
-import { readGlb, writeGlb } from "./glb.mjs";
+import { load, getMeta, recolorByName, scaleHeight, tuneSprings, writeGlb } from "./vrm.mjs";
 
-// createLivingAvatar — the core pipeline. Takes a "living" base VRM (its rig is
-// REUSED, never rebuilt — that's the whole thesis: don't reinvent the hard part)
-// plus a design spec, and returns a new VRM with the design applied: palette
-// recolor + identity/license metadata. Geometry and the living rig pass through
-// untouched, so the output is still drivable by the cockpit.
+// createLivingAvatar — the core pipeline. Takes a "living" base VRM (0.x or 1.0;
+// its rig is REUSED, never rebuilt — that's the thesis) plus a design spec, and
+// returns a new VRM with the design applied: palette recolor (PBR + MToon shade),
+// proportions, spring-physics profile, and identity/license metadata. Geometry
+// and the living rig pass through untouched, so the output stays cockpit-drivable.
+// Returns { buffer, manifest } — the manifest is the reproducible record of edits.
 export function createLivingAvatar(baseBuffer, spec = {}) {
-  const { json, bin, version } = readGlb(baseBuffer);
-  const vrm = json.extensions && json.extensions.VRMC_vrm;
-  if (!vrm) throw new Error("base is not a VRM 1.0 (no VRMC_vrm extension)");
+  const { json, bin, version, spec: vspec } = load(baseBuffer);
+  if (!vspec) throw new Error("base is not a VRM (no VRMC_vrm / VRM extension)");
 
-  // 1) identity + license metadata
-  vrm.meta = vrm.meta || {};
-  if (spec.name) vrm.meta.name = spec.name;
-  if (spec.author) vrm.meta.authors = [spec.author];
-  if (spec.license) {
-    if (spec.license.commercialUsage) vrm.meta.commercialUsage = spec.license.commercialUsage;
-    if (spec.license.avatarPermission) vrm.meta.avatarPermission = spec.license.avatarPermission;
-    if (spec.license.url) vrm.meta.licenseUrl = spec.license.url;
+  const manifest = { baseSpec: vspec, name: spec.name || null, recolor: [], proportions: null, springProfile: null, license: null, warnings: [] };
+
+  // license guard — refuse to forge a commercial avatar from a base that forbids it
+  const baseMeta = getMeta(json);
+  if (spec.requireCommercial && !baseMeta.commercial)
+    throw new Error(`base license forbids commercial use (commercialUsage=${baseMeta.commercialUsage || "unknown"})`);
+  if (spec.requireCommercial && !baseMeta.allowModify)
+    throw new Error("base license forbids modification");
+
+  applyMeta(json, vspec, spec);
+  manifest.license = getMeta(json).commercialUsage || null;
+
+  if (spec.palette) manifest.recolor = recolorByName(json, spec.palette);
+
+  if (spec.proportions && spec.proportions.height) {
+    const ok = scaleHeight(json, spec.proportions.height);
+    if (ok) manifest.proportions = spec.proportions; else manifest.warnings.push("no hips bone to scale");
   }
 
-  // 2) palette recolor — map spec.palette keys onto material names
-  //    (case-insensitive substring). Edits baseColorFactor; texture-based
-  //    recolor is a roadmap item (needs the base's texture atlas).
-  const applied = [];
-  const palette = spec.palette || {};
-  for (const m of json.materials || []) {
-    for (const [key, hex] of Object.entries(palette)) {
-      if ((m.name || "").toLowerCase().includes(key.toLowerCase())) {
-        m.pbrMetallicRoughness = m.pbrMetallicRoughness || {};
-        m.pbrMetallicRoughness.baseColorFactor = hexToRgba(hex);
-        applied.push(`${m.name}<-${key}:${hex}`);
-      }
-    }
+  if (spec.springProfile) {
+    const ok = tuneSprings(json, spec.springProfile);
+    if (ok) manifest.springProfile = spec.springProfile; else manifest.warnings.push(`no springs to tune / unknown profile '${spec.springProfile}'`);
   }
 
   json.asset = json.asset || {};
   json.asset.generator = "avatar-forge";
-  return { buffer: writeGlb({ json, bin, version }), applied };
+  return { buffer: writeGlb({ json, bin, version }), manifest, applied: manifest.recolor };
 }
 
-export function hexToRgba(hex) {
-  const h = String(hex).replace("#", "").trim();
-  const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
-  const n = parseInt(full, 16);
-  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255, 1];
+function applyMeta(json, vspec, spec) {
+  if (vspec === "1.0") {
+    const m = (json.extensions.VRMC_vrm.meta = json.extensions.VRMC_vrm.meta || {});
+    if (spec.name) m.name = spec.name;
+    if (spec.author) m.authors = [spec.author];
+    if (spec.license) {
+      if (spec.license.commercialUsage) m.commercialUsage = spec.license.commercialUsage;
+      if (spec.license.avatarPermission) m.avatarPermission = spec.license.avatarPermission;
+      if (spec.license.modification) m.modification = spec.license.modification;
+      if (spec.license.url) m.licenseUrl = spec.license.url;
+    }
+  } else {
+    const m = (json.extensions.VRM.meta = json.extensions.VRM.meta || {});
+    if (spec.name) m.title = spec.name;
+    if (spec.author) m.author = spec.author;
+    if (spec.license && spec.license.commercialUsage)
+      m.commercialUssageName = (spec.license.commercialUsage !== "personalNonProfit") ? "Allow" : "Disallow";
+    if (spec.license && spec.license.url) m.otherLicenseUrl = spec.license.url;
+  }
 }

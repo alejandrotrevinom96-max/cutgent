@@ -17,6 +17,10 @@ export const EXTRAS = ["blink"];
 // Every expression preset a "living" VRM must expose.
 export const REQUIRED_EXPRESSIONS = [...EXPRESSIONS, ...VISEMES, ...EXTRAS];
 
+// Presets that must actually DRIVE something (have binds) to count as alive.
+// 'neutral' is the rest pose and legitimately has no binds, so it's exempt.
+export const DRIVABLE_REQUIRED = REQUIRED_EXPRESSIONS.filter((e) => e !== "neutral");
+
 // Minimal humanoid skeleton (VRM 1.0 required human bones) for posing/animation.
 export const REQUIRED_BONES = [
   "hips", "spine", "head",

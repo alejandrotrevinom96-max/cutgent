@@ -1,60 +1,82 @@
 // avatar-forge selftest — the gate. Pure, headless, deterministic. Every piece
-// of the pipeline is asserted here; nothing ships unless this is ALL GREEN.
+// of the pipeline is asserted here on BOTH VRM 0.x and 1.0; nothing ships unless
+// this is ALL GREEN.
 import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildFixtureVrm } from "../src/fixture.mjs";
+import { buildFixtureVrm, buildFixtureVrm0 } from "../src/fixture.mjs";
 import { readGlb, writeGlb } from "../src/glb.mjs";
+import { load, getMeta, getBones, getExpressions, getSpringCount, hexToRgba, SPRING_PROFILES } from "../src/vrm.mjs";
 import { validateLivingVrm } from "../src/validate.mjs";
-import { createLivingAvatar, hexToRgba } from "../src/forge.mjs";
+import { createLivingAvatar } from "../src/forge.mjs";
 import { REQUIRED_EXPRESSIONS } from "../src/contract.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 let pass = 0, fail = 0;
-const check = (name, cond, detail = "") => {
-  const ok = !!cond;
-  console.log(`[${ok ? "PASS" : "FAIL"}] ${name}${detail ? " — " + detail : ""}`);
-  ok ? pass++ : fail++;
-};
+const check = (name, cond, detail = "") => { const ok = !!cond; console.log(`[${ok ? "PASS" : "FAIL"}] ${name}${detail ? " — " + detail : ""}`); ok ? pass++ : fail++; };
 
-// 1. GLB codec round-trips the JSON chunk losslessly
-const fx = buildFixtureVrm();
-const a = readGlb(fx);
+const fx1 = buildFixtureVrm();
+const fx0 = buildFixtureVrm0();
+const spec = JSON.parse(readFileSync(resolve(here, "../specs/luna.json"), "utf8"));
+
+// ---- codec ----
+const a = readGlb(fx1);
 const b = readGlb(writeGlb({ json: a.json, bin: a.bin }));
 check("glb: JSON round-trips losslessly", JSON.stringify(a.json) === JSON.stringify(b.json));
 
-// 2. fixture is a valid living VRM
-const v0 = validateLivingVrm(fx);
-check("fixture: is a valid living VRM", v0.ok, v0.checks.filter((c) => !c.pass).map((c) => c.name).join(",") || "all pass");
+// ---- dual-format detection ----
+check("vrm: detects VRM 1.0", load(fx1).spec === "1.0");
+check("vrm: detects VRM 0.x", load(fx0).spec === "0.x");
 
-// 3. forge applies the spec and stays valid
-const spec = JSON.parse(readFileSync(resolve(here, "../specs/luna.json"), "utf8"));
-const { buffer, applied } = createLivingAvatar(fx, spec);
-check("forge: output is still a valid living VRM", validateLivingVrm(buffer).ok);
-check("forge: applied palette to hair/iris/outfit", applied.length >= 3, applied.join(" | "));
+// ---- both fixtures are valid living VRMs ----
+const v1 = validateLivingVrm(fx1); check("validate: VRM 1.0 fixture is living", v1.ok, v1.checks.filter((c) => !c.pass).map((c) => c.name).join(",") || "all pass");
+const v0 = validateLivingVrm(fx0); check("validate: VRM 0.x fixture is living", v0.ok, v0.checks.filter((c) => !c.pass).map((c) => c.name).join(",") || "all pass");
 
-// 4. recolor actually changed the hair material to the spec color
-const out = readGlb(buffer).json;
-const hair = out.materials.find((m) => m.name.toLowerCase().includes("hair"));
+// ---- normalized accessors agree across specs ----
+check("vrm: bones normalized on both specs", getBones(fx1).has("hips") && getBones(fx0).has("leftHand"));
+check("vrm: VRM0 Joy/Sorrow/Fun mapped to happy/sad/relaxed", ["happy", "sad", "relaxed", "surprised"].every((e) => getExpressions(fx0).has(e)));
+check("vrm: drivability detected (binds present)", REQUIRED_EXPRESSIONS.filter((e) => e !== "neutral").every((e) => getExpressions(fx1).get(e).bound));
+check("vrm: meta normalized (name) on both", getMeta(fx1).name === "avatar-forge base" && getMeta(fx0).name === "avatar-forge base0");
+check("vrm: spring count on both", getSpringCount(fx1) === 1 && getSpringCount(fx0) === 1);
+
+// ---- forge: VRM 1.0 (recolor + MToon shade + meta + proportions + springs) ----
+const r1 = createLivingAvatar(fx1, spec);
+check("forge(1.0): output still a valid living VRM", validateLivingVrm(r1.buffer).ok);
+check("forge(1.0): recolored hair/iris/outfit", r1.manifest.recolor.length >= 3, r1.manifest.recolor.join(" | "));
+const out1 = readGlb(r1.buffer).json;
+const hair1 = out1.materials.find((m) => m.name.toLowerCase().includes("hair"));
 const want = hexToRgba(spec.palette.hair);
-check("forge: hair baseColorFactor == spec.palette.hair",
-  hair && want.every((x, i) => Math.abs(hair.pbrMetallicRoughness.baseColorFactor[i] - x) < 1e-9),
-  `[${hair.pbrMetallicRoughness.baseColorFactor.map((n) => n.toFixed(3)).join(", ")}]`);
+check("forge(1.0): hair baseColorFactor == spec", want.every((x, i) => Math.abs(hair1.pbrMetallicRoughness.baseColorFactor[i] - x) < 1e-9));
+check("forge(1.0): MToon shadeColorFactor recolored too", hair1.extensions.VRMC_materials_mtoon.shadeColorFactor[0] < want[0] + 1e-9 && hair1.extensions.VRMC_materials_mtoon.shadeColorFactor[0] > 0);
+check("forge(1.0): meta.name stamped", out1.extensions.VRMC_vrm.meta.name === spec.name);
+check("forge(1.0): proportions applied", r1.manifest.proportions && out1.nodes[0].scale, JSON.stringify(out1.nodes[0].scale || null));
+check("forge(1.0): spring profile applied", r1.manifest.springProfile === spec.springProfile && out1.extensions.VRMC_springBone.springs[0].joints[0].stiffness === SPRING_PROFILES[spec.springProfile].stiffness);
 
-// 5. identity metadata stamped
-check("forge: meta.name == spec.name", out.extensions.VRMC_vrm.meta.name === spec.name, out.extensions.VRMC_vrm.meta.name);
+// ---- forge: VRM 0.x (recolor hits materialProperties) ----
+const r0 = createLivingAvatar(fx0, spec);
+check("forge(0.x): output still a valid living VRM", validateLivingVrm(r0.buffer).ok);
+const out0 = readGlb(r0.buffer).json;
+const hp = out0.extensions.VRM.materialProperties.find((p) => p.name.toLowerCase().includes("hair"));
+check("forge(0.x): VRM0 _Color recolored", hp && want.every((x, i) => Math.abs(hp.vectorProperties._Color[i] - x) < 1e-9));
+check("forge(0.x): meta.title stamped", out0.extensions.VRM.meta.title === spec.name);
 
-// 6. the contract covers exactly what the cockpit drives (linkage guard)
+// ---- license guard ----
+let threw = false;
+try { createLivingAvatar(fx1, { ...spec, requireCommercial: true }); } catch { threw = true; }
+check("license: refuses commercial forge from non-commercial base", threw);
+
+// ---- negative tests ----
+const noSpring = (() => { const j = readGlb(fx1).json; delete j.extensions.VRMC_springBone; return writeGlb({ json: j }); })();
+check("validate: rejects VRM with no spring bones", !validateLivingVrm(noSpring).ok);
+const unbound = (() => { const j = readGlb(fx1).json; j.extensions.VRMC_vrm.expressions.preset.happy.materialColorBinds = []; return writeGlb({ json: j }); })();
+check("validate: rejects VRM with an undrivable required expression", !validateLivingVrm(unbound).ok);
+
+// ---- contract linkage to the cockpit ----
 const cockpitDrives = ["happy", "angry", "sad", "relaxed", "surprised", "neutral", "aa", "ih", "ou", "ee", "oh", "blink"];
-check("contract: covers every id the cockpit drives",
-  cockpitDrives.every((id) => REQUIRED_EXPRESSIONS.includes(id)), `${REQUIRED_EXPRESSIONS.length} required presets`);
+check("contract: covers every id the cockpit drives", cockpitDrives.every((id) => REQUIRED_EXPRESSIONS.includes(id)), `${REQUIRED_EXPRESSIONS.length} presets`);
 
-// 7. negative test: a VRM stripped of spring bones is rejected
-const broken = (() => { const j = readGlb(fx).json; delete j.extensions.VRMC_springBone; return writeGlb({ json: j }); })();
-check("validator: rejects a VRM with no spring bones", !validateLivingVrm(broken).ok);
-
-// 8. MCP layer boots and exposes the tool (spawn smoke test)
+// ---- MCP layer ----
 await mcpSmoke();
 
 console.log(`\nAVATAR-FORGE SELFTEST: ${fail === 0 ? "ALL GREEN ✅" : fail + " FAILED ❌"}  (${pass} passed)`);
@@ -63,31 +85,31 @@ process.exit(fail === 0 ? 0 : 1);
 function mcpSmoke() {
   return new Promise((res) => {
     const p = spawn(process.execPath, [resolve(here, "../src/mcp.mjs")]);
-    let outBuf = "";
-    let listed = null, called = null, done = false;
+    let outBuf = "", listed = null, called = null, validated = null, done = false;
     const finish = () => {
-      if (done) return; done = true;
-      try { p.kill(); } catch { /* noop */ }
-      check("mcp: tools/list exposes create_living_avatar", listed === true, String(listed));
-      check("mcp: tools/call forges a valid VRM", called === true, String(called));
+      if (done) return; done = true; try { p.kill(); } catch { /* noop */ }
+      check("mcp: tools/list exposes create_living_avatar + validate_vrm", listed === true, String(listed));
+      check("mcp: tools/call create_living_avatar forges valid", called === true, String(called));
+      check("mcp: tools/call validate_vrm works", validated === true, String(validated));
       res();
     };
     p.stdout.on("data", (d) => {
-      outBuf += d.toString();
-      let nl;
+      outBuf += d.toString(); let nl;
       while ((nl = outBuf.indexOf("\n")) >= 0) {
         const line = outBuf.slice(0, nl); outBuf = outBuf.slice(nl + 1);
         if (!line.trim()) continue;
         let m; try { m = JSON.parse(line); } catch { continue; }
-        if (m.id === 2) listed = ((m.result && m.result.tools) || []).some((t) => t.name === "create_living_avatar");
-        if (m.id === 3) { called = !!(m.result && m.result.isError === false); finish(); }
+        if (m.id === 2) { const names = ((m.result && m.result.tools) || []).map((t) => t.name); listed = names.includes("create_living_avatar") && names.includes("validate_vrm"); }
+        if (m.id === 3) called = !!(m.result && m.result.isError === false);
+        if (m.id === 4) { validated = !!(m.result && m.result.isError === false); finish(); }
       }
     });
     p.on("error", () => finish());
-    setTimeout(finish, 5000);
+    setTimeout(finish, 6000);
     const send = (o) => p.stdin.write(JSON.stringify(o) + "\n");
     send({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} });
     send({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} });
     send({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "create_living_avatar", arguments: { spec } } });
+    send({ jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "validate_vrm", arguments: {} } });
   });
 }
