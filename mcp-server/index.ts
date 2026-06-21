@@ -701,10 +701,17 @@ server.registerTool(
     },
   },
   tool(async (args) => {
-    const command: Command = { type: "move_clip", clipId: args.clipId, start: args.start };
+    // El reducer clampa start a >=0; reportamos el valor REALMENTE aplicado
+    // (antes el mensaje mentía con el valor pedido, p.ej. -200).
+    const start = Math.max(0, args.start);
+    const command: Command = { type: "move_clip", clipId: args.clipId, start };
     if (args.trackId !== undefined) command.trackId = args.trackId;
     await postCommands([command]);
-    return ok(`Clip ${args.clipId} movido a start=${args.start}${args.trackId ? ` (track ${args.trackId})` : ""}.`);
+    return ok(
+      `Clip ${args.clipId} movido a start=${start}` +
+        (start !== args.start ? ` (ajustado desde ${args.start})` : "") +
+        (args.trackId ? ` (track ${args.trackId})` : "") + ".",
+    );
   }),
 );
 
@@ -734,6 +741,17 @@ server.registerTool(
     },
   },
   tool(async (args) => {
+    // Validar que el frame cae DENTRO del clip antes de generar id: el reducer
+    // hace no-op si está fuera de rango, pero antes el tool devolvía igual un
+    // clipId (de un clip que nunca existió) → falso éxito.
+    const doc = await getDoc();
+    const f = locateClip(doc, args.clipId);
+    if (!f) return ok(`Clip ${args.clipId} no encontrado.`);
+    const start = f.clip.start as number;
+    const end = start + (f.clip.duration as number);
+    if (args.frame <= start || args.frame >= end) {
+      return ok(`No se pudo cortar: el frame ${args.frame} está fuera del clip (${start}–${end}).`);
+    }
     const id = newId("clip");
     await postCommands([{ type: "split_clip", clipId: args.clipId, frame: args.frame, newId: id }]);
     return ok(`Clip cortado en frame ${args.frame}. segunda mitad clipId=${id}`);
@@ -2478,7 +2496,7 @@ server.registerTool(
     const duration = clip.duration as number;
     const trim = (clip.trimStart as number) ?? 0;
     const rate = (clip.playbackRate as number) ?? 1; // tiempo de fuente → timeline
-    const minSil = args.minSilenceSec ?? 0.5;
+    const minSil = args.minSilenceSec ?? 0.4; // alineado con el default de detect_silences (silences.ts)
     const padF = Math.round(((args.paddingMs ?? 120) / 1000) * fps);
     const minCut = Math.max(2, Math.round(0.15 * fps));
 
