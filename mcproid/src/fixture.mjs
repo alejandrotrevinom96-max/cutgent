@@ -101,6 +101,29 @@ export function buildFixtureVrm0() {
 
 function pbr(name) { return { name, pbrMetallicRoughness: { baseColorFactor: [0.8, 0.8, 0.8, 1] } }; }
 
+// A generic rigged GLB the way Higgsfield/Meshy image_to_3d emits it: a Mixamo-style
+// BODY skeleton + a hair bone + a material — but NO VRM extension and NO facial
+// blendshapes. Used to gate the GLB->VRM import (and to prove what's still missing).
+export function buildMeshyLikeGlb() {
+  const mixamo = {
+    hips: "Hips", spine: "Spine", head: "Head",
+    leftUpperArm: "LeftArm", leftLowerArm: "LeftForeArm", leftHand: "LeftHand",
+    rightUpperArm: "RightArm", rightLowerArm: "RightForeArm", rightHand: "RightHand",
+    leftUpperLeg: "LeftUpLeg", leftLowerLeg: "LeftLeg", leftFoot: "LeftFoot",
+    rightUpperLeg: "RightUpLeg", rightLowerLeg: "RightLeg", rightFoot: "RightFoot",
+  };
+  const nodes = REQUIRED_BONES.map((b) => ({ name: `mixamorig:${mixamo[b]}` }));
+  nodes.push({ name: "Hair_01" }); // triggers auto spring bone
+  return writeGlb({
+    json: {
+      asset: { version: "2.0", generator: "meshy-like" },
+      scene: 0, scenes: [{ nodes: nodes.map((_, i) => i) }], nodes,
+      materials: [{ name: "Body", pbrMetallicRoughness: { baseColorFactor: [0.8, 0.7, 0.6, 1] } }],
+    },
+    bin: null,
+  });
+}
+
 // ---- VRM 1.0 fixture WITH baked textures (Hair + Skin) in the BIN chunk ----
 // Used to gate the texture-recolor path (decode -> tint -> re-encode -> repack).
 export function buildFixtureVrmTextured() {

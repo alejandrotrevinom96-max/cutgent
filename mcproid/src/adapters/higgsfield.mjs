@@ -1,20 +1,21 @@
 // Higgsfield-3D (Meshy) adapter. image_to_3d / multi_image_to_3d with
-// enable_rigging produce a textured GLB with a HUMANOID BODY skeleton and optional
-// body animation clips — but no facial blendshapes/visemes and GLB (not VRM). So,
-// honestly, it gets you geometry + body rig, NOT a living face. produceBase stays
-// living:false until a GLB->VRM + facial-rig step is added. The actual call would
-// go through the Higgsfield MCP (generate_3d) at the orchestration layer, not here.
+// enable_rigging produce a textured GLB with a HUMANOID BODY skeleton — but no
+// facial blendshapes/visemes, and GLB not VRM. MCProid now HANDLES the GLB->VRM
+// step itself (src/import.mjs glbToLivingVrm: skeleton->humanoid, MToon, auto
+// spring bones). So the pipeline is: Higgsfield (geometry+body rig, via the
+// generate_3d MCP at the orchestration layer) -> mcproid import -> VRM body base.
+// The ONLY remaining gap to "living" is the facial rig (a transfer/service step).
 export const higgsfieldAdapter = {
   id: "higgsfield-3d",
   describe() {
     return {
-      requires: ["Higgsfield MCP (generate_3d)", "source image(s) / turnaround", "credits", "a GLB->VRM + facial-rig step"],
-      produces: "textured GLB with a body skeleton (+ optional body animation); NO face blendshapes/visemes, not VRM",
-      crossesAF8: "partially (geometry + body rig; not VRM, not the facial rig)",
+      requires: ["Higgsfield MCP (generate_3d) + credits", "source image(s) / turnaround"],
+      produces: "VRM 1.0 BODY base (after mcproid import): humanoid rig + MToon + spring bones; facial rig still TODO",
+      crossesAF8: "geometry + body rig + GLB->VRM done; facial rig (expressions/visemes) is the remaining step",
     };
   },
-  available() { return false; }, // requires the Higgsfield MCP + credits at the orchestration layer
+  available() { return false; }, // the generate_3d call + credits live at the orchestration layer, not in this module
   produceBase() {
-    return { buffer: null, living: false, notes: "Yields a body-rigged GLB without a facial rig; needs GLB->VRM conversion + expression/viseme authoring to satisfy the living contract." };
+    return { buffer: null, living: false, notes: "Generate the GLB via the Higgsfield generate_3d MCP (with credits), then run mcproid import_glb to get a VRM body base. Facial rig (expressions/visemes) still needs a transfer/service step before it's 'living'." };
   },
 };

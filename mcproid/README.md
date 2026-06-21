@@ -54,10 +54,14 @@ that required expressions actually **drive** something (have binds), not just ex
 - **License-aware registry:** pick/verify bases by commercial rights; forge
   refuses a commercial output from a base that forbids it, and stamps the license.
 - **Reproducible:** every forge returns a `manifest` of what changed.
-- **MCP tools (6):** `create_living_avatar`, `validate_vrm`, `inspect_vrm`,
-  `forge_variants`, `list_bases`, `list_adapters`.
+- **GLB → VRM import:** convert a generic rigged GLB (Higgsfield/Meshy
+  `image_to_3d`) into a VRM body base — skeleton→humanoid, MToon, auto spring
+  bones — and get an honest report of the remaining facial-rig gap (`import_glb`).
+- **MCP tools (7):** `create_living_avatar`, `validate_vrm`, `inspect_vrm`,
+  `forge_variants`, `import_glb`, `list_bases`, `list_adapters`.
 - **AF8 adapter seam:** `blender` / `higgsfield-3d` adapters define how to PRODUCE
-  a base later (new geometry/rig) behind the same contract — honest stubs today.
+  a base (new geometry/rig). See **[`docs/ENGINE.md`](docs/ENGINE.md)** for the
+  full composition-engine pipeline (Higgsfield → import → forge).
 
 See [`docs/ADR.md`](docs/ADR.md) for the decisions and **AF8 for the honest
 technological ceiling** (no new geometry / blendshapes / AI mesh — that needs a 3D
@@ -99,7 +103,8 @@ Palette keys match material names (case-insensitive substring) and recolor
 ```bash
 npm test    # node tools/selftest.mjs — must be ALL GREEN
 ```
-**44 checks** across both VRM specs: GLB round-trip, dual-format detection,
+**51 checks** across both VRM specs: GLB round-trip, dual-format detection,
+GLB→VRM import (skeleton map + auto springs + honest facial-rig gap report),
 fixture validity, normalized accessors, forge correctness (factor + MToon +
 texture pixel recolor in multiply & **hue**), part toggling, proportions, spring
 tuning, batch variants + matrix, license registry + mismatch detection, the AF8

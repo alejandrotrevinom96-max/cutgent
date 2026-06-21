@@ -10,6 +10,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createLivingAvatar } from "../src/forge.mjs";
 import { forgeVariants } from "../src/variants.mjs";
+import { glbToLivingVrm } from "../src/import.mjs";
 import { buildFixtureVrm } from "../src/fixture.mjs";
 import { validateLivingVrm } from "../src/validate.mjs";
 
@@ -20,6 +21,19 @@ const has = (flag) => process.argv.includes(flag);
 const spec = JSON.parse(readFileSync(arg("--spec", resolve(here, "../specs/luna.json")), "utf8"));
 if (has("--require-commercial")) spec.requireCommercial = true;
 if (arg("--texture-mode", null)) spec.textureMode = arg("--texture-mode", "multiply");
+
+// import mode: convert a generic rigged GLB (Higgsfield/Meshy) into a VRM body base
+const fromGlb = arg("--from-glb", null);
+if (fromGlb) {
+  const { buffer, report } = glbToLivingVrm(readFileSync(fromGlb), spec);
+  const outPath = arg("--out", resolve(here, "../out/imported.vrm"));
+  mkdirSync(dirname(outPath), { recursive: true });
+  writeFileSync(outPath, buffer);
+  console.log(`\nimported GLB -> VRM: ${outPath}  (${buffer.length} bytes)`);
+  console.log(JSON.stringify(report, null, 2));
+  console.log("\n→ body VRM ready. Next: add the facial rig (expressions/visemes) to make it 'living'.");
+  process.exit(0);
+}
 
 const basePath = arg("--base", null);
 const base = basePath ? readFileSync(basePath) : buildFixtureVrm();

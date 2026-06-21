@@ -5,7 +5,8 @@ import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildFixtureVrm, buildFixtureVrm0, buildFixtureVrmTextured, buildFixtureWithParts } from "../src/fixture.mjs";
+import { buildFixtureVrm, buildFixtureVrm0, buildFixtureVrmTextured, buildFixtureWithParts, buildMeshyLikeGlb } from "../src/fixture.mjs";
+import { glbToLivingVrm } from "../src/import.mjs";
 import { readGlb, writeGlb } from "../src/glb.mjs";
 import { decodePng, encodePng, recolorPng } from "../src/png.mjs";
 import { setParts, listParts } from "../src/mesh.mjs";
@@ -141,6 +142,22 @@ check("validate: rejects VRM with an undrivable required expression", !validateL
   check("adapters: none fabricates a living base in this env (honest)", listAdapters().every((a) => getAdapter(a.id).produceBase(spec).living === false));
 }
 
+// ---- GLB -> VRM import (Higgsfield/Meshy body GLB -> VRM body base) ----
+{
+  const glb = buildMeshyLikeGlb();
+  check("import: source GLB is not yet a VRM", load(glb).spec === null);
+  const { buffer, report } = glbToLivingVrm(glb, { name: "Imported" });
+  check("import: output is now VRM 1.0", load(buffer).spec === "1.0");
+  check("import: mapped the full humanoid skeleton", report.missingBones.length === 0 && getBones(buffer).size >= 15, `${report.mappedBones} bones`);
+  check("import: auto-added spring bones to hair", report.springs >= 1 && getSpringCount(buffer) >= 1);
+  check("import: materials converted to MToon", readGlb(buffer).json.materials.every((m) => m.extensions && m.extensions.VRMC_materials_mtoon));
+  // honest: body is done, the ONLY thing missing for 'living' is the facial rig
+  const v = validateLivingVrm(buffer);
+  const failing = v.checks.filter((c) => !c.pass).map((c) => c.name);
+  check("import: NOT living yet — and the only gap is the facial rig", !v.ok && failing.length === 1 && /expressions/.test(failing[0]), failing.join(",") || "none");
+  check("import: report names the missing facial presets", report.missingForLiving.includes("happy") && report.missingForLiving.includes("aa") && report.living === false);
+}
+
 // ---- contract = the standard VRM driver ids any VRM app uses ----
 const standardDriven = ["happy", "angry", "sad", "relaxed", "surprised", "neutral", "aa", "ih", "ou", "ee", "oh", "blink"];
 check("contract: covers the standard VRM driver ids", standardDriven.every((id) => REQUIRED_EXPRESSIONS.includes(id)), `${REQUIRED_EXPRESSIONS.length} presets`);
@@ -157,7 +174,7 @@ function mcpSmoke() {
     let outBuf = "", listed = null, called = null, validated = null, done = false;
     const finish = () => {
       if (done) return; done = true; try { p.kill(); } catch { /* noop */ }
-      check("mcp: tools/list exposes all 6 tools", listed === true, String(listed));
+      check("mcp: tools/list exposes all 7 tools", listed === true, String(listed));
       check("mcp: tools/call create_living_avatar forges valid", called === true, String(called));
       check("mcp: tools/call validate_vrm works", validated === true, String(validated));
       res();
@@ -168,7 +185,7 @@ function mcpSmoke() {
         const line = outBuf.slice(0, nl); outBuf = outBuf.slice(nl + 1);
         if (!line.trim()) continue;
         let m; try { m = JSON.parse(line); } catch { continue; }
-        if (m.id === 2) { const names = ((m.result && m.result.tools) || []).map((t) => t.name); listed = ["create_living_avatar", "validate_vrm", "inspect_vrm", "forge_variants", "list_bases", "list_adapters"].every((n) => names.includes(n)); }
+        if (m.id === 2) { const names = ((m.result && m.result.tools) || []).map((t) => t.name); listed = ["create_living_avatar", "validate_vrm", "inspect_vrm", "forge_variants", "import_glb", "list_bases", "list_adapters"].every((n) => names.includes(n)); }
         if (m.id === 3) called = !!(m.result && m.result.isError === false);
         if (m.id === 4) { validated = !!(m.result && m.result.isError === false); finish(); }
       }

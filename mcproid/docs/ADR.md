@@ -52,11 +52,16 @@ embedded license against the claim — so you can't accidentally ship on the wro
 license. Part toggling (`src/mesh.mjs`) only shows/hides geometry the base already
 has; it never invents parts (that stays behind AF8).
 
-## AF8 — The wall (honest technological ceiling)
-MCProid **cannot** synthesize new geometry, author new blendshapes/visemes
-from nothing, retopologize, or AI-generate a mesh. Those require a 3D engine
-(Blender/Unity) or a generative-3D service, and — for a *stylized facial rig* —
-remain unsolved at production quality. That is exactly why the model is
-**one human-authored base (VRoid/commission/CC0) → infinite automated avatars**.
-Crossing this wall later means adding a Blender-headless or Higgsfield-3D *adapter*
-behind the same contract — not changing the core.
+## AF8 — The wall (honest technological ceiling), and how we cross it
+MCProid does not generate geometry itself. But the wall is crossed by COMPOSITION,
+not by rebuilding an engine (see `docs/ENGINE.md`):
+- **Geometry + body rig** → external generators (Higgsfield/Meshy `image_to_3d`).
+- **GLB → VRM body base** → DONE in MCProid (`src/import.mjs`): skeleton→humanoid,
+  MToon, auto spring bones. The output validates as VRM and reports the gap.
+- **Facial rig** (expressions + visemes) → the ONE remaining piece. It is no longer
+  "research-grade unsolved": there are services (Polywink) and deformation-transfer
+  techniques. It's the one investment worth making (a transfer module / service),
+  and it slots behind the same living contract — the core never changes.
+
+So: geometry + body rig + GLB→VRM are handled; only the facial-rig step stands
+between "imported body VRM" and "living VRM".
