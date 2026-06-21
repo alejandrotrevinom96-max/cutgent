@@ -176,3 +176,48 @@ export function buildFixtureVrmTextured() {
   };
   return writeGlb({ json, bin });
 }
+
+// VRM 1.0 BODY base WITH a small head mesh (POSITION accessor in the BIN) and EMPTY
+// expressions — i.e. the state right after import_glb. Used to gate the procedural
+// facial rig (src/face.mjs): verts are placed so the heuristic regions trigger.
+export function buildFixtureVrmMeshed() {
+  const nodes = [];
+  const humanBones = {};
+  REQUIRED_BONES.forEach((b, i) => { humanBones[b] = { node: i }; nodes.push({ name: b }); });
+  const hairNode = nodes.length; nodes.push({ name: "Hair_01" });
+  const meshNodeIdx = nodes.length; nodes.push({ name: "char", mesh: 0 });
+
+  // 12 verts: 2 body (low) + a head cluster (front z=+0.2) with mouth/eye/brow verts
+  const V = [
+    [0, 0, 0], [0, 0.8, 0],                          // body (sets bbox bottom)
+    [0, 1.43, 0.2], [0.07, 1.43, 0.2], [-0.07, 1.43, 0.2], // mouth center + corners
+    [0.08, 1.55, 0.2], [-0.08, 1.55, 0.2],          // eyes
+    [0.06, 1.62, 0.2], [-0.06, 1.62, 0.2],          // brows
+    [0.2, 1.5, 0.2], [0, 1.5, -0.2], [0, 1.7, 0.2], // side / back / top
+  ];
+  const pos = Buffer.alloc(V.length * 12);
+  V.forEach((v, i) => { pos.writeFloatLE(v[0], i * 12); pos.writeFloatLE(v[1], i * 12 + 4); pos.writeFloatLE(v[2], i * 12 + 8); });
+  const min = [Math.min(...V.map((v) => v[0])), Math.min(...V.map((v) => v[1])), Math.min(...V.map((v) => v[2]))];
+  const max = [Math.max(...V.map((v) => v[0])), Math.max(...V.map((v) => v[1])), Math.max(...V.map((v) => v[2]))];
+
+  const json = {
+    asset: { version: "2.0", generator: "mcproid/fixtureMeshed" },
+    extensionsUsed: ["VRMC_vrm", "VRMC_springBone"],
+    scene: 0, scenes: [{ nodes: nodes.map((_, i) => i) }], nodes,
+    materials: [{ name: "Body", pbrMetallicRoughness: { baseColorFactor: [0.8, 0.8, 0.8, 1] } }],
+    meshes: [{ primitives: [{ attributes: { POSITION: 0 }, material: 0 }] }],
+    accessors: [{ bufferView: 0, componentType: 5126, count: V.length, type: "VEC3", min, max }],
+    bufferViews: [{ buffer: 0, byteOffset: 0, byteLength: pos.length }],
+    buffers: [{ byteLength: pos.length }],
+    extensions: {
+      VRMC_vrm: {
+        specVersion: "1.0",
+        meta: { name: "mcproid meshed base", version: "1.0", authors: ["mcproid"], licenseUrl: "https://vrm.dev/licenses/1.0/", avatarPermission: "onlyAuthor", commercialUsage: "personalNonProfit" },
+        humanoid: { humanBones }, firstPerson: {}, lookAt: { type: "bone" },
+        expressions: { preset: {}, custom: {} }, // EMPTY — face not rigged yet
+      },
+      VRMC_springBone: { specVersion: "1.0", colliders: [], colliderGroups: [], springs: [{ name: "hair", joints: [{ node: hairNode, hitRadius: 0.02, stiffness: 1, gravityPower: 0.2, gravityDir: [0, -1, 0], dragForce: 0.4 }] }] },
+    },
+  };
+  return writeGlb({ json, bin: pos });
+}

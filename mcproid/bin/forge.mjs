@@ -11,6 +11,8 @@ import { fileURLToPath } from "node:url";
 import { createLivingAvatar } from "../src/forge.mjs";
 import { forgeVariants } from "../src/variants.mjs";
 import { glbToLivingVrm } from "../src/import.mjs";
+import { riggFace } from "../src/face.mjs";
+import { load } from "../src/vrm.mjs";
 import { buildFixtureVrm } from "../src/fixture.mjs";
 import { validateLivingVrm } from "../src/validate.mjs";
 
@@ -32,6 +34,22 @@ if (fromGlb) {
   console.log(`\nimported GLB -> VRM: ${outPath}  (${buffer.length} bytes)`);
   console.log(JSON.stringify(report, null, 2));
   console.log("\n→ body VRM ready. Next: add the facial rig (expressions/visemes) to make it 'living'.");
+  process.exit(0);
+}
+
+// face-rig mode: add procedural expressions/visemes to a VRM (or a GLB -> import first)
+const rigFaceInput = arg("--rig-face", null);
+if (rigFaceInput) {
+  let vrm = readFileSync(rigFaceInput);
+  if (!load(vrm).spec) { vrm = glbToLivingVrm(vrm, spec).buffer; console.log("• input was a GLB -> imported to a VRM body base first"); }
+  const { buffer, report } = riggFace(vrm, { front: arg("--front", "+z") });
+  const outPath = arg("--out", resolve(here, "../out/living.vrm"));
+  mkdirSync(dirname(outPath), { recursive: true });
+  writeFileSync(outPath, buffer);
+  const v = validateLivingVrm(buffer);
+  console.log(`\nrigged face -> ${outPath}  (${buffer.length} bytes)`);
+  console.log(JSON.stringify(report, null, 2));
+  console.log("living:", v.ok, "| EXPERIMENTAL: open in a VRM viewer to check the deformations; flip --front if the face looks wrong.");
   process.exit(0);
 }
 

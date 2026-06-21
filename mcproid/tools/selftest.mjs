@@ -5,8 +5,9 @@ import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildFixtureVrm, buildFixtureVrm0, buildFixtureVrmTextured, buildFixtureWithParts, buildMeshyLikeGlb } from "../src/fixture.mjs";
+import { buildFixtureVrm, buildFixtureVrm0, buildFixtureVrmTextured, buildFixtureWithParts, buildMeshyLikeGlb, buildFixtureVrmMeshed } from "../src/fixture.mjs";
 import { glbToLivingVrm } from "../src/import.mjs";
+import { riggFace } from "../src/face.mjs";
 import { readGlb, writeGlb } from "../src/glb.mjs";
 import { decodePng, encodePng, recolorPng } from "../src/png.mjs";
 import { setParts, listParts } from "../src/mesh.mjs";
@@ -158,6 +159,18 @@ check("validate: rejects VRM with an undrivable required expression", !validateL
   check("import: report names the missing facial presets", report.missingForLiving.includes("happy") && report.missingForLiving.includes("aa") && report.living === false);
 }
 
+// ---- procedural facial rig (experimental, headless, dependency-free) ----
+{
+  const body = buildFixtureVrmMeshed();
+  check("face: meshed body base is NOT living yet (no expressions)", !validateLivingVrm(body).ok);
+  const { buffer, report } = riggFace(body, { front: "+z" });
+  check("face: heuristics located mouth/eye/brow verts", report.regions.mouth >= 1 && report.regions.eyes >= 2 && report.regions.brows >= 2, JSON.stringify(report.regions));
+  check("face: morphs added + expressions bound -> now LIVING", validateLivingVrm(buffer).ok, validateLivingVrm(buffer).checks.filter((c) => !c.pass).map((c) => c.name).join(",") || "all pass");
+  const j = readGlb(buffer); const acc = j.json.accessors[j.json.meshes[0].primitives[0].targets[0].POSITION]; const bv = j.json.bufferViews[acc.bufferView];
+  const dyMouth = j.bin.readFloatLE(bv.byteOffset + 2 * 12 + 4); // mouthOpen, mouth-center vertex (idx 2), dy
+  check("face: mouthOpen morph displaces the mouth vertex down (dy<0)", dyMouth < 0, `dy=${dyMouth.toFixed(4)}`);
+}
+
 // ---- contract = the standard VRM driver ids any VRM app uses ----
 const standardDriven = ["happy", "angry", "sad", "relaxed", "surprised", "neutral", "aa", "ih", "ou", "ee", "oh", "blink"];
 check("contract: covers the standard VRM driver ids", standardDriven.every((id) => REQUIRED_EXPRESSIONS.includes(id)), `${REQUIRED_EXPRESSIONS.length} presets`);
@@ -174,7 +187,7 @@ function mcpSmoke() {
     let outBuf = "", listed = null, called = null, validated = null, done = false;
     const finish = () => {
       if (done) return; done = true; try { p.kill(); } catch { /* noop */ }
-      check("mcp: tools/list exposes all 7 tools", listed === true, String(listed));
+      check("mcp: tools/list exposes all 8 tools", listed === true, String(listed));
       check("mcp: tools/call create_living_avatar forges valid", called === true, String(called));
       check("mcp: tools/call validate_vrm works", validated === true, String(validated));
       res();
@@ -185,7 +198,7 @@ function mcpSmoke() {
         const line = outBuf.slice(0, nl); outBuf = outBuf.slice(nl + 1);
         if (!line.trim()) continue;
         let m; try { m = JSON.parse(line); } catch { continue; }
-        if (m.id === 2) { const names = ((m.result && m.result.tools) || []).map((t) => t.name); listed = ["create_living_avatar", "validate_vrm", "inspect_vrm", "forge_variants", "import_glb", "list_bases", "list_adapters"].every((n) => names.includes(n)); }
+        if (m.id === 2) { const names = ((m.result && m.result.tools) || []).map((t) => t.name); listed = ["create_living_avatar", "validate_vrm", "inspect_vrm", "forge_variants", "import_glb", "rig_face", "list_bases", "list_adapters"].every((n) => names.includes(n)); }
         if (m.id === 3) called = !!(m.result && m.result.isError === false);
         if (m.id === 4) { validated = !!(m.result && m.result.isError === false); finish(); }
       }
