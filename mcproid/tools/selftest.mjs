@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import { buildFixtureVrm, buildFixtureVrm0, buildFixtureVrmTextured, buildFixtureWithParts, buildMeshyLikeGlb, buildFixtureVrmMeshed } from "../src/fixture.mjs";
 import { glbToLivingVrm } from "../src/import.mjs";
 import { riggFace } from "../src/face.mjs";
+import { transferRig } from "../src/transfer.mjs";
 import { readGlb, writeGlb } from "../src/glb.mjs";
 import { decodePng, encodePng, recolorPng } from "../src/png.mjs";
 import { setParts, listParts } from "../src/mesh.mjs";
@@ -171,6 +172,21 @@ check("validate: rejects VRM with an undrivable required expression", !validateL
   check("face: mouthOpen morph displaces the mouth vertex down (dy<0)", dyMouth < 0, `dy=${dyMouth.toFixed(4)}`);
 }
 
+// ---- deformation transfer (donor rig -> target mesh, production route) ----
+{
+  const donor = riggFace(buildFixtureVrmMeshed(), { front: "+z" }).buffer; // donor WITH a rig
+  const target = buildFixtureVrmMeshed();                                  // body base, no rig
+  const { buffer, report } = transferRig(target, donor);
+  check("transfer: donor rig transferred -> target now LIVING", validateLivingVrm(buffer).ok, validateLivingVrm(buffer).checks.filter((c) => !c.pass).map((c) => c.name).join(",") || "all pass");
+  check("transfer: every required expression came from the donor", report.missingFromDonor.length === 0, report.transferred.join(","));
+  const j = readGlb(buffer);
+  const hi = j.json.extensions.VRMC_vrm.expressions.preset.happy.morphTargetBinds[0].index;
+  const acc = j.json.accessors[j.json.meshes[0].primitives[0].targets[hi].POSITION];
+  const bv = j.json.bufferViews[acc.bufferView];
+  const dyCorner = j.bin.readFloatLE(bv.byteOffset + 3 * 12 + 4); // mouth-corner vertex (idx 3) dy
+  check("transfer: happy morph lifts the mouth corner (dy>0), matching the donor", dyCorner > 0, `dy=${dyCorner.toFixed(4)}`);
+}
+
 // ---- contract = the standard VRM driver ids any VRM app uses ----
 const standardDriven = ["happy", "angry", "sad", "relaxed", "surprised", "neutral", "aa", "ih", "ou", "ee", "oh", "blink"];
 check("contract: covers the standard VRM driver ids", standardDriven.every((id) => REQUIRED_EXPRESSIONS.includes(id)), `${REQUIRED_EXPRESSIONS.length} presets`);
@@ -187,7 +203,7 @@ function mcpSmoke() {
     let outBuf = "", listed = null, called = null, validated = null, done = false;
     const finish = () => {
       if (done) return; done = true; try { p.kill(); } catch { /* noop */ }
-      check("mcp: tools/list exposes all 8 tools", listed === true, String(listed));
+      check("mcp: tools/list exposes all 9 tools", listed === true, String(listed));
       check("mcp: tools/call create_living_avatar forges valid", called === true, String(called));
       check("mcp: tools/call validate_vrm works", validated === true, String(validated));
       res();
@@ -198,7 +214,7 @@ function mcpSmoke() {
         const line = outBuf.slice(0, nl); outBuf = outBuf.slice(nl + 1);
         if (!line.trim()) continue;
         let m; try { m = JSON.parse(line); } catch { continue; }
-        if (m.id === 2) { const names = ((m.result && m.result.tools) || []).map((t) => t.name); listed = ["create_living_avatar", "validate_vrm", "inspect_vrm", "forge_variants", "import_glb", "rig_face", "list_bases", "list_adapters"].every((n) => names.includes(n)); }
+        if (m.id === 2) { const names = ((m.result && m.result.tools) || []).map((t) => t.name); listed = ["create_living_avatar", "validate_vrm", "inspect_vrm", "forge_variants", "import_glb", "rig_face", "transfer_face", "list_bases", "list_adapters"].every((n) => names.includes(n)); }
         if (m.id === 3) called = !!(m.result && m.result.isError === false);
         if (m.id === 4) { validated = !!(m.result && m.result.isError === false); finish(); }
       }

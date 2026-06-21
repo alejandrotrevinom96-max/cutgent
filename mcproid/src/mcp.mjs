@@ -11,6 +11,7 @@ import { getMeta, getBones, getExpressions, getSpringCount, load } from "./vrm.m
 import { forgeVariants } from "./variants.mjs";
 import { glbToLivingVrm } from "./import.mjs";
 import { riggFace } from "./face.mjs";
+import { transferRig } from "./transfer.mjs";
 import { listBases } from "./registry.mjs";
 import { listAdapters } from "./adapters/index.mjs";
 
@@ -52,6 +53,11 @@ const TOOLS = [
     name: "rig_face",
     description: "EXPERIMENTAL: add a procedural facial rig (expressions+visemes+blink as morph targets) to a VRM body base, headless. Quality is heuristic — eyeball it. front: '+z'|'-z'.",
     inputSchema: { type: "object", properties: { vrmPath: { type: "string" }, front: { type: "string" }, outPath: { type: "string" } }, required: ["vrmPath"] },
+  },
+  {
+    name: "transfer_face",
+    description: "PRODUCTION facial rig: deformation-transfer a donor VRM's expression/viseme blendshapes onto a target VRM body base (different topology OK). Pure, headless. Needs a donor VRM that HAS blendshapes.",
+    inputSchema: { type: "object", properties: { targetPath: { type: "string" }, donorPath: { type: "string" }, outPath: { type: "string" } }, required: ["targetPath", "donorPath"] },
   },
   { name: "list_bases", description: "List the license-aware base registry (which bases are OK for commercial use).", inputSchema: { type: "object", properties: {} } },
   { name: "list_adapters", description: "List AF8 base-producing adapters (Blender / Higgsfield-3D) and what they can/can't do.", inputSchema: { type: "object", properties: {} } },
@@ -100,6 +106,11 @@ function handle(msg) {
         const { buffer, report } = riggFace(readFileSync(a.vrmPath), { front: a.front || "+z" });
         if (a.outPath) writeFileSync(a.outPath, buffer);
         return text(id, `Rigged face (EXPERIMENTAL).\n` + JSON.stringify(report, null, 2) + (a.outPath ? `\nwritten=${a.outPath}` : ""));
+      }
+      if (params.name === "transfer_face") {
+        const { buffer, report } = transferRig(readFileSync(a.targetPath), readFileSync(a.donorPath));
+        if (a.outPath) writeFileSync(a.outPath, buffer);
+        return text(id, `Transferred donor rig.\n` + JSON.stringify(report, null, 2) + (a.outPath ? `\nwritten=${a.outPath}` : ""));
       }
       if (params.name === "list_bases") return text(id, JSON.stringify(listBases(), null, 2));
       if (params.name === "list_adapters") return text(id, JSON.stringify(listAdapters(), null, 2));

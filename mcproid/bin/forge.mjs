@@ -12,6 +12,7 @@ import { createLivingAvatar } from "../src/forge.mjs";
 import { forgeVariants } from "../src/variants.mjs";
 import { glbToLivingVrm } from "../src/import.mjs";
 import { riggFace } from "../src/face.mjs";
+import { transferRig } from "../src/transfer.mjs";
 import { load } from "../src/vrm.mjs";
 import { buildFixtureVrm } from "../src/fixture.mjs";
 import { validateLivingVrm } from "../src/validate.mjs";
@@ -34,6 +35,24 @@ if (fromGlb) {
   console.log(`\nimported GLB -> VRM: ${outPath}  (${buffer.length} bytes)`);
   console.log(JSON.stringify(report, null, 2));
   console.log("\n→ body VRM ready. Next: add the facial rig (expressions/visemes) to make it 'living'.");
+  process.exit(0);
+}
+
+// transfer-face mode (PRODUCTION): copy a donor VRM's blendshapes onto the target
+const transferDonor = arg("--transfer-face", null);
+if (transferDonor) {
+  const targetIn = arg("--target", arg("--base", null));
+  if (!targetIn) { console.error("need --target <vrm-or-glb>"); process.exit(1); }
+  let target = readFileSync(targetIn);
+  if (!load(target).spec) { target = glbToLivingVrm(target, spec).buffer; console.log("• target was a GLB -> imported to a VRM body base first"); }
+  const { buffer, report } = transferRig(target, readFileSync(transferDonor));
+  const outPath = arg("--out", resolve(here, "../out/living.vrm"));
+  mkdirSync(dirname(outPath), { recursive: true });
+  writeFileSync(outPath, buffer);
+  const v = validateLivingVrm(buffer);
+  console.log(`\ntransferred donor rig -> ${outPath}  (${buffer.length} bytes)`);
+  console.log(JSON.stringify(report, null, 2));
+  console.log("living:", v.ok);
   process.exit(0);
 }
 
