@@ -16,6 +16,10 @@ import { ScopesPanel } from "./ScopesPanel";
  */
 export function PreviewPanel() {
   const playerRef = useRef<PlayerRef>(null);
+  // Último frame REPORTADO por el Player (vía frameupdate). El effect de sync
+  // NUNCA debe hacer seekTo sobre un frame que vino del propio Player, o se crea
+  // un loop infinito (seekTo → frameupdate → setCurrentFrame → seekTo → ...).
+  const playerFrameRef = useRef(-1);
 
   const document = useEditor((s) => s.document);
   const assets = useEditor((s) => s.assets);
@@ -70,6 +74,7 @@ export function PreviewPanel() {
     };
 
     const onFrame = (e: { detail: { frame: number } }) => {
+      playerFrameRef.current = e.detail.frame; // marca: este frame vino del Player
       setCurrentFrame(e.detail.frame);
       postFrame(e.detail.frame, ref.isPlaying?.() ?? false);
     };
@@ -99,10 +104,19 @@ export function PreviewPanel() {
     }
   }, [playing]);
 
-  // store.currentFrame -> Player (sólo si difiere, para no pelear con frameupdate)
+  // store.currentFrame -> Player: SOLO al hacer scrub manual (en pausa). Durante
+  // la reproducción, frameupdate ya dirige currentFrame; hacer seekTo aquí creaba
+  // un feedback loop (seekTo → frameupdate → setCurrentFrame → seekTo) que, con
+  // proyectos pesados (el re-render va detrás del playback → la diferencia supera
+  // el umbral), disparaba "Maximum update depth exceeded" y clavaba el CPU.
   useEffect(() => {
     const ref = playerRef.current;
     if (!ref) return;
+    // Si este currentFrame vino del propio Player (frameupdate), NO hacer seekTo:
+    // reinyectaría un frameupdate → setCurrentFrame → seekTo → ... (loop infinito
+    // que disparaba "Maximum update depth exceeded" y clavaba el CPU).
+    if (currentFrame === playerFrameRef.current) return;
+    if (ref.isPlaying?.()) return; // tampoco re-buscar mientras reproduce
     if (Math.abs(ref.getCurrentFrame() - currentFrame) > 1) {
       ref.seekTo(currentFrame);
     }
