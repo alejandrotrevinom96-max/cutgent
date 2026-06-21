@@ -879,11 +879,13 @@ server.registerTool(
   {
     title: "Renderizar video",
     description:
-      "Lanza un render del proyecto actual. format: h264 (mp4, def) | prores (.mov) | vp9 (.webm) | gif. quality: high|balanced|fast (CRF, solo h264/vp9). gpu: usa encoder por hardware (nvenc/qsv/amf) si está disponible (solo h264). Devuelve el jobId.",
+      "Lanza un render del proyecto actual. format: h264 (mp4, def) | prores (.mov) | vp9 (.webm) | gif. quality: high|balanced|fast (CRF, solo h264/vp9). gpu: usa encoder por hardware (nvenc/qsv/amf) si está disponible (solo h264). width+height (los DOS juntos): render a una resolución distinta a la del proyecto (p.ej. 1280x720 para un export rápido/ligero). Devuelve el jobId.",
     inputSchema: {
       format: z.enum(["h264", "prores", "vp9", "gif"]).optional(),
       quality: z.enum(["high", "balanced", "fast"]).optional(),
       gpu: z.boolean().optional(),
+      width: z.coerce.number().int().positive().optional(),
+      height: z.coerce.number().int().positive().optional(),
     },
   },
   tool(async (args) => {
@@ -891,6 +893,8 @@ server.registerTool(
       format: args.format,
       quality: args.quality,
       gpu: args.gpu,
+      width: args.width,
+      height: args.height,
     })) as { jobId?: string } | null;
     const jobId = res?.jobId;
     if (!jobId) return okJson(res);
@@ -1142,16 +1146,27 @@ server.registerTool(
   {
     title: "Crear proyecto",
     description:
-      "Crea un proyecto nuevo SIN abrirlo (úsalo p.ej. para cada clip viral). Devuelve su metadata (id). Para clips usa kind='clip' y sourceId del fuente.",
+      "Crea un proyecto nuevo y LO ABRE (pasa a ser el actual). Devuelve su metadata (id). open:false lo crea sin abrirlo (p.ej. para crear muchos clips virales en lote). Para clips usa kind='clip' y sourceId del fuente.",
     inputSchema: {
       name: z.string().optional(),
       kind: z.enum(["editor", "clip"]).optional(),
       sourceId: z.string().optional(),
+      open: z.boolean().optional(),
     },
   },
-  tool(async (args) =>
-    okJson(await postJson("/api/projects", { name: args.name, kind: args.kind, sourceId: args.sourceId })),
-  ),
+  tool(async (args) => {
+    const meta = (await postJson("/api/projects", {
+      name: args.name,
+      kind: args.kind,
+      sourceId: args.sourceId,
+    })) as { id?: string } | null;
+    // Por defecto abrimos el proyecto recién creado (lo esperado al editar).
+    // open:false preserva el comportamiento de "crear sin cambiar el actual".
+    if (meta?.id && args.open !== false) {
+      await postJson("/api/projects/open", { id: meta.id });
+    }
+    return okJson(meta);
+  }),
 );
 
 server.registerTool(
@@ -1341,8 +1356,8 @@ server.registerTool(
   {
     title: "Velocidad del clip",
     description:
-      "Cambia la velocidad de un clip de video/audio (playbackRate) y ajusta su duración en la línea de tiempo. speed>1 acelera, <1 ralentiza.",
-    inputSchema: { clipId: z.string(), speed: z.number().positive() },
+      "Cambia la velocidad de un clip de video/audio (playbackRate) y ajusta su duración en la línea de tiempo. speed>1 acelera, <1 ralentiza. Por defecto desplaza (ripple) los clips POSTERIORES de la misma pista para que no se solapen; ripple:false los deja en su sitio.",
+    inputSchema: { clipId: z.string(), speed: z.coerce.number().positive(), ripple: z.boolean().optional() },
   },
   tool(async (args) => {
     const doc = await getDoc();
@@ -1354,11 +1369,30 @@ server.registerTool(
     // Compensa desde la velocidad ACTUAL (no asume 1x) para no acumular error
     // tras varios cambios: nueva = duración * (rateActual / rateNueva).
     const curRate = (f.clip.playbackRate as number) ?? 1;
-    const newDuration = Math.max(1, Math.round((f.clip.duration as number) * (curRate / args.speed)));
-    await postCommands([
+    const oldDuration = f.clip.duration as number;
+    const newDuration = Math.max(1, Math.round(oldDuration * (curRate / args.speed)));
+    const delta = newDuration - oldDuration;
+    const ripple = args.ripple !== false;
+    const commands: Command[] = [
       { type: "update_clip", clipId: args.clipId, patch: { playbackRate: args.speed, duration: newDuration } },
-    ]);
-    return ok(`Velocidad de ${args.clipId} = ${args.speed}x (duración ${f.clip.duration}→${newDuration}f).`);
+    ];
+    // Ripple: empuja los clips posteriores de la MISMA pista por el delta de
+    // duración, evitando el solape con el clip ralentizado/acelerado.
+    let moved = 0;
+    if (ripple && delta !== 0) {
+      const endFrame = (f.clip.start as number) + oldDuration;
+      for (const c of f.track.clips) {
+        if (c.id !== f.clip.id && (c.start as number) >= endFrame) {
+          commands.push({ type: "move_clip", clipId: c.id as string, start: Math.max(0, (c.start as number) + delta) });
+          moved++;
+        }
+      }
+    }
+    await postCommands(commands);
+    return ok(
+      `Velocidad de ${args.clipId} = ${args.speed}x (duración ${oldDuration}→${newDuration}f)` +
+        (moved ? `; ${moved} clip(s) posterior(es) desplazado(s) ${delta > 0 ? "+" : ""}${delta}f.` : "."),
+    );
   }),
 );
 
@@ -1425,6 +1459,7 @@ const COLOR_MAP: Record<string, string> = {
   brightness: "brightness",
   contrast: "contrast",
   saturate: "saturate",
+  saturation: "saturate", // alias: set_color_grade usa "saturation"; aquí lo aceptamos también
   grayscale: "grayscale",
   sepia: "sepia",
   hueRotate: "hue-rotate",
@@ -1439,24 +1474,27 @@ server.registerTool(
       "Ajusta el color de un clip (brillo, contraste, saturación, escala de grises, sepia, rotación de tono, invertir). Reemplaza solo los efectos de color indicados, conserva los demás.",
     inputSchema: {
       clipId: z.string(),
-      brightness: z.number().optional(),
-      contrast: z.number().optional(),
-      saturate: z.number().optional(),
-      grayscale: z.number().optional(),
-      sepia: z.number().optional(),
-      hueRotate: z.number().optional(),
-      invert: z.number().optional(),
+      brightness: z.coerce.number().optional(),
+      contrast: z.coerce.number().optional(),
+      saturate: z.coerce.number().optional(),
+      saturation: z.coerce.number().optional(),
+      grayscale: z.coerce.number().optional(),
+      sepia: z.coerce.number().optional(),
+      hueRotate: z.coerce.number().optional(),
+      invert: z.coerce.number().optional(),
     },
   },
   tool(async (args) => {
     const doc = await getDoc();
     const f = locateClip(doc, args.clipId);
     if (!f) return ok(`Clip ${args.clipId} no encontrado.`);
-    const provided: { type: string; value: number }[] = [];
+    // Dedupe por tipo de efecto (saturate/saturation son alias → un solo efecto).
+    const byType = new Map<string, number>();
     for (const [k, t] of Object.entries(COLOR_MAP)) {
       const v = (args as Record<string, unknown>)[k];
-      if (typeof v === "number") provided.push({ type: t, value: v });
+      if (typeof v === "number") byType.set(t, v);
     }
+    const provided = [...byType].map(([type, value]) => ({ type, value }));
     if (provided.length === 0) return ok("Indica al menos un parámetro de color.");
     const providedTypes = new Set(provided.map((p) => p.type));
     const existing = (f.clip.effects ?? []).filter((e) => !providedTypes.has(e.type));
@@ -2837,17 +2875,18 @@ server.registerTool(
   {
     title: "Añadir título animado",
     description:
-      "Inserta una plantilla de título animado (lower-third, title-card, pop-callout, kinetic-line, subtitle-bar, corner-tag) ya con estilo y animación. Crea clips de texto/forma en una pista 'Títulos'. frame por defecto 0.",
+      "Inserta una plantilla de título animado (lower-third, title-card, pop-callout, kinetic-line, subtitle-bar, corner-tag) ya con estilo y animación. Crea clips de texto/forma en una pista 'Títulos'. start (frame de inicio) por defecto 0 (alias: frame).",
     inputSchema: {
       template: z.enum(["lower-third", "title-card", "pop-callout", "kinetic-line", "subtitle-bar", "corner-tag"]),
       text: z.string(),
-      frame: z.number().optional(),
+      start: z.coerce.number().optional(),
+      frame: z.coerce.number().optional(),
       trackId: z.string().optional(),
     },
   },
   tool(async (args) => {
     const doc = await getDoc();
-    const at = Math.max(0, Math.round(args.frame ?? 0));
+    const at = Math.max(0, Math.round(args.start ?? args.frame ?? 0));
     const specs = buildTitle(args.template, args.text, { fps: doc.fps, width: doc.width, height: doc.height });
 
     const commands: Command[] = [];

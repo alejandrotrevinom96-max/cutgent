@@ -5,6 +5,7 @@ import path from "path";
 import { nanoid } from "nanoid";
 import ffmpegStatic from "ffmpeg-static";
 import { resolveMediaInput } from "./media-source";
+import { hasAudioStream } from "./audio-tools";
 import { assetsDir } from "./paths";
 
 /**
@@ -23,6 +24,7 @@ export async function normalizeAudio(
   if (!ffmpegStatic) throw new Error("ffmpeg-static no disponible");
   const { file, cleanup } = await resolveInput(src);
   try {
+    if (!(await hasAudioStream(file))) throw new Error("El clip no tiene pista de audio.");
     const id = `asset_${nanoid(8)}`;
     const outFile = path.join(ASSETS_DIR, `${id}.m4a`);
     const i = opts.i ?? -14;

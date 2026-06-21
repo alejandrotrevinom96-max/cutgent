@@ -29,6 +29,23 @@ function runCapture(args: string[]): Promise<string> {
   });
 }
 
+/**
+ * Detecta si un archivo de media tiene al menos una pista de audio. Evita el
+ * crash críptico de ffmpeg ("Output file does not contain any stream") al
+ * intentar procesar audio de un clip mudo (b-roll de stock suele venir sin audio).
+ */
+export async function hasAudioStream(file: string): Promise<boolean> {
+  if (!ffmpegStatic) return false;
+  return new Promise((resolve) => {
+    const proc = spawn(ffmpegStatic as string, ["-hide_banner", "-i", file]);
+    let err = "";
+    proc.stderr.on("data", (d: Buffer) => (err += d.toString()));
+    proc.on("error", () => resolve(false));
+    // ffmpeg -i sin output sale con código ≠0 y vuelca la info de streams a stderr.
+    proc.on("close", () => resolve(/Stream #\d+:\d+.*: Audio/i.test(err)));
+  });
+}
+
 export interface CleanAudioOpts {
   /** Reducción de ruido FFT (afftdn). */
   denoise?: boolean;
@@ -48,6 +65,7 @@ export async function cleanAudio(
   if (!ffmpegStatic) throw new Error("ffmpeg-static no disponible");
   const { file, cleanup } = await resolveInput(src);
   try {
+    if (!(await hasAudioStream(file))) throw new Error("El clip no tiene pista de audio.");
     await fs.mkdir(ASSETS_DIR, { recursive: true });
     const id = `asset_${nanoid(8)}`;
     const out = path.join(ASSETS_DIR, `${id}.m4a`);
@@ -79,6 +97,7 @@ export async function measureLoudness(src: string): Promise<Loudness> {
   if (!ffmpegStatic) throw new Error("ffmpeg-static no disponible");
   const { file, cleanup } = await resolveInput(src);
   try {
+    if (!(await hasAudioStream(file))) throw new Error("El clip no tiene pista de audio.");
     const err = await runCapture(["-i", file, "-af", "ebur128=peak=true", "-f", "null", "-"]);
     // Parse del resumen final de ebur128.
     const num = (re: RegExp): number | null => {

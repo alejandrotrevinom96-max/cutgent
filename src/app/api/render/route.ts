@@ -14,6 +14,15 @@ import { detectGpuEncoder, transcodeWithEncoder } from "@/lib/vfx";
 import { shouldWatermark } from "@/lib/license";
 import type { Project } from "@/lib/schema";
 
+// Bitrate objetivo por calidad para encode con GPU. CRF es incompatible con la
+// aceleración por hardware (Remotion la desactiva), así que con gpu:true pasamos
+// videoBitrate en vez de crf para que el HW encoder pueda engancharse.
+const QUALITY_BITRATE: Record<ExportQuality, string> = {
+  high: "8000k",
+  balanced: "5000k",
+  fast: "2500k",
+};
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -73,6 +82,10 @@ export async function runRender(
   let serveUrl: string | undefined = ctx?.serveUrl;
   const spec = resolveExportFormat(opts.format);
   try {
+    // width/height son ambos-o-ninguno: pasar solo uno se ignoraba en silencio.
+    if (!!opts.width !== !!opts.height) {
+      throw new Error("width y height deben indicarse juntos (ambos o ninguno).");
+    }
     // Override de dims (batch multi-resolución) antes de absolutizar.
     const sized =
       opts.width && opts.height ? { ...rawDocument, width: opts.width, height: opts.height } : rawDocument;
@@ -92,11 +105,18 @@ export async function runRender(
     await fs.mkdir(rendersDir, { recursive: true });
     const outputLocation = path.join(rendersDir, `${jobId}.${spec.ext}`);
 
-    // CRF solo aplica a códecs con compresión con pérdida configurable (h264/vp9).
+    // Calidad: por defecto CRF (software, mejor relación calidad/tamaño). Con GPU
+    // (gpu:true, solo h264) usamos videoBitrate porque CRF es INCOMPATIBLE con la
+    // codificación por hardware (Remotion la desactiva con un warning) → así el
+    // HW encoder (VideoToolbox en mac) puede engancharse.
+    const useGpuEncode = !!opts.gpu && spec.codec === "h264";
     const crf =
-      opts.quality && (spec.codec === "h264" || spec.codec === "vp9")
+      !useGpuEncode && opts.quality && (spec.codec === "h264" || spec.codec === "vp9")
         ? QUALITY_CRF[opts.quality]
         : undefined;
+    // Con GPU siempre fijamos un bitrate (default 'balanced' si no se indicó
+    // calidad) para no renderizar sin control de calidad ni crf.
+    const videoBitrate = useGpuEncode ? QUALITY_BITRATE[opts.quality ?? "balanced"] : undefined;
 
     await renderMedia({
       composition,
@@ -108,7 +128,8 @@ export async function runRender(
       ...(spec.proResProfile ? { proResProfile: spec.proResProfile as ProResProfile } : {}),
       ...(spec.audioCodec ? { audioCodec: spec.audioCodec as AudioCodec } : {}),
       ...(crf != null ? { crf } : {}),
-      // Inocuo en Windows (solo acelera en macOS/VideoToolbox); útil si corre en mac.
+      ...(videoBitrate != null ? { videoBitrate } : {}),
+      // if-possible: acelera en macOS/VideoToolbox; inocuo (no rompe) en Windows.
       hardwareAcceleration: "if-possible",
       concurrency: Math.max(2, os.cpus().length - 2),
       onProgress: ({ progress }) => {

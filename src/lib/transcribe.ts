@@ -12,6 +12,7 @@ import {
   Tensor,
 } from "@huggingface/transformers";
 import { resolveMediaInput } from "./media-source";
+import { hasAudioStream } from "./audio-tools";
 import { dataDir, modelsDir } from "./paths";
 
 /**
@@ -150,6 +151,7 @@ function probeDurationSec(file: string): Promise<number> {
 export async function detectLanguage(src: string): Promise<LanguageDetection> {
   const { file, cleanup } = await resolveInput(src);
   try {
+    if (!(await hasAudioStream(file))) throw new Error("El clip no tiene pista de audio para transcribir.");
     // Muestra de 30s ~al 20% del audio (evita intros musicales/silencios al inicio).
     const dur = await probeDurationSec(file);
     const offset = dur > 60 ? Math.floor(dur * 0.2) : 0;
@@ -255,6 +257,7 @@ export async function transcribeWords(
 ): Promise<WordTranscript> {
   const { file, cleanup } = await resolveInput(src);
   try {
+    if (!(await hasAudioStream(file))) throw new Error("El clip no tiene pista de audio para transcribir.");
     const audio = await extractAudio(file);
     if (audio.length < 1600) throw new Error("Audio insuficiente o sin pista de audio (< 0.1s).");
     const durationSec = audio.length / 16000;
@@ -316,6 +319,7 @@ export async function transcribeSource(
 ): Promise<Transcript> {
   const { file, cleanup } = await resolveInput(src);
   try {
+    if (!(await hasAudioStream(file))) throw new Error("El clip no tiene pista de audio para transcribir.");
     const audio = await extractAudio(file);
     if (audio.length < 1600) throw new Error("Audio insuficiente o sin pista de audio (< 0.1s).");
     const durationSec = audio.length / 16000;
