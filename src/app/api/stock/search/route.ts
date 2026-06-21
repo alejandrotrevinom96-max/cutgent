@@ -5,17 +5,26 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function parseKind(raw: string | null): StockKind {
-  return raw === "image" ? "image" : "video";
+  if (raw === "image") return "image";
+  if (raw === "audio") return "audio";
+  return "video";
 }
 
 function parseProvider(raw: string | null): StockProvider | "all" {
-  if (raw === "pexels" || raw === "pixabay") return raw;
+  if (
+    raw === "pexels" ||
+    raw === "pixabay" ||
+    raw === "jamendo" ||
+    raw === "freesound"
+  )
+    return raw;
   return "all";
 }
 
 /**
- * GET /api/stock/search?q=&type=image|video&provider=pexels|pixabay|all
+ * GET /api/stock/search?q=&type=image|video|audio&provider=pexels|pixabay|jamendo|freesound|all
  * → { results: StockResult[]; warnings: string[] }
+ * (audio → Jamendo música / Freesound SFX; image|video → Pexels/Pixabay)
  */
 export async function GET(req: NextRequest) {
   try {

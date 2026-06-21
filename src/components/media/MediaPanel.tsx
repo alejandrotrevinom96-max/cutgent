@@ -31,10 +31,10 @@ const assetKindToClipType: Record<Asset["kind"], AssetClipType> = {
 };
 
 /** Tipo de medio buscado en proveedores de stock. */
-type StockType = "video" | "image";
+type StockType = "video" | "image" | "audio";
 
-/** Proveedor de stock seleccionado en la búsqueda. */
-type StockProvider = "pexels" | "pixabay" | "both";
+/** Proveedor de stock seleccionado en la búsqueda. "both" → ambos del tipo. */
+type StockProvider = "pexels" | "pixabay" | "jamendo" | "freesound" | "both";
 
 /** Un resultado individual devuelto por /api/stock/search. */
 interface StockResult {
@@ -65,6 +65,21 @@ interface ProviderInfo {
   models: { id: string; label: string; kind: GenKindUi }[];
 }
 const GEN_KIND_LABEL: Record<GenKindUi, string> = { image: "Imagen", video: "Video", audio: "Audio" };
+
+/** Presets de la librería de VFX: buscan VIDEO de stock y, al importarse, se
+ *  componen con fusión "screen" sobre una pista de overlays (efectos luminosos
+ *  tipo light-leak/partículas se ven mejor en screen). Reusa Pexels/Pixabay. */
+const VFX_PRESETS: { label: string; query: string }[] = [
+  { label: "Fuga de luz", query: "light leak" },
+  { label: "Grano de película", query: "film grain texture" },
+  { label: "Bokeh", query: "bokeh blur lights" },
+  { label: "Partículas", query: "floating particles dust" },
+  { label: "Humo", query: "smoke fog overlay" },
+  { label: "Destello", query: "lens flare glow" },
+  { label: "Polvo brillante", query: "dust sparkle shimmer" },
+  { label: "Glitch", query: "glitch distortion" },
+];
+const VFX_TRACK_NAME = "Overlays (VFX)";
 
 /**
  * Panel izquierdo de medios: añade elementos rápidos, gestiona la biblioteca de
@@ -100,6 +115,8 @@ export function MediaPanel() {
   const [stockSearched, setStockSearched] = useState(false);
   const [stockError, setStockError] = useState<string | null>(null);
   const [importingId, setImportingId] = useState<string | null>(null);
+  // Modo overlay (VFX): los resultados se importan con fusión "screen" a una pista de overlays.
+  const [overlayMode, setOverlayMode] = useState(false);
 
   // Estado de "Generar con IA" (BYO key)
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
@@ -133,6 +150,17 @@ export function MediaPanel() {
       kind,
       name: kind === "audio" ? "Audio" : "Pista de video",
     });
+    return { trackId: track.id, extraCommand: { type: "add_track", track } };
+  }
+
+  /** Pista media con un nombre concreto (p. ej. la de overlays VFX); la crea si falta. */
+  function ensureNamedMediaTrack(name: string): {
+    trackId: string;
+    extraCommand?: Command;
+  } {
+    const existing = document.tracks.find((t) => t.kind === "media" && t.name === name);
+    if (existing) return { trackId: existing.id };
+    const track = createTrack({ kind: "media", name });
     return { trackId: track.id, extraCommand: { type: "add_track", track } };
   }
 
@@ -211,11 +239,21 @@ export function MediaPanel() {
     }
   }
 
-  /** Busca medios de stock en el proveedor seleccionado. */
-  async function handleStockSearch(): Promise<void> {
-    const q = stockQuery.trim();
+  /** Busca medios de stock. Acepta overrides (los usan los presets de VFX) para
+   *  no depender de actualizaciones de estado asíncronas. overlay=true marca que
+   *  los resultados se importarán como overlay (fusión screen). */
+  async function handleStockSearch(opts?: {
+    query?: string;
+    type?: StockType;
+    provider?: StockProvider;
+    overlay?: boolean;
+  }): Promise<void> {
+    const q = (opts?.query ?? stockQuery).trim();
     if (!q || stockSearching) return;
+    const type = opts?.type ?? stockType;
+    const provider = opts?.provider ?? stockProvider;
 
+    setOverlayMode(opts?.overlay ?? false);
     setStockSearching(true);
     setStockError(null);
     setStockWarnings([]);
@@ -223,11 +261,7 @@ export function MediaPanel() {
     setStockSearched(true);
 
     try {
-      const params = new URLSearchParams({
-        q,
-        type: stockType,
-        provider: stockProvider,
-      });
+      const params = new URLSearchParams({ q, type, provider });
       const res = await fetch(`/api/stock/search?${params.toString()}`);
       if (!res.ok) {
         setStockError("No se pudo completar la búsqueda. Inténtalo de nuevo.");
@@ -249,7 +283,8 @@ export function MediaPanel() {
    */
   async function handleStockImport(result: StockResult): Promise<void> {
     if (importingId) return;
-    const kind: Asset["kind"] = stockType === "image" ? "image" : "video";
+    const kind: Asset["kind"] =
+      stockType === "audio" ? "audio" : stockType === "image" ? "image" : "video";
     setImportingId(result.id);
     try {
       const res = await fetch("/api/stock/import", {
@@ -277,11 +312,28 @@ export function MediaPanel() {
         const duration = result.durationSec
           ? Math.max(1, Math.round(result.durationSec * document.fps))
           : asset.durationInFrames;
-        addClip(type, {
-          src: asset.src,
-          name: asset.name,
-          ...(duration ? { duration } : {}),
-        });
+
+        if (overlayMode && type === "video") {
+          // VFX: clip de overlay con fusión "screen" a pantalla completa, en una
+          // pista de overlays dedicada (por encima del video base).
+          const { trackId, extraCommand } = ensureNamedMediaTrack(VFX_TRACK_NAME);
+          const clip = createClip("video", {
+            start: currentFrame,
+            duration: duration ?? 90,
+            src: asset.src,
+            name: asset.name,
+            blendMode: "screen",
+            fit: "cover",
+          });
+          const add: Command = { type: "add_clip", trackId, clip };
+          void (extraCommand ? runCommands([extraCommand, add]) : runCommand(add));
+        } else {
+          addClip(type, {
+            src: asset.src,
+            name: asset.name,
+            ...(duration ? { duration } : {}),
+          });
+        }
       }
     } catch {
       /* fallo de importación: el resultado simplemente no se añade */
@@ -436,6 +488,46 @@ export function MediaPanel() {
       </Section>
 
       {/* ----------------------------------------------------------------- */}
+      {/* VFX · Overlays (efectos para superponer)                           */}
+      {/* ----------------------------------------------------------------- */}
+      <Section title="VFX · Overlays">
+        <p className="text-[11px] leading-snug text-muted">
+          Efectos para superponer. Se importan con fusión{" "}
+          <span className="font-mono text-text">screen</span> sobre una pista de
+          overlays (usa tus keys de video Pexels/Pixabay).
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          {VFX_PRESETS.map((p) => (
+            <button
+              key={p.query}
+              type="button"
+              onClick={() => {
+                setStockType("video");
+                setStockProvider("both");
+                setStockQuery(p.query);
+                void handleStockSearch({
+                  query: p.query,
+                  type: "video",
+                  provider: "both",
+                  overlay: true,
+                });
+              }}
+              disabled={stockSearching}
+              className="rounded-full border border-border bg-panel-2 px-2.5 py-1 text-[10px] text-muted transition hover:border-accent hover:text-text disabled:opacity-50"
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+        {overlayMode && (
+          <p className="text-[10px] text-accent-2">
+            Modo overlay activo: los resultados de abajo se importan con fusión
+            screen.
+          </p>
+        )}
+      </Section>
+
+      {/* ----------------------------------------------------------------- */}
       {/* Buscar stock                                                       */}
       {/* ----------------------------------------------------------------- */}
       <Section title="Buscar stock">
@@ -456,20 +548,41 @@ export function MediaPanel() {
         <div className="grid grid-cols-2 gap-2">
           <select
             value={stockType}
-            onChange={(e) => setStockType(e.target.value as StockType)}
+            onChange={(e) => {
+              // Cambiar de tipo resetea el proveedor a "Ambos" (los proveedores
+              // de audio y de video/imagen son distintos) y LIMPIA los resultados:
+              // si no, un resultado viejo se importaría con el kind equivocado
+              // (p. ej. un mp3 metido como video).
+              setStockType(e.target.value as StockType);
+              setStockProvider("both");
+              setStockResults([]);
+              setStockSearched(false);
+              setOverlayMode(false);
+            }}
             className="w-full rounded-md border border-border bg-panel-2 px-2 py-1.5 text-xs outline-none focus:border-accent"
           >
             <option value="video">Video</option>
             <option value="image">Imagen</option>
+            <option value="audio">Música / SFX</option>
           </select>
           <select
             value={stockProvider}
             onChange={(e) => setStockProvider(e.target.value as StockProvider)}
             className="w-full rounded-md border border-border bg-panel-2 px-2 py-1.5 text-xs outline-none focus:border-accent"
           >
-            <option value="pexels">Pexels</option>
-            <option value="pixabay">Pixabay</option>
-            <option value="both">Ambos</option>
+            {stockType === "audio" ? (
+              <>
+                <option value="jamendo">Jamendo · música</option>
+                <option value="freesound">Freesound · SFX</option>
+                <option value="both">Ambos</option>
+              </>
+            ) : (
+              <>
+                <option value="pexels">Pexels</option>
+                <option value="pixabay">Pixabay</option>
+                <option value="both">Ambos</option>
+              </>
+            )}
           </select>
         </div>
 
@@ -532,11 +645,28 @@ export function MediaPanel() {
                   />
                 ) : (
                   <span className="flex h-full w-full items-center justify-center text-muted">
-                    {stockType === "image" ? <ImageIcon size={18} /> : <Film size={18} />}
+                    {stockType === "image" ? (
+                      <ImageIcon size={18} />
+                    ) : stockType === "audio" ? (
+                      <Music size={18} />
+                    ) : (
+                      <Film size={18} />
+                    )}
+                  </span>
+                )}
+                {stockType === "audio" && (
+                  <span className="pointer-events-none absolute inset-x-0 bottom-0 truncate bg-black/60 px-1 py-0.5 text-[9px] leading-tight text-white">
+                    {result.title}
                   </span>
                 )}
                 <span className="pointer-events-none absolute right-1 top-1 rounded bg-black/60 p-0.5 text-white">
-                  {stockType === "image" ? <ImageIcon size={12} /> : <Film size={12} />}
+                  {stockType === "image" ? (
+                    <ImageIcon size={12} />
+                  ) : stockType === "audio" ? (
+                    <Music size={12} />
+                  ) : (
+                    <Film size={12} />
+                  )}
                 </span>
                 {importingId === result.id && (
                   <span className="absolute inset-0 flex items-center justify-center bg-black/60 text-white">

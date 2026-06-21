@@ -9,6 +9,8 @@ type LicenseStatus = { licensed: boolean; tier?: string; email?: string };
 type Status = {
   pexels: KeyStatus;
   pixabay: KeyStatus;
+  jamendo: KeyStatus;
+  freesound: KeyStatus;
   whisperModel: string;
   keys: Record<string, KeyStatus>;
   license: LicenseStatus;
@@ -35,6 +37,8 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
   const [status, setStatus] = useState<Status | null>(null);
   const [pexelsKey, setPexelsKey] = useState("");
   const [pixabayKey, setPixabayKey] = useState("");
+  const [jamendoKey, setJamendoKey] = useState("");
+  const [freesoundKey, setFreesoundKey] = useState("");
   const [newName, setNewName] = useState("");
   const [newValue, setNewValue] = useState("");
   const [saving, setSaving] = useState(false);
@@ -50,6 +54,8 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
     setSaved(false);
     setPexelsKey("");
     setPixabayKey("");
+    setJamendoKey("");
+    setFreesoundKey("");
     setNewName("");
     setNewValue("");
     setLicenseInput("");
@@ -75,10 +81,17 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
   const saveStock = async () => {
     setSaving(true);
     try {
-      await post({ ...(pexelsKey ? { pexelsKey } : {}), ...(pixabayKey ? { pixabayKey } : {}) });
+      await post({
+        ...(pexelsKey ? { pexelsKey } : {}),
+        ...(pixabayKey ? { pixabayKey } : {}),
+        ...(jamendoKey ? { jamendoKey } : {}),
+        ...(freesoundKey ? { freesoundKey } : {}),
+      });
       setSaved(true);
       setPexelsKey("");
       setPixabayKey("");
+      setJamendoKey("");
+      setFreesoundKey("");
     } finally {
       setSaving(false);
     }
@@ -219,11 +232,14 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
           {/* Stock */}
           <div className="mb-4 border-t border-border" />
           <p className="mb-3 text-[11px] leading-relaxed text-muted">
-            Cutgent usa TUS cuentas. Las llaves se guardan SOLO en tu equipo. Para buscar stock pega tus keys gratuitas
-            (Pexels: pexels.com/api · Pixabay: pixabay.com/api/docs).
+            Cutgent usa TUS cuentas. Las llaves se guardan SOLO en tu equipo. Todas son gratis:
+            video/imágenes (Pexels: pexels.com/api · Pixabay: pixabay.com/api/docs) · música
+            (Jamendo: devportal.jamendo.com) · efectos de sonido (Freesound: freesound.org/apiv2/apply).
           </p>
-          <KeyField label="Pexels API key" status={status?.pexels} value={pexelsKey} onChange={setPexelsKey} />
-          <KeyField label="Pixabay API key" status={status?.pixabay} value={pixabayKey} onChange={setPixabayKey} />
+          <KeyField label="Pexels API key · video/imágenes" status={status?.pexels} value={pexelsKey} onChange={setPexelsKey} />
+          <KeyField label="Pixabay API key · video/imágenes" status={status?.pixabay} value={pixabayKey} onChange={setPixabayKey} />
+          <KeyField label="Jamendo client_id · música" status={status?.jamendo} value={jamendoKey} onChange={setJamendoKey} />
+          <KeyField label="Freesound token · efectos (SFX)" status={status?.freesound} value={freesoundKey} onChange={setFreesoundKey} />
           <div className="mb-5 mt-2 flex items-center justify-end gap-2">
             {saved && (
               <span className="flex items-center gap-1 text-xs text-[var(--ok)]">
@@ -233,7 +249,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
             <button
               type="button"
               onClick={saveStock}
-              disabled={saving || (!pexelsKey && !pixabayKey)}
+              disabled={saving || (!pexelsKey && !pixabayKey && !jamendoKey && !freesoundKey)}
               className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-2 disabled:opacity-40"
             >
               {saving ? "Guardando…" : "Guardar stock"}

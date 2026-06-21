@@ -78,6 +78,34 @@ function isPrivateHost(hostname: string): boolean {
   return o ? isPrivateOctets(o) : false;
 }
 
+const MAX_REDIRECTS = 5;
+
+/** fetch que valida el host en CADA salto (protocolo + isPrivateHost). Sigue los
+ *  redirects a mano (redirect:"manual") porque el follow automático solo permite
+ *  validar el host inicial: un 30x del proveedor hacia 169.254.169.254 / 127.x /
+ *  10.x burlaría el guard. Cap de saltos para no entrar en bucle. */
+async function safeFetch(startUrl: string, signal: AbortSignal): Promise<Response> {
+  let url = startUrl;
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    const u = new URL(url);
+    if (u.protocol !== "http:" && u.protocol !== "https:") {
+      throw new Error("Protocolo no permitido.");
+    }
+    if (isPrivateHost(u.hostname)) {
+      throw new Error("URL no permitida (host privado/interno).");
+    }
+    const res = await fetch(url, { signal, redirect: "manual" });
+    const loc = res.headers.get("location");
+    if (res.status >= 300 && res.status < 400 && loc) {
+      // Resuelve el Location (puede ser relativo) y revalida en la próxima vuelta.
+      url = new URL(loc, url).toString();
+      continue;
+    }
+    return res;
+  }
+  throw new Error("Demasiados redirects en la descarga.");
+}
+
 function extFromKind(kind: GenKind): string {
   return kind === "image" ? "png" : kind === "video" ? "mp4" : "mp3";
 }
@@ -124,13 +152,11 @@ export async function downloadToAsset(input: DownloadInput): Promise<Asset> {
     buf = input.bytes;
     ext = extFromMime(input.mimeType) ?? extFromKind(input.kind);
   } else if (input.url) {
-    const u = new URL(input.url);
-    if (u.protocol !== "http:" && u.protocol !== "https:") throw new Error("Protocolo no permitido.");
-    if (isPrivateHost(u.hostname)) throw new Error("URL no permitida (host privado/interno).");
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
     try {
-      const res = await fetch(input.url, { signal: ctrl.signal });
+      // safeFetch valida protocolo + host privado en CADA salto de redirect.
+      const res = await safeFetch(input.url, ctrl.signal);
       if (!res.ok) throw new Error(`descarga falló (HTTP ${res.status})`);
       const cl = Number(res.headers.get("content-length") || 0);
       if (cl > MAX_BYTES) throw new Error("archivo demasiado grande");

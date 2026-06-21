@@ -1774,16 +1774,22 @@ server.registerTool(
 
 // ---- Stock y generación ---------------------------------------------------
 
+const BLEND_MODES = [
+  "normal", "multiply", "screen", "overlay", "darken", "lighten",
+  "color-dodge", "color-burn", "hard-light", "soft-light", "difference",
+  "exclusion", "hue", "saturation", "color", "luminosity",
+] as const;
+
 server.registerTool(
   "search_stock",
   {
     title: "Buscar stock",
     description:
-      "Busca video/imágenes de stock en Pexels y/o Pixabay. type: image|video. provider: pexels|pixabay|all. Devuelve resultados con downloadUrl (úsalo en import_stock) y avisos si faltan API keys.",
+      "Busca medios de stock. type: image|video (Pexels/Pixabay) o audio (música en Jamendo / efectos SFX en Freesound, ambos Creative Commons). provider: pexels|pixabay|jamendo|freesound|all. Devuelve resultados con downloadUrl (úsalo en import_stock) y avisos si faltan API keys.",
     inputSchema: {
       query: z.string(),
-      type: z.enum(["image", "video"]).optional(),
-      provider: z.enum(["pexels", "pixabay", "all"]).optional(),
+      type: z.enum(["image", "video", "audio"]).optional(),
+      provider: z.enum(["pexels", "pixabay", "jamendo", "freesound", "all"]).optional(),
     },
   },
   tool(async (args) => {
@@ -1801,16 +1807,20 @@ server.registerTool(
   {
     title: "Importar stock",
     description:
-      "Descarga un asset de stock (por su downloadUrl) al proyecto y, si das trackId, lo añade a la línea de tiempo. kind: image|video.",
+      "Descarga un asset de stock (por su downloadUrl) al proyecto y, si das trackId, lo añade a la línea de tiempo. kind: image|video|audio (audio = música/SFX; ponlo en una pista de audio). Para overlays VFX pasa blendMode (p. ej. 'screen').",
     inputSchema: {
       url: z.string(),
-      kind: z.enum(["image", "video"]),
+      kind: z.enum(["image", "video", "audio"]),
       name: z.string(),
       trackId: z.string().optional(),
       start: z.number().optional(),
       duration: z.number().optional(),
+      durationSec: z.number().optional(),
+      width: z.number().optional(),
+      height: z.number().optional(),
       x: z.number().optional(),
       y: z.number().optional(),
+      blendMode: z.enum(BLEND_MODES).optional(),
     },
   },
   tool(async (args) => {
@@ -1818,16 +1828,24 @@ server.registerTool(
       url: args.url,
       kind: args.kind,
       name: args.name,
-    })) as { id?: string; src?: string } | null;
+      durationSec: args.durationSec,
+      width: args.width,
+      height: args.height,
+    })) as { id?: string; src?: string; durationInFrames?: number } | null;
     if (!asset?.src) return okJson(asset);
     let note = `Asset importado: ${asset.src}`;
     if (args.trackId) {
       const start = args.start ?? 0;
-      const duration = args.duration ?? 90;
-      const clip =
-        args.kind === "image"
-          ? { type: "image", ...baseClip({ name: args.name, start, duration, x: args.x, y: args.y }), src: asset.src, fit: "cover" }
-          : { type: "video", ...baseClip({ name: args.name, start, duration, x: args.x, y: args.y }), src: asset.src, trimStart: 0, volume: 1, muted: false, playbackRate: 1, fit: "cover" };
+      // Duración real (del durationSec/asset) en vez del default de 90f (3s), que
+      // recorta música/SFX largos. Prioridad: duration explícita → asset → 90.
+      const duration = args.duration ?? asset.durationInFrames ?? 90;
+      let clip: Record<string, unknown>;
+      if (args.kind === "image")
+        clip = { type: "image", ...baseClip({ name: args.name, start, duration, x: args.x, y: args.y }), src: asset.src, fit: "cover" };
+      else if (args.kind === "audio")
+        clip = { type: "audio", ...baseClip({ name: args.name, start, duration }), src: asset.src, trimStart: 0, volume: 1, playbackRate: 1, fadeInFrames: 0, fadeOutFrames: 0 };
+      else
+        clip = { type: "video", ...baseClip({ name: args.name, start, duration, x: args.x, y: args.y }), src: asset.src, trimStart: 0, volume: 1, muted: false, playbackRate: 1, fit: "cover", ...(args.blendMode ? { blendMode: args.blendMode } : {}) };
       await postCommands([{ type: "add_clip", trackId: args.trackId, clip }]);
       note += ` y añadido a ${args.trackId} (clipId=${clip.id as string}).`;
     }
@@ -2004,12 +2022,6 @@ server.registerTool(
 );
 
 // ---- Compositing ----------------------------------------------------------
-
-const BLEND_MODES = [
-  "normal", "multiply", "screen", "overlay", "darken", "lighten",
-  "color-dodge", "color-burn", "hard-light", "soft-light", "difference",
-  "exclusion", "hue", "saturation", "color", "luminosity",
-] as const;
 
 server.registerTool(
   "set_blend_mode",

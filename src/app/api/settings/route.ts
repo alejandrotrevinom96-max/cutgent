@@ -20,6 +20,8 @@ export async function GET() {
   return NextResponse.json({
     pexels: { set: !!s.pexelsKey, masked: mask(s.pexelsKey) },
     pixabay: { set: !!s.pixabayKey, masked: mask(s.pixabayKey) },
+    jamendo: { set: !!s.jamendoKey, masked: mask(s.jamendoKey) },
+    freesound: { set: !!s.freesoundKey, masked: mask(s.freesoundKey) },
     whisperModel: s.whisperModel ?? "",
     keys,
     license: await getLicenseState(),
@@ -34,6 +36,8 @@ export async function POST(req: NextRequest) {
     const patch: Partial<Settings> = {};
     if (typeof body.pexelsKey === "string") patch.pexelsKey = body.pexelsKey.trim();
     if (typeof body.pixabayKey === "string") patch.pixabayKey = body.pixabayKey.trim();
+    if (typeof body.jamendoKey === "string") patch.jamendoKey = body.jamendoKey.trim();
+    if (typeof body.freesoundKey === "string") patch.freesoundKey = body.freesoundKey.trim();
     if (typeof body.whisperModel === "string") patch.whisperModel = body.whisperModel.trim();
 
     // Licencia: "" la borra; un token debe verificar con la public key embebida.

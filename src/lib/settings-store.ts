@@ -11,6 +11,9 @@ import { dataDir } from "./paths";
 export interface Settings {
   pexelsKey?: string;
   pixabayKey?: string;
+  /** client_id de Jamendo (música CC) y token de Freesound (SFX CC). BYO, gratis. */
+  jamendoKey?: string;
+  freesoundKey?: string;
   whisperModel?: string;
   /** Llaves de API arbitrarias del dueño (BYO): GEMINI_API_KEY, HIGGSFIELD_API_KEY,
    *  OPENAI_API_KEY, REPLICATE_API_TOKEN, FAL_KEY, ELEVENLABS_API_KEY, etc. Se
@@ -103,6 +106,12 @@ export async function getPexelsKey(): Promise<string> {
 }
 export async function getPixabayKey(): Promise<string> {
   return (await getSettings()).pixabayKey || process.env.PIXABAY_API_KEY || "";
+}
+export async function getJamendoKey(): Promise<string> {
+  return (await getSettings()).jamendoKey || process.env.JAMENDO_CLIENT_ID || "";
+}
+export async function getFreesoundKey(): Promise<string> {
+  return (await getSettings()).freesoundKey || process.env.FREESOUND_API_KEY || "";
 }
 
 /** Valor de una llave BYO por nombre (settings primero, luego env). */

@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { promises as fs } from "fs";
-import path from "path";
-import { newId } from "@/lib/factory";
 import { type Asset } from "@/lib/schema";
-import { addAsset, ensureVideoProxy } from "@/lib/asset-store";
-import { assetsDir } from "@/lib/paths";
+import { downloadToAsset } from "@/lib/generation/download";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const ASSETS_DIR = assetsDir();
 
 type AssetKind = Asset["kind"];
 
@@ -26,36 +20,11 @@ function isAssetKind(value: unknown): value is AssetKind {
   return value === "image" || value === "video" || value === "audio";
 }
 
-/** Fallback extension derived from the asset kind. */
-function extFromKind(kind: AssetKind): string {
-  switch (kind) {
-    case "image":
-      return "jpg";
-    case "video":
-      return "mp4";
-    case "audio":
-      return "mp3";
-    default:
-      return "bin";
-  }
-}
-
-/** Try to derive a clean file extension from the URL path. */
-function extFromUrl(url: string): string | null {
-  try {
-    const parsed = new URL(url);
-    const ext = path.extname(parsed.pathname).replace(/^\./, "").toLowerCase();
-    if (ext && /^[a-z0-9]{1,5}$/.test(ext)) return ext;
-    return null;
-  } catch {
-    return null;
-  }
-}
-
 /**
- * POST /api/stock/import — body { url, kind, name, width?, height? }.
- * Downloads the bytes, writes them under public/assets, registers the Asset
- * and returns it.
+ * POST /api/stock/import — body { url, kind, name, width?, height?, durationSec? }.
+ * Descarga los bytes (con guard anti-SSRF + tope de tamaño + timeout vía
+ * downloadToAsset), los escribe en public/assets, registra el Asset y lo
+ * devuelve. Sirve para image | video | audio (música/SFX de stock).
  */
 export async function POST(req: NextRequest) {
   try {
@@ -81,41 +50,12 @@ export async function POST(req: NextRequest) {
 
     const width = typeof body.width === "number" ? body.width : undefined;
     const height = typeof body.height === "number" ? body.height : undefined;
-    // Guarda la duración (a 30fps de referencia) para que el clip no entre a 3s.
-    const durationInFrames =
+    const durationSec =
       typeof body.durationSec === "number" && body.durationSec > 0
-        ? Math.max(1, Math.round(body.durationSec * 30))
+        ? body.durationSec
         : undefined;
 
-    const res = await fetch(url);
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: `No se pudo descargar el recurso (HTTP ${res.status})` },
-        { status: 400 },
-      );
-    }
-
-    const buf = Buffer.from(await res.arrayBuffer());
-
-    const id = newId("asset");
-    const ext = extFromUrl(url) ?? extFromKind(kind);
-    const fileName = `${id}.${ext}`;
-
-    await fs.mkdir(ASSETS_DIR, { recursive: true });
-    await fs.writeFile(path.join(ASSETS_DIR, fileName), buf);
-
-    const asset: Asset = {
-      id,
-      name,
-      kind,
-      src: `/assets/${fileName}`,
-      ...(width !== undefined ? { width } : {}),
-      ...(height !== undefined ? { height } : {}),
-      ...(durationInFrames !== undefined ? { durationInFrames } : {}),
-    };
-
-    const saved = await addAsset(asset);
-    ensureVideoProxy(saved);
+    const saved = await downloadToAsset({ url, kind, name, width, height, durationSec });
     return NextResponse.json(saved);
   } catch (err) {
     return NextResponse.json(

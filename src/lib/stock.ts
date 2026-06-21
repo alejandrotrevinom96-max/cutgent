@@ -1,19 +1,27 @@
 /**
- * Stock media search across Pexels and Pixabay.
+ * Stock media search across Pexels, Pixabay (image/video) plus Jamendo (música)
+ * and Freesound (SFX) for audio.
  *
  * This module runs server-side only (it reads API keys from process.env).
- * Neither provider exposes a stable public API for music/audio, so only
- * `image` and `video` kinds are supported.
+ * Pexels/Pixabay no exponen audio por API estable → para audio usamos Jamendo
+ * (catálogo Creative Commons, campo `audio` = mp3 directo con client_id) y
+ * Freesound (efectos CC; los `previews` preview-hq-mp3 son mp3 públicos usables
+ * solo con el token, sin el OAuth2 que sí exige el archivo original).
  *
  * If an API key is missing or a provider request fails, we DO NOT throw:
  * the affected provider is skipped and a human-readable warning (in Spanish)
  * is collected so the caller can surface it in the UI.
  */
 
-import { getPexelsKey, getPixabayKey } from "./settings-store";
+import {
+  getPexelsKey,
+  getPixabayKey,
+  getJamendoKey,
+  getFreesoundKey,
+} from "./settings-store";
 
-export type StockProvider = "pexels" | "pixabay";
-export type StockKind = "image" | "video";
+export type StockProvider = "pexels" | "pixabay" | "jamendo" | "freesound";
+export type StockKind = "image" | "video" | "audio";
 
 export interface StockResult {
   id: string;
@@ -286,6 +294,122 @@ export async function searchPixabay(
 }
 
 // ---------------------------------------------------------------------------
+// Jamendo (música Creative Commons)
+// ---------------------------------------------------------------------------
+
+interface JamendoTrack {
+  id?: string | number;
+  name?: string;
+  artist_name?: string;
+  duration?: number;
+  /** URL de stream mp3, reproducible/descargable SOLO con el client_id (sin OAuth). */
+  audio?: string;
+  image?: string; // carátula del álbum (sirve de miniatura)
+  license_ccurl?: string;
+}
+
+interface JamendoResponse {
+  headers?: { status?: string; error_message?: string };
+  results?: JamendoTrack[];
+}
+
+export async function searchJamendo(query: string): Promise<StockResult[]> {
+  const clientId = await getJamendoKey();
+  if (!clientId) throw new Error("Falta el client_id de Jamendo (Ajustes)");
+
+  const q = encodeURIComponent(query);
+  // Jamendo EXIGE el client_id por query string (no admite header). Es server-side
+  // y este módulo no loguea URLs; si algún día se añade logging, enmascararlo.
+  const url =
+    `https://api.jamendo.com/v3.0/tracks/?client_id=${encodeURIComponent(clientId)}` +
+    `&format=json&limit=${PER_PAGE}&search=${q}&audioformat=mp32&order=popularity_total`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Jamendo respondió ${res.status}`);
+
+  const data = (await res.json()) as JamendoResponse;
+  if (data.headers?.status && data.headers.status !== "success") {
+    throw new Error(data.headers.error_message || "error de Jamendo");
+  }
+  const tracks = data.results ?? [];
+  return tracks.flatMap((t): StockResult[] => {
+    const downloadUrl = t.audio;
+    if (!downloadUrl) return [];
+    const title = t.name
+      ? t.artist_name
+        ? `${t.name} — ${t.artist_name}`
+        : t.name
+      : `Jamendo ${t.id}`;
+    return [
+      {
+        id: `jamendo_${t.id}`,
+        provider: "jamendo",
+        kind: "audio",
+        title,
+        previewUrl: t.image ?? "",
+        downloadUrl,
+        durationSec: t.duration,
+      },
+    ];
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Freesound (efectos de sonido Creative Commons)
+// ---------------------------------------------------------------------------
+
+interface FreesoundSound {
+  id?: number;
+  name?: string;
+  username?: string;
+  duration?: number;
+  license?: string;
+  /** Mapa con preview-hq-mp3 / preview-lq-mp3 (mp3 públicos, usables con token). */
+  previews?: Record<string, string>;
+  /** Mapa con waveform_m / spectral_m (imágenes para miniatura). */
+  images?: Record<string, string>;
+}
+
+interface FreesoundResponse {
+  results?: FreesoundSound[];
+  detail?: string;
+}
+
+export async function searchFreesound(query: string): Promise<StockResult[]> {
+  const token = await getFreesoundKey();
+  if (!token) throw new Error("Falta el token de Freesound (Ajustes)");
+
+  const q = encodeURIComponent(query);
+  // 'previews' y 'duration' NO vienen por defecto: hay que pedir fields explícito.
+  const fields = "id,name,previews,duration,username,license,images";
+  const url =
+    `https://freesound.org/apiv2/search/text/?query=${q}` +
+    `&page_size=${PER_PAGE}&fields=${fields}&sort=score`;
+  // Token por header (no en la URL) para no filtrarlo en logs.
+  const res = await fetch(url, { headers: { Authorization: `Token ${token}` } });
+  if (!res.ok) throw new Error(`Freesound respondió ${res.status}`);
+
+  const data = (await res.json()) as FreesoundResponse;
+  const sounds = data.results ?? [];
+  return sounds.flatMap((s): StockResult[] => {
+    const downloadUrl =
+      s.previews?.["preview-hq-mp3"] ?? s.previews?.["preview-lq-mp3"];
+    if (!downloadUrl) return [];
+    const previewUrl = s.images?.["waveform_m"] ?? s.images?.["waveform_l"] ?? "";
+    return [
+      {
+        id: `freesound_${s.id}`,
+        provider: "freesound",
+        kind: "audio",
+        title: s.name ?? `Freesound ${s.id}`,
+        previewUrl,
+        downloadUrl,
+        durationSec: s.duration,
+      },
+    ];
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Aggregator
 // ---------------------------------------------------------------------------
 
@@ -295,16 +419,61 @@ export async function searchStock(
   provider: StockProvider | "all",
 ): Promise<StockSearchResponse> {
   const warnings: string[] = [];
+  const errMsg = (err: unknown) =>
+    err instanceof Error ? err.message : "error desconocido";
 
-  if (type !== "image" && type !== "video") {
-    warnings.push(
-      "Solo se admiten resultados de imagen o video (Pexels/Pixabay no exponen audio por API).",
-    );
+  if (type !== "image" && type !== "video" && type !== "audio") {
+    warnings.push("Tipo de medio no admitido (image | video | audio).");
     return { results: [], warnings };
+  }
+
+  // Audio → Jamendo (música) / Freesound (SFX). Pexels/Pixabay no exponen audio.
+  if (type === "audio") {
+    const wantJamendo = provider === "jamendo" || provider === "all";
+    const wantFreesound = provider === "freesound" || provider === "all";
+    const audioTasks: Array<Promise<StockResult[]>> = [];
+
+    // Combo incompatible (p. ej. type=audio con provider=pexels vía MCP/API):
+    // sin esto devolvería [] sin explicación.
+    if (!wantJamendo && !wantFreesound) {
+      warnings.push("El audio (música/SFX) solo está disponible en Jamendo o Freesound.");
+    }
+
+    if (wantJamendo) {
+      if (!(await getJamendoKey())) {
+        warnings.push("Falta el client_id de Jamendo — añádelo en Ajustes.");
+      } else {
+        audioTasks.push(
+          searchJamendo(query).catch((err: unknown) => {
+            warnings.push(`Jamendo: ${errMsg(err)}`);
+            return [];
+          }),
+        );
+      }
+    }
+    if (wantFreesound) {
+      if (!(await getFreesoundKey())) {
+        warnings.push("Falta el token de Freesound — añádelo en Ajustes.");
+      } else {
+        audioTasks.push(
+          searchFreesound(query).catch((err: unknown) => {
+            warnings.push(`Freesound: ${errMsg(err)}`);
+            return [];
+          }),
+        );
+      }
+    }
+    const audioSettled = await Promise.all(audioTasks);
+    return { results: audioSettled.flat(), warnings };
   }
 
   const wantPexels = provider === "pexels" || provider === "all";
   const wantPixabay = provider === "pixabay" || provider === "all";
+
+  // Combo incompatible (p. ej. type=video con provider=jamendo vía MCP/API).
+  if (!wantPexels && !wantPixabay) {
+    warnings.push("Las imágenes y los videos solo están en Pexels o Pixabay.");
+  }
 
   const tasks: Array<Promise<StockResult[]>> = [];
 
