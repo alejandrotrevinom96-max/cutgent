@@ -18,8 +18,22 @@ interface ReplicatePrediction {
 }
 
 export function pickUrl(output: unknown): string | undefined {
-  if (Array.isArray(output)) return typeof output[0] === "string" ? output[0] : undefined;
-  return typeof output === "string" ? output : undefined;
+  if (Array.isArray(output)) {
+    const first = output[0];
+    if (typeof first === "string") return first;
+    if (first && typeof first === "object") return pickUrl(first); // array de objetos
+    return undefined;
+  }
+  if (typeof output === "string") return output;
+  // Algunos modelos (p. ej. de video) devuelven un OBJETO { video|url|image|... }
+  // en vez de una URL/array. Sin esto, un éxito real quedaba con mediaUrl=undefined.
+  if (output && typeof output === "object") {
+    const o = output as Record<string, unknown>;
+    for (const k of ["video", "url", "image", "audio", "output"]) {
+      if (typeof o[k] === "string") return o[k] as string;
+    }
+  }
+  return undefined;
 }
 
 // --- pure builders / parsers (testeables sin red) --------------------------

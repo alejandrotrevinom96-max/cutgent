@@ -789,7 +789,9 @@ export function MediaPanel() {
               className="min-w-0 flex-1 rounded border border-border bg-panel-2 px-1.5 py-1 text-xs text-text outline-none focus:border-accent"
             >
               {(providers.length ? providers : [{ id: "replicate", label: "Replicate" }]).map((p) => (
-                <option key={p.id} value={p.id}>{p.label}</option>
+                <option key={p.id} value={p.id}>
+                  {p.label}{p.id !== "fal" ? " · experimental" : ""}
+                </option>
               ))}
             </select>
             <select
@@ -830,6 +832,11 @@ export function MediaPanel() {
           <p className="text-[10px] leading-snug text-muted">
             Replicate/fal: imagen y video · OpenAI: imagen y voz. Te factura tu proveedor directamente.
           </p>
+          {selProvider && genProvider !== "fal" && (
+            <p className="text-[10px] leading-snug text-[var(--warning,#d9a441)]">
+              Proveedor experimental: sin verificar en vivo. fal es el probado. Si falla, el error te dirá qué ajustar.
+            </p>
+          )}
         </div>
       </Section>
     </aside>
