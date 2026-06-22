@@ -45,8 +45,8 @@ export interface SnapshotMeta {
 }
 
 export type StoreMessage =
-  | { kind: "snapshot"; version: number; document: Project; origin: string | null }
-  | { kind: "command"; version: number; command: Command; origin: string | null };
+  | { kind: "snapshot"; version: number; document: Project; origin: string | null; canUndo?: boolean; canRedo?: boolean }
+  | { kind: "command"; version: number; command: Command; origin: string | null; canUndo?: boolean; canRedo?: boolean };
 
 type Subscriber = (msg: StoreMessage) => void;
 
@@ -551,7 +551,11 @@ export async function deleteProject(id: string, origin: string | null = null): P
 
 function broadcast(msg: StoreMessage): void {
   const h = hub();
-  for (const sub of h.subscribers) sub(msg);
+  // Adjuntamos el estado de historial: así TODOS los clientes (incluidos los que
+  // reciben una edición de OTRO cliente vía SSE, p.ej. el MCP) refrescan sus
+  // botones Undo/Redo sin esperar a su siguiente acción manual.
+  const withHistory = { ...msg, ...getHistoryState() } as StoreMessage;
+  for (const sub of h.subscribers) sub(withHistory);
 }
 
 export function subscribe(sub: Subscriber): () => void {

@@ -240,13 +240,15 @@ export const useEditor = create<EditorState>((set, get) => ({
       }
       if (!msg || typeof msg !== "object") return;
       const m = msg as
-        | { kind: "snapshot"; version: number; document: Project; origin: string | null }
-        | { kind: "command"; version: number; command: Command; origin: string | null };
+        | { kind: "snapshot"; version: number; document: Project; origin: string | null; canUndo?: boolean; canRedo?: boolean }
+        | { kind: "command"; version: number; command: Command; origin: string | null; canUndo?: boolean; canRedo?: boolean };
 
       if (m.kind === "snapshot") {
         // Ignora snapshots más viejos que el estado ya aplicado (monotonicidad).
         if (m.version < get().serverVersion) return;
         set({ document: m.document, serverVersion: m.version });
+        // Refresca Undo/Redo si el broadcast trae el estado de historial (edición de otro cliente/MCP).
+        if (typeof m.canUndo === "boolean") set({ canUndo: m.canUndo, canRedo: !!m.canRedo });
         // Poda la selección a clips que aún existen.
         const sel = get().selectedClipIds.filter((id) => findClip(get().document, id));
         set({ selectedClipIds: sel, selectedClipId: sel[sel.length - 1] ?? null });
@@ -261,6 +263,8 @@ export const useEditor = create<EditorState>((set, get) => ({
         // Delta en orden → aplicar; si hay salto de versión → resync completo.
         if (m.version === get().serverVersion + 1) {
           set({ document: applyCommand(get().document, m.command), serverVersion: m.version });
+          // Refresca Undo/Redo con el estado de historial del broadcast (edición de otro cliente/MCP).
+          if (typeof m.canUndo === "boolean") set({ canUndo: m.canUndo, canRedo: !!m.canRedo });
         } else if (m.version > get().serverVersion + 1) {
           void get().resync();
         }
