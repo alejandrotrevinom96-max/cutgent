@@ -164,12 +164,15 @@ check("validate: rejects VRM with an undrivable required expression", !validateL
 {
   const body = buildFixtureVrmMeshed();
   check("face: meshed body base is NOT living yet (no expressions)", !validateLivingVrm(body).ok);
-  const { buffer, report } = riggFace(body, { front: "+z" });
-  check("face: heuristics located mouth/eye/brow verts", report.regions.mouth >= 1 && report.regions.eyes >= 2 && report.regions.brows >= 2, JSON.stringify(report.regions));
+  const { buffer, report } = riggFace(body, {});
+  check("face: v2 engine auto-detected the front axis", report.front === "+z", report.front);
+  check("face: 8 action units -> 12 expressions", report.actionUnits === 8 && report.expressions === 12);
   check("face: morphs added + expressions bound -> now LIVING", validateLivingVrm(buffer).ok, validateLivingVrm(buffer).checks.filter((c) => !c.pass).map((c) => c.name).join(",") || "all pass");
-  const j = readGlb(buffer); const acc = j.json.accessors[j.json.meshes[0].primitives[0].targets[0].POSITION]; const bv = j.json.bufferViews[acc.bufferView];
-  const dyMouth = j.bin.readFloatLE(bv.byteOffset + 2 * 12 + 4); // mouthOpen, mouth-center vertex (idx 2), dy
-  check("face: mouthOpen morph displaces the mouth vertex down (dy<0)", dyMouth < 0, `dy=${dyMouth.toFixed(4)}`);
+  const j = readGlb(buffer); const tgt = j.json.meshes[0].primitives[0].targets;
+  const dy = (targetIdx, vertIdx) => { const acc = j.json.accessors[tgt[targetIdx].POSITION]; const bv = j.json.bufferViews[acc.bufferView]; return j.bin.readFloatLE(bv.byteOffset + vertIdx * 12 + 4); };
+  check("face: jawOpen displaces the mouth vertex down (dy<0)", dy(0, 2) < 0, `dy=${dy(0, 2).toFixed(4)}`);
+  check("face: falloff leaves a far body vertex untouched", dy(0, 0) === 0, `body dy=${dy(0, 0)}`);
+  check("face: smile is symmetric on L/R mouth corners", Math.abs(dy(3, 3) - dy(3, 4)) < 1e-6 && dy(3, 3) > 0, `L=${dy(3, 3).toFixed(4)} R=${dy(3, 4).toFixed(4)}`);
 }
 
 // ---- deformation transfer (donor rig -> target mesh, production route) ----

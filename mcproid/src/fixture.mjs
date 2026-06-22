@@ -187,13 +187,15 @@ export function buildFixtureVrmMeshed() {
   const hairNode = nodes.length; nodes.push({ name: "Hair_01" });
   const meshNodeIdx = nodes.length; nodes.push({ name: "char", mesh: 0 });
 
-  // 12 verts: 2 body (low) + a head cluster (front z=+0.2) with mouth/eye/brow verts
+  // 13 verts: 2 body (low) + a head cluster (front +z) with a clear NOSE TIP,
+  // mouth (center+corners), eyes and brows so the v2 anchor/falloff engine resolves.
   const V = [
-    [0, 0, 0], [0, 0.8, 0],                          // body (sets bbox bottom)
-    [0, 1.43, 0.2], [0.07, 1.43, 0.2], [-0.07, 1.43, 0.2], // mouth center + corners
-    [0.08, 1.55, 0.2], [-0.08, 1.55, 0.2],          // eyes
-    [0.06, 1.62, 0.2], [-0.06, 1.62, 0.2],          // brows
-    [0.2, 1.5, 0.2], [0, 1.5, -0.2], [0, 1.7, 0.2], // side / back / top
+    [0, 0, 0], [0, 0.8, 0],                              // 0,1 body (bbox bottom)
+    [0, 1.46, 0.26], [0.04, 1.46, 0.25], [-0.04, 1.46, 0.25], // 2,3,4 mouth center + corners
+    [0, 1.52, 0.30],                                     // 5 NOSE TIP (max protrusion)
+    [0.075, 1.55, 0.24], [-0.075, 1.55, 0.24],          // 6,7 eyes
+    [0.075, 1.60, 0.23], [-0.075, 1.60, 0.23],          // 8,9 brows
+    [0.18, 1.5, 0.1], [0, 1.7, 0.1], [0, 1.5, -0.2],    // 10 side(headW) 11 top 12 back
   ];
   const pos = Buffer.alloc(V.length * 12);
   V.forEach((v, i) => { pos.writeFloatLE(v[0], i * 12); pos.writeFloatLE(v[1], i * 12 + 4); pos.writeFloatLE(v[2], i * 12 + 8); });
