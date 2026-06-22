@@ -9,6 +9,8 @@ import { buildFixtureVrm, buildFixtureVrm0, buildFixtureVrmTextured, buildFixtur
 import { glbToLivingVrm } from "../src/import.mjs";
 import { riggFace } from "../src/face.mjs";
 import { bakeDemo, bakeShowcase } from "../src/animate.mjs";
+import { addSprings } from "../src/springs.mjs";
+import { makeLivingAvatar } from "../src/pipeline.mjs";
 import { transferRig } from "../src/transfer.mjs";
 import { readGlb, writeGlb } from "../src/glb.mjs";
 import { decodePng, encodePng, recolorPng } from "../src/png.mjs";
@@ -98,7 +100,7 @@ check("license: refuses commercial forge from non-commercial base", threw);
 
 // ---- negative tests ----
 const noSpring = (() => { const j = readGlb(fx1).json; delete j.extensions.VRMC_springBone; return writeGlb({ json: j }); })();
-check("validate: rejects VRM with no spring bones", !validateLivingVrm(noSpring).ok);
+check("validate: no spring bones -> physics=false but still LIVING (drivable)", validateLivingVrm(noSpring).ok && validateLivingVrm(noSpring).physics === false);
 const unbound = (() => { const j = readGlb(fx1).json; j.extensions.VRMC_vrm.expressions.preset.happy.materialColorBinds = []; return writeGlb({ json: j }); })();
 check("validate: rejects VRM with an undrivable required expression", !validateLivingVrm(unbound).ok);
 
@@ -156,7 +158,7 @@ check("validate: rejects VRM with an undrivable required expression", !validateL
   check("import: materials converted to MToon", readGlb(buffer).json.materials.every((m) => m.extensions && m.extensions.VRMC_materials_mtoon));
   // honest: body is done, the ONLY thing missing for 'living' is the facial rig
   const v = validateLivingVrm(buffer);
-  const failing = v.checks.filter((c) => !c.pass).map((c) => c.name);
+  const failing = v.checks.filter((c) => !c.physics && !c.pass).map((c) => c.name);
   check("import: NOT living yet — and the only gap is the facial rig", !v.ok && failing.length === 1 && /expressions/.test(failing[0]), failing.join(",") || "none");
   check("import: report names the missing facial presets", report.missingForLiving.includes("happy") && report.missingForLiving.includes("aa") && report.living === false);
 }
@@ -222,6 +224,23 @@ check("validate: rejects VRM with an undrivable required expression", !validateL
   }
 }
 
+// ---- spring physics (honest: add when hair bones exist, skip otherwise) ----
+{
+  const withHair = addSprings(buildFixtureVrmMeshed()); // has a "Hair_01" bone
+  check("springs: adds a spring on a hair-named bone", withHair.report.added >= 1 && !withHair.report.skipped);
+  const noHair = (() => { const g = readGlb(buildFixtureVrmMeshed()); g.json.nodes.forEach((n) => { if (/hair/i.test(n.name || "")) n.name = "rootx"; }); delete g.json.extensions.VRMC_springBone; return writeGlb({ json: g.json, bin: g.bin }); })();
+  check("springs: honest SKIP when the rig has no hair bones", addSprings(noHair).report.skipped === true);
+}
+
+// ---- one-shot pipeline: import -> face -> springs -> validate ----
+{
+  const made = makeLivingAvatar(buildFixtureVrmMeshed(), {});
+  check("pipeline: one-shot makes a LIVING avatar (procedural face + springs)", made.report.living === true && made.report.faceMethod === "procedural-v3" && made.report.hasPhysics === true, `living=${made.report.living} physics=${made.report.hasPhysics}`);
+  const donor = riggFace(buildFixtureVrmMeshed(), {}).buffer;
+  const made2 = makeLivingAvatar(buildFixtureVrmMeshed(), { donorBuffer: donor });
+  check("pipeline: one-shot LIVING via donor transfer", made2.report.living === true && made2.report.faceMethod === "donor-transfer");
+}
+
 // ---- contract = the standard VRM driver ids any VRM app uses ----
 const standardDriven = ["happy", "angry", "sad", "relaxed", "surprised", "neutral", "aa", "ih", "ou", "ee", "oh", "blink"];
 check("contract: covers the standard VRM driver ids", standardDriven.every((id) => REQUIRED_EXPRESSIONS.includes(id)), `${REQUIRED_EXPRESSIONS.length} presets`);
@@ -238,7 +257,7 @@ function mcpSmoke() {
     let outBuf = "", listed = null, called = null, validated = null, done = false;
     const finish = () => {
       if (done) return; done = true; try { p.kill(); } catch { /* noop */ }
-      check("mcp: tools/list exposes all 9 tools", listed === true, String(listed));
+      check("mcp: tools/list exposes all 10 tools", listed === true, String(listed));
       check("mcp: tools/call create_living_avatar forges valid", called === true, String(called));
       check("mcp: tools/call validate_vrm works", validated === true, String(validated));
       res();
@@ -249,7 +268,7 @@ function mcpSmoke() {
         const line = outBuf.slice(0, nl); outBuf = outBuf.slice(nl + 1);
         if (!line.trim()) continue;
         let m; try { m = JSON.parse(line); } catch { continue; }
-        if (m.id === 2) { const names = ((m.result && m.result.tools) || []).map((t) => t.name); listed = ["create_living_avatar", "validate_vrm", "inspect_vrm", "forge_variants", "import_glb", "rig_face", "transfer_face", "list_bases", "list_adapters"].every((n) => names.includes(n)); }
+        if (m.id === 2) { const names = ((m.result && m.result.tools) || []).map((t) => t.name); listed = ["create_living_avatar", "validate_vrm", "inspect_vrm", "forge_variants", "import_glb", "rig_face", "transfer_face", "make_living_avatar", "list_bases", "list_adapters"].every((n) => names.includes(n)); }
         if (m.id === 3) called = !!(m.result && m.result.isError === false);
         if (m.id === 4) { validated = !!(m.result && m.result.isError === false); finish(); }
       }

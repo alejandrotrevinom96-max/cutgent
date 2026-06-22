@@ -13,7 +13,8 @@ import { forgeVariants } from "../src/variants.mjs";
 import { glbToLivingVrm } from "../src/import.mjs";
 import { riggFace } from "../src/face.mjs";
 import { transferRig } from "../src/transfer.mjs";
-import { bakeDemo } from "../src/animate.mjs";
+import { bakeDemo, bakeShowcase } from "../src/animate.mjs";
+import { makeLivingAvatar } from "../src/pipeline.mjs";
 import { load } from "../src/vrm.mjs";
 import { buildFixtureVrm } from "../src/fixture.mjs";
 import { validateLivingVrm } from "../src/validate.mjs";
@@ -25,6 +26,24 @@ const has = (flag) => process.argv.includes(flag);
 const spec = JSON.parse(readFileSync(arg("--spec", resolve(here, "../specs/luna.json")), "utf8"));
 if (has("--require-commercial")) spec.requireCommercial = true;
 if (arg("--texture-mode", null)) spec.textureMode = arg("--texture-mode", "multiply");
+
+// MAKE mode: one-shot pipeline (import -> face rig -> springs -> validate).
+//   --make <glb|vrm> [--donor donor.vrm] [--showcase|--bake] [--out o.vrm]
+const makeInput = arg("--make", null);
+if (makeInput) {
+  const donor = arg("--donor", null);
+  const r = makeLivingAvatar(readFileSync(makeInput), { donorBuffer: donor ? readFileSync(donor) : null, spec, springProfile: spec.springProfile });
+  let out = r.buffer;
+  if (has("--showcase")) out = bakeShowcase(out, { name: "Luna_Showcase" }).buffer;
+  else if (has("--bake")) out = bakeDemo(out, { name: "Luna_Demo" }).buffer;
+  const outPath = arg("--out", resolve(here, "../out/living.vrm"));
+  mkdirSync(dirname(outPath), { recursive: true });
+  writeFileSync(outPath, out);
+  console.log(`\nmade living avatar -> ${outPath}  (${out.length} bytes)`);
+  console.log(JSON.stringify(r.report, null, 2));
+  console.log(r.report.hasPhysics ? "" : "\nnote: no hair physics (base has no hair bones) — she's living (emotes/talks/animates); hair won't sway.");
+  process.exit(0);
+}
 
 // bake mode: write a self-playing demo animation (face + head) into a VRM
 const bakeInput = arg("--bake", null);

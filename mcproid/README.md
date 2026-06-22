@@ -67,6 +67,21 @@ See [`docs/ADR.md`](docs/ADR.md) for the decisions and **AF8 for the honest
 technological ceiling** (no new geometry / blendshapes / AI mesh — that needs a 3D
 engine; cross it with an adapter behind the same contract).
 
+## One-shot (the whole pipeline)
+```bash
+# rigged GLB (Higgsfield/Meshy) OR a VRM body  ->  LIVING VRM
+# face: donor transfer if --donor given (production quality), else procedural v3.
+# add --showcase to bake a self-playing reel (idle + 360 turn + walk + face).
+node bin/forge.mjs --make luna.glb --donor donor.vrm --out luna.vrm --showcase
+```
+`make_living_avatar` runs: import → facial rig → spring physics → validate.
+
+**"Living" vs "physics":** *living* = it can emote, talk (visemes) and animate
+(skeleton) — that's the verdict. *physics* (hair/skirt sway) is a separate flag: it
+needs hair bones, which authored bases (VRoid) have and fused AI meshes (Meshy)
+lack. MCProid adds springs when hair bones exist and honestly skips (saying why)
+when they don't — it never fakes non-functional physics.
+
 ## Use it
 ```bash
 # forge from the Luna spec onto your base, into any consumer's asset path

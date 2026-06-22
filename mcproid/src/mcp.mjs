@@ -12,6 +12,8 @@ import { forgeVariants } from "./variants.mjs";
 import { glbToLivingVrm } from "./import.mjs";
 import { riggFace } from "./face.mjs";
 import { transferRig } from "./transfer.mjs";
+import { makeLivingAvatar } from "./pipeline.mjs";
+import { bakeDemo, bakeShowcase } from "./animate.mjs";
 import { listBases } from "./registry.mjs";
 import { listAdapters } from "./adapters/index.mjs";
 
@@ -58,6 +60,11 @@ const TOOLS = [
     name: "transfer_face",
     description: "PRODUCTION facial rig: deformation-transfer a donor VRM's expression/viseme blendshapes onto a target VRM body base (different topology OK). Pure, headless. Needs a donor VRM that HAS blendshapes.",
     inputSchema: { type: "object", properties: { targetPath: { type: "string" }, donorPath: { type: "string" }, outPath: { type: "string" } }, required: ["targetPath", "donorPath"] },
+  },
+  {
+    name: "make_living_avatar",
+    description: "ONE-SHOT pipeline: a rigged GLB (Higgsfield/Meshy) or a VRM body -> import -> facial rig (donor transfer if donorPath given, else procedural v3) -> spring physics (if hair bones) -> validated LIVING VRM. Optionally bake a self-playing demo/showcase.",
+    inputSchema: { type: "object", properties: { inputPath: { type: "string" }, donorPath: { type: "string" }, outPath: { type: "string" }, bake: { type: "string", description: "'demo' | 'showcase'" } }, required: ["inputPath"] },
   },
   { name: "list_bases", description: "List the license-aware base registry (which bases are OK for commercial use).", inputSchema: { type: "object", properties: {} } },
   { name: "list_adapters", description: "List AF8 base-producing adapters (Blender / Higgsfield-3D) and what they can/can't do.", inputSchema: { type: "object", properties: {} } },
@@ -111,6 +118,13 @@ function handle(msg) {
         const { buffer, report } = transferRig(readFileSync(a.targetPath), readFileSync(a.donorPath));
         if (a.outPath) writeFileSync(a.outPath, buffer);
         return text(id, `Transferred donor rig.\n` + JSON.stringify(report, null, 2) + (a.outPath ? `\nwritten=${a.outPath}` : ""));
+      }
+      if (params.name === "make_living_avatar") {
+        const r = makeLivingAvatar(readFileSync(a.inputPath), { donorBuffer: a.donorPath ? readFileSync(a.donorPath) : null });
+        let out = r.buffer;
+        if (a.bake === "showcase") out = bakeShowcase(out).buffer; else if (a.bake === "demo") out = bakeDemo(out).buffer;
+        if (a.outPath) writeFileSync(a.outPath, out);
+        return text(id, `Made living avatar. living=${r.report.living} physics=${r.report.hasPhysics} face=${r.report.faceMethod}.\n` + r.report.checks.join("\n") + (a.outPath ? `\nwritten=${a.outPath}` : ` (bytes=${out.length})`), !r.report.living);
       }
       if (params.name === "list_bases") return text(id, JSON.stringify(listBases(), null, 2));
       if (params.name === "list_adapters") return text(id, JSON.stringify(listAdapters(), null, 2));
