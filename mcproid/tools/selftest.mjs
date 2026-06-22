@@ -196,10 +196,17 @@ check("validate: rejects VRM with an undrivable required expression", !validateL
 {
   const rigged = riggFace(buildFixtureVrmMeshed(), {}).buffer;
   const { buffer, report } = bakeDemo(rigged);
-  const j = readGlb(buffer).json;
-  check("animate: an animation track is baked in", (j.animations || []).length === 1 && j.animations[0].channels.length >= 1);
-  check("animate: animates morph-target WEIGHTS (face moves)", j.animations[0].channels.some((c) => c.target.path === "weights") && report.animatesMorphs);
-  check("animate: animates head rotation (bone track moves)", j.animations[0].channels.some((c) => c.target.path === "rotation"));
+  const jb = readGlb(buffer); const j = jb.json;
+  check("animate: an animation track is baked in", (j.animations || []).length === 1 && j.animations[0].channels.length >= 3);
+  check("animate: animates morph-target WEIGHTS (face moves)", j.animations[0].channels.some((c) => c.target.path === "weights"));
+  check("animate: full-body idle (multiple bone rotation tracks)", j.animations[0].channels.filter((c) => c.target.path === "rotation").length >= 3 && report.bodyBoneTracks >= 3, `${report.bodyBoneTracks} bones`);
+  {
+    // spine rotation must actually VARY over time (not a constant pose)
+    const ch = j.animations[0].channels.find((c) => c.target.path === "rotation" && c.target.node === j.extensions.VRMC_vrm.humanoid.humanBones.spine.node);
+    const acc = j.accessors[j.animations[0].samplers[ch.sampler].output]; const bv = j.bufferViews[acc.bufferView];
+    const q0 = jb.bin.readFloatLE(bv.byteOffset + 0); const qMid = jb.bin.readFloatLE(bv.byteOffset + Math.floor(acc.count / 2) * 16);
+    check("animate: spine rotation varies over time (real motion)", Math.abs(q0 - qMid) > 1e-5, `q.x 0=${q0.toFixed(5)} mid=${qMid.toFixed(5)}`);
+  }
   check("animate: still a valid living VRM after bake", validateLivingVrm(buffer).ok);
 }
 
