@@ -13,6 +13,7 @@ import { forgeVariants } from "../src/variants.mjs";
 import { glbToLivingVrm } from "../src/import.mjs";
 import { riggFace } from "../src/face.mjs";
 import { transferRig } from "../src/transfer.mjs";
+import { bakeDemo } from "../src/animate.mjs";
 import { load } from "../src/vrm.mjs";
 import { buildFixtureVrm } from "../src/fixture.mjs";
 import { validateLivingVrm } from "../src/validate.mjs";
@@ -24,6 +25,18 @@ const has = (flag) => process.argv.includes(flag);
 const spec = JSON.parse(readFileSync(arg("--spec", resolve(here, "../specs/luna.json")), "utf8"));
 if (has("--require-commercial")) spec.requireCommercial = true;
 if (arg("--texture-mode", null)) spec.textureMode = arg("--texture-mode", "multiply");
+
+// bake mode: write a self-playing demo animation (face + head) into a VRM
+const bakeInput = arg("--bake", null);
+if (bakeInput) {
+  const { buffer, report } = bakeDemo(readFileSync(bakeInput));
+  const outPath = arg("--out", resolve(here, "../out/demo.vrm"));
+  mkdirSync(dirname(outPath), { recursive: true });
+  writeFileSync(outPath, buffer);
+  console.log(`\nbaked self-playing demo -> ${outPath}  (${buffer.length} bytes)`);
+  console.log(JSON.stringify(report, null, 2));
+  process.exit(0);
+}
 
 // import mode: convert a generic rigged GLB (Higgsfield/Meshy) into a VRM body base
 const fromGlb = arg("--from-glb", null);

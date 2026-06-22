@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import { buildFixtureVrm, buildFixtureVrm0, buildFixtureVrmTextured, buildFixtureWithParts, buildMeshyLikeGlb, buildFixtureVrmMeshed } from "../src/fixture.mjs";
 import { glbToLivingVrm } from "../src/import.mjs";
 import { riggFace } from "../src/face.mjs";
+import { bakeDemo } from "../src/animate.mjs";
 import { transferRig } from "../src/transfer.mjs";
 import { readGlb, writeGlb } from "../src/glb.mjs";
 import { decodePng, encodePng, recolorPng } from "../src/png.mjs";
@@ -189,6 +190,17 @@ check("validate: rejects VRM with an undrivable required expression", !validateL
   const bv = j.json.bufferViews[acc.bufferView];
   const dyCorner = j.bin.readFloatLE(bv.byteOffset + 3 * 12 + 4); // mouth-corner vertex (idx 3) dy
   check("transfer: happy morph lifts the mouth corner (dy>0), matching the donor", dyCorner > 0, `dy=${dyCorner.toFixed(4)}`);
+}
+
+// ---- bake demo animation (self-playing motion baked into the .vrm) ----
+{
+  const rigged = riggFace(buildFixtureVrmMeshed(), {}).buffer;
+  const { buffer, report } = bakeDemo(rigged);
+  const j = readGlb(buffer).json;
+  check("animate: an animation track is baked in", (j.animations || []).length === 1 && j.animations[0].channels.length >= 1);
+  check("animate: animates morph-target WEIGHTS (face moves)", j.animations[0].channels.some((c) => c.target.path === "weights") && report.animatesMorphs);
+  check("animate: animates head rotation (bone track moves)", j.animations[0].channels.some((c) => c.target.path === "rotation"));
+  check("animate: still a valid living VRM after bake", validateLivingVrm(buffer).ok);
 }
 
 // ---- contract = the standard VRM driver ids any VRM app uses ----
