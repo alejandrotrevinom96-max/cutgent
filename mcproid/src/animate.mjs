@@ -19,6 +19,88 @@ const qmul = (a, b) => [
   a[3] * b[3] - a[0] * b[0] - a[1] * b[1] - a[2] * b[2],
 ];
 
+const restRotOf = (json, node) => json.nodes[node].rotation || [0, 0, 0, 1];
+const restTransOf = (json, node) => json.nodes[node].translation || [0, 0, 0];
+const smooth = (a, b, t) => { const x = Math.max(0, Math.min(1, (t - a) / (b - a))); return x * x * (3 - 2 * x); };
+const win = (t, a, b) => (t >= a && t <= b ? 1 : 0);
+
+// bakeShowcase — a "she can do everything" reel baked into the .vrm: idle+face,
+// a full 360° TURN, and a WALK-in-place cycle (legs/arms/hips), composed with the
+// rest pose. Proves full-skeleton mobility in one openable file. EXPERIMENTAL axes
+// (rig-dependent) — eyeball it. Real production uses authored clips per motion.
+export function bakeShowcase(vrmBuffer, opts = {}) {
+  const { json, bin, version } = readGlb(vrmBuffer);
+  if (detectSpec(json) !== "1.0") throw new Error("bakeShowcase expects a VRM 1.0");
+  const meshNode = json.nodes.findIndex((n) => n.mesh != null);
+  const prim = meshNode >= 0 ? json.meshes[json.nodes[meshNode].mesh].primitives[0] : null;
+  const T = prim && prim.targets ? prim.targets.length : 0;
+  const preset = (json.extensions.VRMC_vrm.expressions && json.extensions.VRMC_vrm.expressions.preset) || {};
+  const idxOf = (name) => { const b = preset[name] && preset[name].morphTargetBinds && preset[name].morphTargetBinds[0]; return b ? b.index : -1; };
+  const hb = json.extensions.VRMC_vrm.humanoid.humanBones;
+  const bn = (name) => (hb[name] ? hb[name].node : null);
+
+  const dur = 12, fps = 20, K = dur * fps + 1;
+  const times = new Float32Array(K);
+  const weights = new Float32Array(K * T);
+  const setW = (k, name, v) => { const ti = idxOf(name); if (ti >= 0) weights[k * T + ti] = Math.max(weights[k * T + ti], Math.max(0, Math.min(1, v))); };
+  const rot = new Map(); const trans = new Map();
+  const useRot = (name) => { const n = bn(name); if (n == null) return null; if (!rot.has(name)) rot.set(name, new Float32Array(K * 4)); return n; };
+  const useTrans = (name) => { const n = bn(name); if (n == null) return null; if (!trans.has(name)) trans.set(name, new Float32Array(K * 3)); return n; };
+  // pre-register the bones we'll touch
+  for (const b of ["spine", "chest", "neck", "head", "hips", "leftUpperArm", "rightUpperArm", "leftLowerArm", "rightLowerArm", "leftUpperLeg", "rightUpperLeg", "leftLowerLeg", "rightLowerLeg"]) useRot(b);
+  useTrans("hips");
+  const putR = (name, k, q) => { const o = rot.get(name); if (o) { o[k * 4] = q[0]; o[k * 4 + 1] = q[1]; o[k * 4 + 2] = q[2]; o[k * 4 + 3] = q[3]; } };
+  const setR = (name, k, ax, ang) => { const n = bn(name); if (n == null) return; putR(name, k, qmul(restRotOf(json, n), axisAngle(ax[0], ax[1], ax[2], ang))); };
+
+  // segments: 0-3 idle, 3-6 TURN 360, 6-12 WALK in place (+ continuous breathe/blink/face)
+  const turnA = 3, turnB = 6, walkA = 6;
+  for (let k = 0; k < K; k++) {
+    const t = k / fps; times[k] = t;
+    // face: blinks throughout, a smile early, a little "hello" mouth during turn
+    setW(k, "blink", bump(t, 1.0, 0.05) + bump(t, 4.5, 0.05) + bump(t, 8.0, 0.05) + bump(t, 11.0, 0.05));
+    setW(k, "happy", smooth(0.6, 1.4, t) * (1 - smooth(2.4, 3.0, t)) * 0.8 + smooth(walkA, walkA + 1, t) * 0.5);
+    if (t > 4 && t < 6) { const v = ["aa", "ih", "ou"]; for (let i = 0; i < v.length; i++) setW(k, v[i], bump(t, 4.3 + i * 0.4, 0.12)); }
+    // breathing (always)
+    const br = Math.sin(t * 1.4) * 0.025;
+    setR("spine", k, [1, 0, 0], br); setR("chest", k, [1, 0, 0], br * 0.8); setR("neck", k, [1, 0, 0], -br * 0.6);
+    setR("head", k, [0, 1, 0], Math.sin(t * 0.8) * 0.06);
+    // TURN 360 about Y (hips yaw), eased
+    const turn = smooth(turnA, turnB, t) * Math.PI * 2 * win(t, turnA, dur);
+    const hipsYaw = Math.sin(t * 0.5) * 0.02 + turn;
+    setR("hips", k, [0, 1, 0], hipsYaw);
+    // WALK in place after walkA: alternating legs + counter arms
+    if (t >= walkA) {
+      const p = (t - walkA) * 1.2 * Math.PI * 2; // ~1.2 steps/sec
+      setR("leftUpperLeg", k, [1, 0, 0], Math.sin(p) * 0.45);
+      setR("rightUpperLeg", k, [1, 0, 0], Math.sin(p + Math.PI) * 0.45);
+      setR("leftLowerLeg", k, [1, 0, 0], Math.max(0, -Math.sin(p)) * 0.8);
+      setR("rightLowerLeg", k, [1, 0, 0], Math.max(0, -Math.sin(p + Math.PI)) * 0.8);
+      setR("leftUpperArm", k, [0, 0, 1], 0.04 + Math.sin(p + Math.PI) * 0.18);
+      setR("rightUpperArm", k, [0, 0, 1], 0.04 + Math.sin(p) * 0.18);
+      const ht = trans.get("hips"); const rt = restTransOf(json, bn("hips")); if (ht) { ht[k * 3] = rt[0]; ht[k * 3 + 1] = rt[1] + Math.abs(Math.sin(p)) * 0.02; ht[k * 3 + 2] = rt[2]; }
+    } else {
+      // arms relaxed sway during idle/turn
+      setR("leftUpperArm", k, [0, 0, 1], 0.04 + Math.sin(t * 0.8) * 0.05);
+      setR("rightUpperArm", k, [0, 0, 1], 0.04 + Math.sin(t * 0.8 + Math.PI) * 0.05);
+      const ht = trans.get("hips"); const rt = restTransOf(json, bn("hips")); if (ht) { ht[k * 3] = rt[0]; ht[k * 3 + 1] = rt[1] + Math.sin(t * 1.4) * 0.006; ht[k * 3 + 2] = rt[2]; }
+    }
+  }
+
+  // write
+  const chunks = [Buffer.from(bin)]; let off = bin.length;
+  const addAcc = (arr, type, extra = {}) => { const p = pad4(off); if (p) { chunks.push(Buffer.alloc(p, 0)); off += p; } const buf = f32(arr); const bvIdx = json.bufferViews.push({ buffer: 0, byteOffset: off, byteLength: buf.length }) - 1; chunks.push(buf); off += buf.length; const comp = type === "SCALAR" ? 1 : type === "VEC4" ? 4 : 3; return json.accessors.push({ bufferView: bvIdx, componentType: 5126, count: arr.length / comp, type, ...extra }) - 1; };
+  const tAcc = addAcc(times, "SCALAR", { min: [0], max: [times[K - 1]] });
+  const samplers = [], channels = [];
+  const addChan = (out, type, node, path) => { const a = addAcc(out, type); samplers.push({ input: tAcc, output: a, interpolation: "LINEAR" }); channels.push({ sampler: samplers.length - 1, target: { node, path } }); };
+  if (T) addChan(weights, "SCALAR", meshNode, "weights");
+  for (const [name, arr] of rot) addChan(arr, "VEC4", bn(name), "rotation");
+  for (const [name, arr] of trans) addChan(arr, "VEC3", bn(name), "translation");
+  json.animations = [{ name: opts.name || "MCProid_Showcase", samplers, channels }];
+  json.buffers[0].byteLength = Buffer.concat(chunks).length;
+  if (prim) { const mesh = json.meshes[json.nodes[meshNode].mesh]; mesh.weights = mesh.weights || new Array(T).fill(0); }
+  return { buffer: writeGlb({ json, bin: Buffer.concat(chunks), version }), report: { keyframes: K, duration: dur, segments: ["idle", "turn360", "walk"], rotationTracks: rot.size, hasWalk: bn("leftUpperLeg") != null, note: "Self-playing reel: idle+face, 360 turn, walk-in-place. EXPERIMENTAL bone axes." } };
+}
+
 export function bakeDemo(vrmBuffer, opts = {}) {
   const { json, bin, version } = readGlb(vrmBuffer);
   if (detectSpec(json) !== "1.0") throw new Error("bakeDemo expects a VRM 1.0");

@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { buildFixtureVrm, buildFixtureVrm0, buildFixtureVrmTextured, buildFixtureWithParts, buildMeshyLikeGlb, buildFixtureVrmMeshed } from "../src/fixture.mjs";
 import { glbToLivingVrm } from "../src/import.mjs";
 import { riggFace } from "../src/face.mjs";
-import { bakeDemo } from "../src/animate.mjs";
+import { bakeDemo, bakeShowcase } from "../src/animate.mjs";
 import { transferRig } from "../src/transfer.mjs";
 import { readGlb, writeGlb } from "../src/glb.mjs";
 import { decodePng, encodePng, recolorPng } from "../src/png.mjs";
@@ -208,6 +208,18 @@ check("validate: rejects VRM with an undrivable required expression", !validateL
     check("animate: spine rotation varies over time (real motion)", Math.abs(q0 - qMid) > 1e-5, `q.x 0=${q0.toFixed(5)} mid=${qMid.toFixed(5)}`);
   }
   check("animate: still a valid living VRM after bake", validateLivingVrm(buffer).ok);
+  // showcase: idle + 360 turn + walk
+  const sc = bakeShowcase(rigged);
+  const sj = readGlb(sc.buffer);
+  check("animate(showcase): turn + walk reel baked, valid", validateLivingVrm(sc.buffer).ok && sc.report.segments.includes("walk"));
+  {
+    const hipsNode = sj.json.extensions.VRMC_vrm.humanoid.humanBones.hips.node;
+    const ch = sj.json.animations[0].channels.find((c) => c.target.path === "rotation" && c.target.node === hipsNode);
+    const acc = sj.json.accessors[sj.json.animations[0].samplers[ch.sampler].output]; const bv = sj.json.bufferViews[acc.bufferView];
+    const qyAt = (frame) => sj.bin.readFloatLE(bv.byteOffset + frame * 16 + 1 * 4);
+    const qyMidTurn = qyAt(90); // t=4.5s, mid-360 -> |qy| near 1
+    check("animate(showcase): 360 turn rotates the hips (qy peaks mid-turn)", Math.abs(qyMidTurn) > 0.3, `qy@4.5s=${qyMidTurn.toFixed(3)}`);
+  }
 }
 
 // ---- contract = the standard VRM driver ids any VRM app uses ----
