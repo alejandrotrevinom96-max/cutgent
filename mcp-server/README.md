@@ -52,6 +52,32 @@ npm run mcp
 > Logs: el servidor escribe SOLO a stderr. stdout está reservado al protocolo
 > stdio del MCP.
 
+## 2b. Conectar desde OTROS clientes MCP
+
+La config es el formato estándar **`mcpServers`** (`command` / `args` / `env`). En la
+**app empaquetada**, el menú **IA / MCP → Copiar config MCP** genera el snippet con las
+rutas correctas (con una opción aparte para **VS Code**, que usa otro formato). Dónde pegarlo:
+
+| Cliente | Dónde (Windows / macOS) | Formato | ¿Reinicio? |
+|---|---|---|---|
+| **Claude Desktop** | Settings → Developer → Edit Config → `claude_desktop_config.json` | `mcpServers` | Sí |
+| **Cursor** | `%USERPROFILE%\.cursor\mcp.json` / `~/.cursor/mcp.json` (o Settings → Tools & Integrations) | `mcpServers` | — |
+| **Windsurf** | `…\.codeium\windsurf\mcp_config.json` (¡`.codeium`, NO `.windsurf`!) | `mcpServers` | No (vigila el archivo) |
+| **VS Code (Copilot)** | `.vscode/mcp.json` (proyecto) o «MCP: Open User Configuration» | **`servers`** + `"type":"stdio"` | (re)inicia el servidor |
+| **JetBrains AI Assistant** | Settings → Tools → AI Assistant → MCP → Add → As JSON | `mcpServers` | No (Apply conecta) |
+| **Claude Code** | `claude mcp add cutgent -- <command> <args>`, o `.mcp.json` (proyecto) | `mcpServers` | — |
+| **Gemini CLI** | `~/.gemini/settings.json` (o `gemini mcp add`) | `mcpServers` | — |
+
+> **OJO (VS Code):** usa la clave raíz `servers` y `"type": "stdio"`, **no** `mcpServers` —
+> copiar tal cual la config de Cursor/Claude es el error #1 de setup.
+
+> **Gotcha:** varios clientes lanzan el comando **sin el PATH del shell**; por eso la app usa
+> rutas ABSOLUTAS (`process.execPath` + el `.cjs` empaquetado), no `node` a secas.
+
+**Remote-only (NO stdio local):** ChatGPT / OpenAI connectors y Claude.ai web no soportan
+servidores stdio locales; requieren un MCP remoto por URL HTTPS pública (transporte
+Streamable HTTP). Queda como mejora futura para Cutgent.
+
 ## 3. Herramientas disponibles
 
 > **~46 herramientas** en total. Las marcadas con ✦ se añadieron en fases posteriores.

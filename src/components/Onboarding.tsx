@@ -61,7 +61,7 @@ export function Onboarding() {
               <ol className="mt-1 flex list-none flex-col gap-1.5">
                 {isDesktop ? (
                   <SubStep>
-                    En el menú de Cutgent (arriba): <b className="text-text">IA / MCP → «Copiar configuración para conectar mi IA»</b>. Se copia al portapapeles.
+                    En el menú de Cutgent (arriba): <b className="text-text">IA / MCP → Copiar config MCP</b> (hay una opción aparte para <b className="text-text">VS Code / Copilot</b>, que usa otro formato). Se copia al portapapeles.
                   </SubStep>
                 ) : (
                   <SubStep>
@@ -69,12 +69,12 @@ export function Onboarding() {
                   </SubStep>
                 )}
                 <SubStep>
-                  Abre tu cliente de IA. En <b className="text-text">Claude Desktop</b>: <b className="text-text">Settings ⚙ → Developer → Edit Config</b> (abre <span className="font-mono text-[11px]">claude_desktop_config.json</span>).
+                  Abre la config MCP de tu cliente. <b className="text-text">Claude Desktop</b>: Settings ⚙ → Developer → Edit Config. <b className="text-text">Cursor</b>: Settings → MCP. <b className="text-text">Windsurf</b>: <span className="font-mono text-[11px]">~/.codeium/windsurf/mcp_config.json</span>. <b className="text-text">VS Code</b>: <span className="font-mono text-[11px]">.vscode/mcp.json</span>. <b className="text-text">Claude/Gemini CLI</b>: su <span className="font-mono text-[11px]">.mcp.json</span> / <span className="font-mono text-[11px]">settings.json</span>.
                 </SubStep>
                 <SubStep>
                   Pégala: si el archivo está <b className="text-text">vacío</b>, pégala como TODO el contenido; si ya tienes <span className="font-mono text-[11px]">mcpServers</span>, añade dentro la entrada <span className="font-mono text-[11px]">&quot;cutgent&quot;</span>. Guarda.
                 </SubStep>
-                <SubStep><b className="text-text">Reinicia</b> Claude Desktop. (En Claude Code: ya queda registrado por <span className="font-mono text-[11px]">.mcp.json</span>, o pega el mismo bloque.)</SubStep>
+                <SubStep><b className="text-text">Reinicia</b> tu cliente para que cargue el servidor. (Windsurf no lo necesita; VS Code reinicia el servidor solo; Claude Code ya queda registrado por <span className="font-mono text-[11px]">.mcp.json</span>.)</SubStep>
                 <SubStep>Deja <b className="text-text">Cutgent abierto</b>: tu IA controla ESTA ventana. Pídele “conéctate a Cutgent y lista mis pistas”.</SubStep>
               </ol>
             }

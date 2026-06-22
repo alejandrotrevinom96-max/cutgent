@@ -40,6 +40,35 @@ function buildMcpConfig() {
   };
 }
 
+/** Variante de config para VS Code (Copilot agent mode): clave raíz `servers`
+ *  + type:"stdio". VS Code NO usa `mcpServers` (es el error #1 al copiar de
+ *  Cursor/Claude). El command/args/env son los mismos que para el resto. */
+function buildVsCodeConfig() {
+  const c = buildMcpConfig().mcpServers.cutgent;
+  return { servers: { cutgent: { type: "stdio", command: c.command, args: c.args, env: c.env } } };
+}
+
+// Dónde pegar la config genérica (formato mcpServers) según el cliente.
+const MCP_PASTE_HELP =
+  "Pega esta config en tu cliente de IA (1 sola vez) y reinícialo:\n\n" +
+  "• Claude Desktop → Settings ⚙ → Developer → Edit Config (claude_desktop_config.json).\n" +
+  "• Cursor → Settings → Tools & Integrations → MCP, o ~/.cursor/mcp.json.\n" +
+  "• Windsurf → ~/.codeium/windsurf/mcp_config.json (ojo: .codeium, NO .windsurf).\n" +
+  "• Gemini CLI → ~/.gemini/settings.json.\n" +
+  "• JetBrains AI Assistant → Settings → Tools → AI Assistant → MCP → Add → As JSON.\n" +
+  "• Claude Code → .mcp.json (raíz del proyecto) o ~/.claude.json.\n\n" +
+  'Si el archivo ya tiene "mcpServers", añade DENTRO la entrada "cutgent".\n' +
+  "¿Usas VS Code / Copilot? Usa la otra opción del menú (su formato es distinto).\n\n" +
+  "Deja Cutgent ABIERTO: tu IA controla esta ventana. Pídele «conéctate a Cutgent y lista mis pistas».";
+
+const VSCODE_PASTE_HELP =
+  "Pega esta config en VS Code (Copilot agent mode):\n\n" +
+  "• Proyecto: crea el archivo .vscode/mcp.json en la raíz del proyecto.\n" +
+  "• Usuario: ejecuta el comando «MCP: Open User Configuration» y pégala ahí.\n\n" +
+  'VS Code usa la clave raíz "servers" + "type": "stdio" (NO "mcpServers").\n' +
+  "Al guardarla, VS Code (re)inicia el servidor para descubrir las herramientas.\n\n" +
+  "Deja Cutgent ABIERTO.";
+
 function setupMenu() {
   const template = [
     { role: "fileMenu" },
@@ -49,21 +78,26 @@ function setupMenu() {
       label: "IA / MCP",
       submenu: [
         {
-          label: "Copiar configuración para conectar mi IA",
+          label: "Copiar config MCP (Claude · Cursor · Windsurf · Gemini · JetBrains…)",
           click: () => {
-            const cfg = JSON.stringify(buildMcpConfig(), null, 2);
-            clipboard.writeText(cfg);
+            clipboard.writeText(JSON.stringify(buildMcpConfig(), null, 2));
             dialog.showMessageBox({
               type: "info",
               title: "Conectar tu IA a Cutgent",
               message: "Configuración MCP copiada al portapapeles.",
-              detail:
-                "Pásala a tu cliente de IA (1 sola vez):\n\n" +
-                "1) Claude Desktop → Settings ⚙ → Developer → Edit Config (abre claude_desktop_config.json).\n" +
-                '2) Si el archivo está vacío, pégala como TODO el contenido. Si ya tienes "mcpServers", añade dentro la entrada "cutgent". Guarda.\n' +
-                "3) Reinicia Claude Desktop.\n" +
-                "   (Claude Code: pega el mismo bloque en tu config MCP.)\n\n" +
-                "Deja Cutgent ABIERTO: tu IA controla esta ventana. Pruébalo pidiéndole «conéctate a Cutgent y lista mis pistas».",
+              detail: MCP_PASTE_HELP,
+            });
+          },
+        },
+        {
+          label: "Copiar config MCP (VS Code / Copilot)",
+          click: () => {
+            clipboard.writeText(JSON.stringify(buildVsCodeConfig(), null, 2));
+            dialog.showMessageBox({
+              type: "info",
+              title: "Conectar VS Code a Cutgent",
+              message: "Config MCP (VS Code) copiada al portapapeles.",
+              detail: VSCODE_PASTE_HELP,
             });
           },
         },
