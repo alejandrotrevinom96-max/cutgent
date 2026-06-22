@@ -22,11 +22,16 @@ export function buildFalSubmit(req: GenRequest, model: string, apiKey: string): 
     body: JSON.stringify(body),
   };
 }
-export function buildFalStatus(model: string, reqId: string, apiKey: string): HttpSpec {
-  return { url: `https://${HOST}/${model}/requests/${reqId}/status`, method: "GET", headers: { Authorization: `Key ${apiKey}` } };
+// OJO: status/result se construyen desde el `response_url` que fal devuelve en el
+// submit. fal usa el NAMESPACE del modelo, NO la variante completa
+// (fal-ai/flux/dev → .../fal-ai/flux/requests/...), así que reconstruir la URL
+// desde el model id daba 405 en modelos con sub-ruta. response_url ya viene
+// correcto y sobre queue.fal.run (sigue pasando el guard de host).
+export function buildFalStatus(resultUrl: string, apiKey: string): HttpSpec {
+  return { url: `${resultUrl}/status`, method: "GET", headers: { Authorization: `Key ${apiKey}` } };
 }
-export function buildFalResult(model: string, reqId: string, apiKey: string): HttpSpec {
-  return { url: `https://${HOST}/${model}/requests/${reqId}`, method: "GET", headers: { Authorization: `Key ${apiKey}` } };
+export function buildFalResult(resultUrl: string, apiKey: string): HttpSpec {
+  return { url: resultUrl, method: "GET", headers: { Authorization: `Key ${apiKey}` } };
 }
 
 export function parseFalStatus(json: { status?: string }): "pending" | "done" {
@@ -67,14 +72,16 @@ export const falProvider: Provider = {
   supports: (k) => k === "image" || k === "video",
   async start(req, apiKey) {
     const model = req.model || (req.kind === "video" ? VID : IMG);
-    const json = await fetchJson<{ request_id?: string }>(buildFalSubmit(req, model, apiKey));
-    if (!json.request_id) throw new Error("fal no devolvió request_id");
-    return { state: "pending", providerJobId: json.request_id } as GenStart;
+    const json = await fetchJson<{ request_id?: string; response_url?: string }>(buildFalSubmit(req, model, apiKey));
+    if (!json.request_id || !json.response_url) throw new Error("fal no devolvió request_id/response_url");
+    // Guardamos el response_url COMPLETO como providerJobId (trae el namespace
+    // correcto del modelo); poll lo usa tal cual para status y result.
+    return { state: "pending", providerJobId: json.response_url } as GenStart;
   },
-  async poll(providerJobId, apiKey, model) {
-    const st = await fetchJson<{ status?: string }>(buildFalStatus(model, providerJobId, apiKey));
+  async poll(providerJobId, apiKey) {
+    const st = await fetchJson<{ status?: string }>(buildFalStatus(providerJobId, apiKey));
     if (parseFalStatus(st) !== "done") return { state: "pending" } as GenPoll;
-    const result = await fetchJson<Parameters<typeof parseFalResult>[0]>(buildFalResult(model, providerJobId, apiKey));
+    const result = await fetchJson<Parameters<typeof parseFalResult>[0]>(buildFalResult(providerJobId, apiKey));
     const url = parseFalResult(result);
     return url ? { state: "done", mediaUrl: url } : { state: "error", error: "fal: resultado sin URL de media" };
   },

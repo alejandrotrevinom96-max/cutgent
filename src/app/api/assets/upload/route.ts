@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { promises as fs } from "fs";
+import { promises as fs, createWriteStream } from "fs";
+import { Readable } from "stream";
+import { pipeline } from "stream/promises";
 import path from "path";
 import { newId } from "@/lib/factory";
 import { type Asset } from "@/lib/schema";
@@ -10,6 +12,10 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const ASSETS_DIR = assetsDir();
+/** Tope de subida (generoso para video, pero evita que un archivo enorme
+ *  bufferice GBs en RAM y tumbe el server). */
+const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB
+const MAX_GB = MAX_UPLOAD_BYTES / 1024 / 1024 / 1024;
 
 type AssetKind = Asset["kind"];
 
@@ -47,6 +53,16 @@ function extFromMime(mime: string): string {
 /** POST /api/assets/upload — multipart with field 'file'. Returns the Asset. */
 export async function POST(req: NextRequest) {
   try {
+    // Rechaza ANTES de bufferizar el body (formData) si el Content-Length excede
+    // el tope: así un archivo gigante no llena la RAM al parsear el multipart.
+    const contentLength = Number(req.headers.get("content-length") || 0);
+    if (contentLength > MAX_UPLOAD_BYTES) {
+      return NextResponse.json(
+        { error: `Archivo demasiado grande (máx ${MAX_GB} GB).` },
+        { status: 413 },
+      );
+    }
+
     const form = await req.formData();
     const file = form.get("file") as File | null;
 
@@ -62,14 +78,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (file.size > MAX_UPLOAD_BYTES) {
+      return NextResponse.json(
+        { error: `Archivo demasiado grande (máx ${MAX_GB} GB).` },
+        { status: 413 },
+      );
+    }
+
     const id = newId("asset");
     const nameExt = path.extname(file.name).replace(/^\./, "").toLowerCase();
     const ext = nameExt || extFromMime(file.type);
     const fileName = `${id}.${ext}`;
 
-    const buf = Buffer.from(await file.arrayBuffer());
+    // Stream a disco (sin bufferizar el archivo entero en memoria con arrayBuffer).
     await fs.mkdir(ASSETS_DIR, { recursive: true });
-    await fs.writeFile(path.join(ASSETS_DIR, fileName), buf);
+    await pipeline(
+      Readable.fromWeb(file.stream() as Parameters<typeof Readable.fromWeb>[0]),
+      createWriteStream(path.join(ASSETS_DIR, fileName)),
+    );
 
     const asset: Asset = {
       id,
