@@ -33,6 +33,12 @@ interface RenderOpts {
   /** Override de dimensiones (export por lotes multi-resolución). */
   width?: number;
   height?: number;
+  /** Export rápido de previsualización: media resolución + encode veloz, sin
+   *  transcode GPU. NO usar para el entregable final. */
+  draft?: boolean;
+  /** Backend GL de Chromium para rasterizar (default 'angle' = GPU). Permite
+   *  forzar 'swangle'/'swiftshader' (software) si la GPU diera problemas. */
+  gl?: "angle" | "angle-egl" | "swangle" | "swiftshader" | "egl" | "vulkan";
 }
 
 /** Contexto opcional para reusar un bundle de Remotion entre renders (batch). */
@@ -109,11 +115,15 @@ export async function runRender(
     // (gpu:true, solo h264) usamos videoBitrate porque CRF es INCOMPATIBLE con la
     // codificación por hardware (Remotion la desactiva con un warning) → así el
     // HW encoder (VideoToolbox en mac) puede engancharse.
-    const useGpuEncode = !!opts.gpu && spec.codec === "h264";
+    const draft = !!opts.draft;
+    // En draft NO transcodeamos por GPU (segundo pase): priorizamos velocidad.
+    const useGpuEncode = !!opts.gpu && spec.codec === "h264" && !draft;
     const crf =
-      !useGpuEncode && opts.quality && (spec.codec === "h264" || spec.codec === "vp9")
-        ? QUALITY_CRF[opts.quality]
-        : undefined;
+      draft && (spec.codec === "h264" || spec.codec === "vp9")
+        ? 30 // draft: crf alto = encode rápido y archivo chico (solo preview)
+        : !useGpuEncode && opts.quality && (spec.codec === "h264" || spec.codec === "vp9")
+          ? QUALITY_CRF[opts.quality]
+          : undefined;
     // Con GPU siempre fijamos un bitrate (default 'balanced' si no se indicó
     // calidad) para no renderizar sin control de calidad ni crf.
     const videoBitrate = useGpuEncode ? QUALITY_BITRATE[opts.quality ?? "balanced"] : undefined;
@@ -129,12 +139,19 @@ export async function runRender(
       ...(spec.audioCodec ? { audioCodec: spec.audioCodec as AudioCodec } : {}),
       ...(crf != null ? { crf } : {}),
       ...(videoBitrate != null ? { videoBitrate } : {}),
+      // CLAVE de perf: 'angle' usa la GPU para rasterizar filtros CSS/transform.
+      // El Chromium headless DESACTIVA la GPU por defecto → rasterizar en CPU es
+      // el cuello real (no el encode). Override 'gl' por si la GPU diera guerra.
+      chromiumOptions: { gl: opts.gl ?? "angle" },
+      imageFormat: "jpeg", // default explícito (el más rápido)
+      // Draft: media resolución (~4x menos píxeles) + preset de encode veloz.
+      ...(draft ? { scale: 0.5, x264Preset: "veryfast" as const } : {}),
       // if-possible: acelera en macOS/VideoToolbox; inocuo (no rompe) en Windows.
       hardwareAcceleration: "if-possible",
       concurrency: Math.max(2, os.cpus().length - 2),
       onProgress: ({ progress }) => {
-        // Reserva el último 5% para un posible transcode GPU.
-        const p = opts.gpu && spec.codec === "h264" ? progress * 0.95 : progress;
+        // Reserva el último 5% para el transcode GPU (solo si va a ocurrir).
+        const p = useGpuEncode ? progress * 0.95 : progress;
         updateJob(jobId, { progress: p });
         ctx?.onProgress?.(p);
       },
@@ -142,8 +159,8 @@ export async function runRender(
 
     let finalUrl = `/renders/${jobId}.${spec.ext}`;
 
-    // Encode GPU opt-in (solo h264/mp4): transcodea la salida con nvenc/qsv/amf.
-    if (opts.gpu && spec.codec === "h264") {
+    // Encode GPU opt-in (solo h264/mp4, NO en draft): transcodea con nvenc/qsv/amf.
+    if (useGpuEncode) {
       const encoder = await detectGpuEncoder();
       if (encoder !== "libx264") {
         const gpuOut = path.join(rendersDir, `${jobId}_gpu.${spec.ext}`);

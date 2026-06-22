@@ -911,11 +911,12 @@ server.registerTool(
   {
     title: "Renderizar video",
     description:
-      "Lanza un render del proyecto actual. format: h264 (mp4, def) | prores (.mov) | vp9 (.webm) | gif. quality: high|balanced|fast (CRF, solo h264/vp9). gpu: usa encoder por hardware (nvenc/qsv/amf) si está disponible (solo h264). width+height (los DOS juntos): render a una resolución distinta a la del proyecto (p.ej. 1280x720 para un export rápido/ligero). Devuelve el jobId.",
+      "Lanza un render del proyecto actual. format: h264 (mp4, def) | prores (.mov) | vp9 (.webm) | gif. quality: high|balanced|fast (CRF, solo h264/vp9). gpu: usa encoder por hardware (nvenc/qsv/amf) si está disponible (solo h264). draft: export RÁPIDO de previsualización (media resolución + encode veloz, sin transcode GPU) — NO para entregable final. width+height (los DOS juntos): render a una resolución distinta a la del proyecto. Devuelve el jobId.",
     inputSchema: {
       format: z.enum(["h264", "prores", "vp9", "gif"]).optional(),
       quality: z.enum(["high", "balanced", "fast"]).optional(),
       gpu: z.boolean().optional(),
+      draft: z.boolean().optional(),
       width: z.coerce.number().int().positive().optional(),
       height: z.coerce.number().int().positive().optional(),
     },
@@ -925,6 +926,7 @@ server.registerTool(
       format: args.format,
       quality: args.quality,
       gpu: args.gpu,
+      draft: args.draft,
       width: args.width,
       height: args.height,
     })) as { jobId?: string } | null;
