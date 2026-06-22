@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { dispatch, dispatchBatch } from "@/lib/server-store";
+import { dispatch, dispatchBatch, getHistoryState } from "@/lib/server-store";
 import { CommandSchema } from "@/lib/commands";
 
 export const runtime = "nodejs";
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     const doc = commands.length > 1
       ? await dispatchBatch(commands, origin)
       : await dispatch(commands[0], origin);
-    return NextResponse.json({ ok: true, document: doc });
+    return NextResponse.json({ ok: true, document: doc, ...getHistoryState() });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Comando inválido" },

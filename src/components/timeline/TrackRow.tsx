@@ -11,8 +11,18 @@ import {
   Trash2,
 } from "lucide-react";
 import { useEditor } from "@/lib/store";
-import type { Track } from "@/lib/schema";
+import type { ClipType, Track } from "@/lib/schema";
+import { createClip } from "@/lib/factory";
+import type { Command } from "@/lib/commands";
+import { ASSET_DND_MIME } from "@/components/media/MediaPanel";
 import { ClipBlock } from "./ClipBlock";
+
+/** Tipo de clip equivalente al kind de un asset de la biblioteca. */
+const ASSET_KIND_TO_CLIP: Record<"image" | "video" | "audio", ClipType> = {
+  image: "image",
+  video: "video",
+  audio: "audio",
+};
 
 export const TRACK_HEIGHT = 56;
 export const HEADER_WIDTH = 160;
@@ -159,6 +169,82 @@ interface TrackLaneProps {
  *  (track/width/ventana) no, así que se evita re-renderizar todo el carril por tick. */
 export const TrackLane = memo(function TrackLane({ track, width, viewFromFrame, viewToFrame }: TrackLaneProps) {
   const selectClip = useEditor((s) => s.selectClip);
+  // Pista resaltada como destino al arrastrar un clip entre pistas.
+  const dropTargetTrackId = useEditor((s) => s.dropTargetTrackId);
+  const isDropTarget = dropTargetTrackId === track.id;
+
+  /** ¿El kind del asset arrastrado encaja en esta pista? (media vs audio). */
+  const acceptsKind = useCallback(
+    (kind: "image" | "video" | "audio") =>
+      kind === "audio" ? track.kind === "audio" : track.kind === "media",
+    [track.kind],
+  );
+
+  // DnD desde la biblioteca: permitimos soltar si el carril es compatible y no
+  // está bloqueado. Resaltamos la pista destino reusando dropTargetTrackId.
+  const onDragOver = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      if (track.locked) return;
+      if (!e.dataTransfer.types.includes(ASSET_DND_MIME)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+      const { setDropTargetTrackId } = useEditor.getState();
+      if (useEditor.getState().dropTargetTrackId !== track.id) {
+        setDropTargetTrackId(track.id);
+      }
+    },
+    [track.id, track.locked],
+  );
+
+  const onDragLeave = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      // Solo limpiamos si salimos del carril (no al pasar sobre un clip hijo).
+      if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+      const { setDropTargetTrackId } = useEditor.getState();
+      if (useEditor.getState().dropTargetTrackId === track.id) {
+        setDropTargetTrackId(null);
+      }
+    },
+    [track.id],
+  );
+
+  const onDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      const raw = e.dataTransfer.getData(ASSET_DND_MIME);
+      const { setDropTargetTrackId } = useEditor.getState();
+      setDropTargetTrackId(null);
+      if (!raw || track.locked) return;
+      e.preventDefault();
+
+      let payload: { assetId?: string; kind?: string };
+      try {
+        payload = JSON.parse(raw) as { assetId?: string; kind?: string };
+      } catch {
+        return;
+      }
+
+      const { assets, pixelsPerFrame, runCommand } = useEditor.getState();
+      const asset = assets.find((a) => a.id === payload.assetId);
+      if (!asset) return;
+      if (!acceptsKind(asset.kind)) return; // tipo incompatible con la pista
+
+      // Frame de inicio = posición X dentro del carril / pixelsPerFrame. El rect
+      // del carril ya se desplaza con el scroll horizontal, así que clientX-left
+      // basta (no hay que sumar scrollLeft).
+      const rect = e.currentTarget.getBoundingClientRect();
+      const start = Math.max(0, Math.round((e.clientX - rect.left) / pixelsPerFrame));
+
+      const type = ASSET_KIND_TO_CLIP[asset.kind];
+      const clip = createClip(type, {
+        start,
+        src: asset.src,
+        name: asset.name,
+        ...(asset.durationInFrames ? { duration: asset.durationInFrames } : {}),
+      });
+      void runCommand({ type: "add_clip", trackId: track.id, clip } satisfies Command);
+    },
+    [acceptsKind, track.id, track.locked],
+  );
 
   // Virtualización: solo montamos los clips que intersecan la ventana visible.
   const visibleClips = useMemo(
@@ -171,9 +257,18 @@ export const TrackLane = memo(function TrackLane({ track, width, viewFromFrame, 
 
   return (
     <div
+      data-track-id={track.id}
+      suppressHydrationWarning
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
       onPointerDown={(e) => {
-        // Click en el fondo del carril deselecciona.
-        if (e.target === e.currentTarget) selectClip(null);
+        // Click en el fondo del carril: mueve el playhead y deselecciona.
+        if (e.target !== e.currentTarget) return;
+        const { pixelsPerFrame, setCurrentFrame } = useEditor.getState();
+        const rect = e.currentTarget.getBoundingClientRect();
+        setCurrentFrame((e.clientX - rect.left) / pixelsPerFrame);
+        selectClip(null);
       }}
       className="relative border-b border-border"
       style={{
@@ -181,6 +276,7 @@ export const TrackLane = memo(function TrackLane({ track, width, viewFromFrame, 
         height: TRACK_HEIGHT,
         background: track.hidden ? "transparent" : "var(--track)",
         opacity: track.hidden ? 0.4 : 1,
+        boxShadow: isDropTarget ? "inset 0 0 0 2px var(--accent)" : undefined,
       }}
     >
       {visibleClips.map((clip) => (

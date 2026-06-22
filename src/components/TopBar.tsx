@@ -17,6 +17,7 @@ import {
   Scissors,
   Image as ImageIcon,
   KeyRound,
+  Keyboard,
 } from "lucide-react";
 import { useEditor } from "@/lib/store";
 import { EXPORT_FORMATS, type ExportFormat } from "@/lib/export-formats";
@@ -25,6 +26,7 @@ import { MenuPortal } from "./ui/MenuPortal";
 import { VersionsPanel } from "./VersionsPanel";
 import { BatchExportMenu } from "./BatchExportMenu";
 import { SettingsModal } from "./SettingsModal";
+import { ShortcutsHelp } from "./ShortcutsHelp";
 import { CutgentMark } from "./Logo";
 
 /**
@@ -54,6 +56,7 @@ export function TopBar() {
   });
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [keysOpen, setKeysOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [versionsOpen, setVersionsOpen] = useState(false);
   const [eta, setEta] = useState<number | null>(null);
   const settingsBtnRef = useRef<HTMLButtonElement>(null);
@@ -74,11 +77,18 @@ export function TopBar() {
     return () => window.removeEventListener("cutgent:open-license", open);
   }, []);
 
+  // El atajo «?» (handler global en page.tsx) alterna la ayuda de atajos.
+  useEffect(() => {
+    const toggle = () => setShortcutsOpen((v) => !v);
+    window.addEventListener("cutgent:toggle-shortcuts", toggle);
+    return () => window.removeEventListener("cutgent:toggle-shortcuts", toggle);
+  }, []);
+
   const setName = (name: string) => {
     void runCommand({ type: "set_project_settings", patch: { name } });
   };
 
-  const exportRender = async (format: ExportFormat) => {
+  const exportRender = async (format: ExportFormat, frameRange?: [number, number]) => {
     if (render.status === "rendering") return;
     setExportFormat(format);
     setFormatMenu(false);
@@ -88,7 +98,7 @@ export function TopBar() {
       const res = await fetch("/api/render", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ format, quality: exportQuality, gpu: exportGpu }),
+        body: JSON.stringify({ format, quality: exportQuality, gpu: exportGpu, ...(frameRange ? { frameRange } : {}) }),
       });
       if (!res.ok) throw new Error(`No se pudo iniciar el render (${res.status}).`);
       const { jobId } = (await res.json()) as { jobId: string };
@@ -138,6 +148,25 @@ export function TopBar() {
       /* ignore */
     }
   };
+
+  // Export del rango I/O (disparado por el botón "Exportar rango" del Timeline).
+  // Ref estable para no re-suscribir el listener en cada render.
+  const exportRangeRef = useRef<() => void>(() => {});
+  exportRangeRef.current = () => {
+    const s = useEditor.getState();
+    const a = s.inFrame;
+    const b = s.outFrame;
+    if (a == null || b == null) return;
+    const from = Math.round(Math.min(a, b));
+    const to = Math.round(Math.max(a, b));
+    if (to <= from) return;
+    void exportRender(exportFormat, [from, to]);
+  };
+  useEffect(() => {
+    const onExportRange = () => exportRangeRef.current();
+    window.addEventListener("cutgent:export-range", onExportRange);
+    return () => window.removeEventListener("cutgent:export-range", onExportRange);
+  }, []);
 
   const pollStatus = async (jobId: string) => {
     try {
@@ -286,8 +315,20 @@ export function TopBar() {
           <KeyRound size={14} />
           <span className="hidden md:inline">Ajustes</span>
         </button>
+
+        <button
+          type="button"
+          onClick={() => setShortcutsOpen(true)}
+          title="Atajos de teclado (?)"
+          aria-haspopup="dialog"
+          aria-expanded={shortcutsOpen}
+          className="flex shrink-0 items-center justify-center rounded-md border border-border bg-panel-2 p-1.5 text-xs text-muted transition-colors hover:text-text"
+        >
+          <Keyboard size={14} />
+        </button>
       </div>
       <SettingsModal open={keysOpen} onClose={() => setKeysOpen(false)} />
+      <ShortcutsHelp open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
 
       {/* Derecha: exportar MP4 */}
       <div className="flex shrink-0 items-center gap-2">

@@ -30,6 +30,9 @@ const assetKindToClipType: Record<Asset["kind"], AssetClipType> = {
   audio: "audio",
 };
 
+/** MIME propio para arrastrar assets de la biblioteca a la timeline (DnD). */
+export const ASSET_DND_MIME = "application/x-cutgent-asset";
+
 /** Tipo de medio buscado en proveedores de stock. */
 type StockType = "video" | "image" | "audio";
 
@@ -485,8 +488,18 @@ export function MediaPanel() {
                 <div className="group flex items-center gap-2 rounded-md border border-border bg-panel-2 p-1.5">
                   <button
                     type="button"
+                    draggable
+                    onDragStart={(e) => {
+                      // Arrastrar a la timeline: pasamos el id del asset (y su kind
+                      // como fallback) por nuestro MIME. TrackLane resuelve el resto.
+                      e.dataTransfer.setData(
+                        ASSET_DND_MIME,
+                        JSON.stringify({ assetId: asset.id, kind: asset.kind }),
+                      );
+                      e.dataTransfer.effectAllowed = "copy";
+                    }}
                     onClick={() => addAssetClip(asset)}
-                    title={`Añadir ${asset.name} a la línea de tiempo`}
+                    title={`Añadir ${asset.name} a la línea de tiempo (clic o arrastra)`}
                     className="flex min-w-0 flex-1 items-center gap-2 text-left"
                   >
                     <AssetThumb asset={asset} />

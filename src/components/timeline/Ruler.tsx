@@ -41,6 +41,16 @@ export function Ruler({ width, viewFromFrame = 0, viewToFrame = Infinity }: Rule
   const setCurrentFrame = useEditor((s) => s.setCurrentFrame);
   const markers = useEditor((s) => s.document.markers ?? []);
   const runCommand = useEditor((s) => s.runCommand);
+  const inFrame = useEditor((s) => s.inFrame);
+  const outFrame = useEditor((s) => s.outFrame);
+
+  // Rango I/O válido (in < out) para resaltarlo como una banda en la regla.
+  const range = useMemo(() => {
+    if (inFrame == null || outFrame == null) return null;
+    const from = Math.min(inFrame, outFrame);
+    const to = Math.max(inFrame, outFrame);
+    return to > from ? { from, to } : null;
+  }, [inFrame, outFrame]);
 
   const step = useMemo(() => chooseStep(pixelsPerFrame, fps), [pixelsPerFrame, fps]);
 
@@ -96,6 +106,39 @@ export function Ruler({ width, viewFromFrame = 0, viewToFrame = Infinity }: Rule
           <span className="ml-1 text-[10px] text-muted">{formatTime(f, fps)}</span>
         </div>
       ))}
+
+      {/* Rango I/O: banda resaltada in→out. */}
+      {range && (
+        <div
+          className="pointer-events-none absolute bottom-0 top-0 z-[5]"
+          style={{
+            left: range.from * pixelsPerFrame,
+            width: (range.to - range.from) * pixelsPerFrame,
+            background: "var(--accent)",
+            opacity: 0.18,
+          }}
+        />
+      )}
+      {/* Marca de entrada (I). */}
+      {inFrame != null && (
+        <div
+          className="pointer-events-none absolute bottom-0 top-0 z-[6] w-px bg-accent"
+          style={{ left: inFrame * pixelsPerFrame }}
+          title="Entrada (I)"
+        >
+          <div className="absolute left-0 top-0 h-2 w-1.5 rounded-sm bg-accent" />
+        </div>
+      )}
+      {/* Marca de salida (O). */}
+      {outFrame != null && (
+        <div
+          className="pointer-events-none absolute bottom-0 top-0 z-[6] w-px bg-accent"
+          style={{ left: outFrame * pixelsPerFrame }}
+          title="Salida (O)"
+        >
+          <div className="absolute -left-1 top-0 h-2 w-1.5 rounded-sm bg-accent" />
+        </div>
+      )}
 
       {/* Marcadores / capítulos / notas */}
       {markers

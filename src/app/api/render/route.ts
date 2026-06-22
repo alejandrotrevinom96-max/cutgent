@@ -39,6 +39,9 @@ interface RenderOpts {
   /** Backend GL de Chromium para rasterizar (default 'angle' = GPU). Permite
    *  forzar 'swangle'/'swiftshader' (software) si la GPU diera problemas. */
   gl?: "angle" | "angle-egl" | "swangle" | "swiftshader" | "egl" | "vulkan";
+  /** Rango de frames a renderizar [in, out] (export del rango I/O). Si se omite,
+   *  se renderiza la composición completa. */
+  frameRange?: [number, number];
 }
 
 /** Contexto opcional para reusar un bundle de Remotion entre renders (batch). */
@@ -107,6 +110,17 @@ export async function runRender(
     const inputProps = { document, watermark };
     const composition = await selectComposition({ serveUrl: serveUrl!, id: "MainVideo", inputProps });
 
+    // Rango I/O opcional: clampamos a [0, duración-1] y exigimos in < out.
+    let frameRange: [number, number] | undefined;
+    if (opts.frameRange) {
+      const last = Math.max(0, composition.durationInFrames - 1);
+      const a = Math.max(0, Math.min(last, Math.round(opts.frameRange[0])));
+      const b = Math.max(0, Math.min(last, Math.round(opts.frameRange[1])));
+      const from = Math.min(a, b);
+      const to = Math.max(a, b);
+      if (to > from) frameRange = [from, to];
+    }
+
     const rendersDir = rendersDirPath();
     await fs.mkdir(rendersDir, { recursive: true });
     const outputLocation = path.join(rendersDir, `${jobId}.${spec.ext}`);
@@ -139,6 +153,7 @@ export async function runRender(
       ...(spec.audioCodec ? { audioCodec: spec.audioCodec as AudioCodec } : {}),
       ...(crf != null ? { crf } : {}),
       ...(videoBitrate != null ? { videoBitrate } : {}),
+      ...(frameRange ? { frameRange } : {}),
       // CLAVE de perf: 'angle' usa la GPU para rasterizar filtros CSS/transform.
       // El Chromium headless DESACTIVA la GPU por defecto → rasterizar en CPU es
       // el cuello real (no el encode). Override 'gl' por si la GPU diera guerra.

@@ -44,6 +44,9 @@ interface EditorState {
   selectedClipId: string | null;
   /** Selección múltiple (incluye al primario). */
   selectedClipIds: string[];
+  /** Pista destino resaltada al arrastrar un clip entre pistas (feedback visual). */
+  dropTargetTrackId: string | null;
+  setDropTargetTrackId: (id: string | null) => void;
   currentFrame: number;
   playing: boolean;
   pixelsPerFrame: number;
@@ -85,6 +88,10 @@ interface EditorState {
   // selection / playback
   selectClip: (id: string | null) => void;
   toggleClipSelection: (id: string) => void;
+  /** Reemplaza la selección por una lista explícita de ids (p.ej. marquee). */
+  setSelectedClipIds: (ids: string[]) => void;
+  /** Selecciona TODOS los clips del documento (Ctrl/Cmd+A). */
+  selectAll: () => void;
   setCurrentFrame: (frame: number) => void;
   setPlaying: (playing: boolean) => void;
   setPixelsPerFrame: (ppf: number) => void;
@@ -143,6 +150,7 @@ export const useEditor = create<EditorState>((set, get) => ({
 
   selectedClipId: null,
   selectedClipIds: [],
+  dropTargetTrackId: null,
   currentFrame: 0,
   playing: false,
   pixelsPerFrame: 6,
@@ -265,12 +273,23 @@ export const useEditor = create<EditorState>((set, get) => ({
 
   selectClip: (id) => set({ selectedClipId: id, selectedClipIds: id ? [id] : [] }),
 
+  setDropTargetTrackId: (id) => {
+    // Evita re-render si no cambia (se llama por cada pointermove).
+    if (get().dropTargetTrackId !== id) set({ dropTargetTrackId: id });
+  },
+
   toggleClipSelection: (id) =>
     set((s) => {
       const has = s.selectedClipIds.includes(id);
       const ids = has ? s.selectedClipIds.filter((x) => x !== id) : [...s.selectedClipIds, id];
       return { selectedClipIds: ids, selectedClipId: ids.length ? ids[ids.length - 1] : null };
     }),
+  setSelectedClipIds: (ids) =>
+    set({ selectedClipIds: ids, selectedClipId: ids.length ? ids[ids.length - 1] : null }),
+  selectAll: () => {
+    const ids = get().document.tracks.flatMap((t) => t.clips.map((c) => c.id));
+    set({ selectedClipIds: ids, selectedClipId: ids.length ? ids[ids.length - 1] : null });
+  },
   setCurrentFrame: (frame) => set({ currentFrame: Math.max(0, Math.round(frame)) }),
   setPlaying: (playing) => set({ playing }),
   setPixelsPerFrame: (ppf) => set({ pixelsPerFrame: Math.max(0.5, Math.min(40, ppf)) }),
@@ -308,7 +327,15 @@ export const useEditor = create<EditorState>((set, get) => ({
         headers: { "Content-Type": "application/json", "x-client-id": get().clientId },
         body: JSON.stringify({ command }),
       });
-      if (!res.ok) await get().resync(); // comando rechazado → re-sincroniza
+      if (!res.ok) {
+        await get().resync(); // comando rechazado → re-sincroniza
+        return;
+      }
+      // Reconcilia historial con la verdad del server (por si el cap lo recortó).
+      const data = await res.json().catch(() => null);
+      if (data && typeof data.canUndo === "boolean") {
+        set({ canUndo: !!data.canUndo, canRedo: !!data.canRedo });
+      }
     } catch {
       await get().resync();
     }
@@ -324,7 +351,15 @@ export const useEditor = create<EditorState>((set, get) => ({
         headers: { "Content-Type": "application/json", "x-client-id": get().clientId },
         body: JSON.stringify({ commands }),
       });
-      if (!res.ok) await get().resync();
+      if (!res.ok) {
+        await get().resync();
+        return;
+      }
+      // Reconcilia historial con la verdad del server (por si el cap lo recortó).
+      const data = await res.json().catch(() => null);
+      if (data && typeof data.canUndo === "boolean") {
+        set({ canUndo: !!data.canUndo, canRedo: !!data.canRedo });
+      }
     } catch {
       await get().resync();
     }
@@ -407,14 +442,22 @@ export const useEditor = create<EditorState>((set, get) => ({
     });
     const v = Number(res.headers.get("x-doc-version"));
     if (Number.isFinite(v) && v > 0) set({ serverVersion: v });
+    // Un reemplazo total queda en el historial: undo disponible, redo limpio.
+    set({
+      canUndo: res.headers.get("x-can-undo") === "true",
+      canRedo: res.headers.get("x-can-redo") === "true",
+    });
   },
 
   resync: async () => {
     try {
       const res = await fetch(API.document);
       const version = Number(res.headers.get("x-doc-version") ?? 0);
+      // Estado de historial real del server (cabeceras) → botones Undo/Redo fieles.
+      const canUndo = res.headers.get("x-can-undo") === "true";
+      const canRedo = res.headers.get("x-can-redo") === "true";
       const document = (await res.json()) as Project;
-      set({ document, serverVersion: version });
+      set({ document, serverVersion: version, canUndo, canRedo });
       const sel = get().selectedClipIds.filter((id) => findClip(document, id));
       set({ selectedClipIds: sel, selectedClipId: sel[sel.length - 1] ?? null });
     } catch {
@@ -455,6 +498,10 @@ export const useEditor = create<EditorState>((set, get) => ({
       if (data.document) {
         set({ document: data.document, currentProjectId: id, selectedClipId: null });
         if (typeof data.version === "number") set({ serverVersion: data.version });
+        // Historial del proyecto recién abierto (server-side).
+        if (typeof data.canUndo === "boolean") {
+          set({ canUndo: !!data.canUndo, canRedo: !!data.canRedo });
+        }
       }
       await get().refreshProjects();
     } catch {

@@ -872,6 +872,43 @@ function AnimationEditor({
 // 5) Keyframes (editor visual de curvas + lista textual)
 // ---------------------------------------------------------------------------
 
+/** Propiedades animables disponibles según el tipo de clip (volume solo a/v). */
+function availableKfProps(clip: Clip): AnimatableProperty[] {
+  const base: AnimatableProperty[] = ["x", "y", "scale", "rotation", "opacity"];
+  return clip.type === "video" || clip.type === "audio" ? [...base, "volume"] : base;
+}
+
+const KF_PROP_LABEL: Record<AnimatableProperty, string> = {
+  x: "X",
+  y: "Y",
+  scale: "Escala",
+  rotation: "Rotación",
+  opacity: "Opacidad",
+  volume: "Volumen",
+};
+
+/** Lee el valor base (sin animar) de una propiedad del clip. */
+function readKfBaseValue(clip: Clip, property: AnimatableProperty): number {
+  switch (property) {
+    case "x":
+      return clip.x;
+    case "y":
+      return clip.y;
+    case "scale":
+      return clip.scale;
+    case "rotation":
+      return clip.rotation;
+    case "opacity":
+      return clip.opacity;
+    case "volume":
+      return clip.type === "video" || clip.type === "audio" ? clip.volume : 1;
+    default: {
+      const _exhaustive: never = property;
+      return _exhaustive;
+    }
+  }
+}
+
 function KeyframesSection({
   clip,
   clipId,
@@ -888,12 +925,58 @@ function KeyframesSection({
   // contrato (frame relativo al inicio del clip).
   const relativeFrame = Math.max(0, currentFrame - clip.start);
 
+  // Propiedad para el atajo "Keyframe aquí"; se corrige si deja de existir.
+  const kfProps = availableKfProps(clip);
+  const [kfProp, setKfProp] = useState<AnimatableProperty>("opacity");
+  const activeKfProp = kfProps.includes(kfProp) ? kfProp : kfProps[0];
+  const playheadInsideClip = relativeFrame <= Math.max(0, clip.duration - 1);
+
   const removeKeyframe = (prop: AnimatableProperty, frame: number) => {
     runCommand({ type: "remove_keyframe", clipId, property: prop, frame });
   };
 
+  // Añade un keyframe en el playhead (frame relativo) usando el valor base
+  // actual de la propiedad seleccionada.
+  const addKeyframeHere = () => {
+    runCommand({
+      type: "add_keyframe",
+      clipId,
+      property: activeKfProp,
+      keyframe: {
+        frame: relativeFrame,
+        value: readKfBaseValue(clip, activeKfProp),
+        easing: "ease-in-out",
+      },
+    });
+  };
+
   return (
     <Section title="Keyframes" defaultOpen={false}>
+      {/* Atajo: añadir keyframe en el frame actual (playhead) */}
+      <div className="mb-2 flex items-end gap-2">
+        <div className="flex-1">
+          <SelectField<AnimatableProperty>
+            label="Propiedad"
+            value={activeKfProp}
+            options={kfProps.map((p) => ({ value: p, label: KF_PROP_LABEL[p] }))}
+            onChange={setKfProp}
+          />
+        </div>
+        <button
+          type="button"
+          onClick={addKeyframeHere}
+          disabled={!playheadInsideClip}
+          title={
+            playheadInsideClip
+              ? `Añadir keyframe en f${relativeFrame}`
+              : "Mueve el playhead dentro del clip"
+          }
+          className="mb-1 flex shrink-0 items-center gap-1 rounded-md bg-accent px-2 py-1.5 text-xs font-medium text-white hover:bg-accent-2 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Plus size={13} /> Keyframe aquí
+        </button>
+      </div>
+
       {/* Editor visual de curvas (principal) */}
       <KeyframeEditor clip={clip} clipId={clipId} />
 

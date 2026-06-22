@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useEditor } from "@/lib/store";
 import { useDictation } from "@/lib/useDictation";
 import { TopBar } from "@/components/TopBar";
@@ -27,6 +27,43 @@ export default function EditorPage() {
   const pttActive = useRef(false);
   const pttFrame = useRef(0);
 
+  // Feedback transitorio para guardar versión (Ctrl/Cmd+S). Self-contained: un
+  // pequeño toast que se desvanece solo.
+  const [saveToast, setSaveToast] = useState<{ kind: "saving" | "ok" | "error"; msg: string } | null>(null);
+  const saveToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savingVersion = useRef(false);
+  const showSaveToast = (kind: "saving" | "ok" | "error", msg: string, autohide = true) => {
+    if (saveToastTimer.current) clearTimeout(saveToastTimer.current);
+    setSaveToast({ kind, msg });
+    if (autohide) saveToastTimer.current = setTimeout(() => setSaveToast(null), 2500);
+  };
+
+  // Guarda una versión manual reusando el MISMO endpoint que VersionsPanel.
+  const saveVersion = async () => {
+    if (savingVersion.current) return;
+    savingVersion.current = true;
+    showSaveToast("saving", "Guardando versión…", false);
+    try {
+      const r = await fetch("/api/versions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (!r.ok) {
+        const e = (await r.json().catch(() => ({}))) as { error?: string };
+        showSaveToast("error", e.error || "No se pudo guardar la versión.");
+        return;
+      }
+      showSaveToast("ok", "Versión guardada");
+    } catch {
+      showSaveToast("error", "No se pudo guardar la versión.");
+    } finally {
+      savingVersion.current = false;
+    }
+  };
+  const saveVersionRef = useRef(saveVersion);
+  saveVersionRef.current = saveVersion;
+
   // Pull the authoritative document and subscribe to live (MCP / multi-tab)
   // changes once, on mount.
   useEffect(() => {
@@ -48,6 +85,10 @@ export default function EditorPage() {
       } else if (mod && ((k === "z" && e.shiftKey) || k === "y")) {
         e.preventDefault();
         void s.redo();
+      } else if (mod && k === "a") {
+        // Ctrl/Cmd+A = seleccionar todos los clips.
+        e.preventDefault();
+        s.selectAll();
       } else if (mod && k === "c") {
         e.preventDefault();
         s.copySelectedClip();
@@ -58,6 +99,17 @@ export default function EditorPage() {
         e.preventDefault();
         const id = s.selectedClipId;
         if (id) void s.runCommand({ type: "duplicate_clip", clipId: id, newId: `clip_${Math.random().toString(36).slice(2, 10)}` });
+      } else if (mod && k === "s") {
+        // Ctrl/Cmd+S = guardar versión manual (snapshot). Evita el guardar del
+        // navegador.
+        e.preventDefault();
+        void saveVersionRef.current();
+      } else if ((!mod && k === "s") || (mod && k === "b")) {
+        // Cortar (split) el clip seleccionado en el playhead. El comando ignora
+        // cortes en los bordes (offset <= 0 o >= duración), así que es seguro.
+        e.preventDefault();
+        const id = s.selectedClipId;
+        if (id) void s.runCommand({ type: "split_clip", clipId: id, frame: s.currentFrame, newId: `clip_${Math.random().toString(36).slice(2, 10)}` });
       } else if (!mod && k === "n") {
         // Nota de edición en el frame actual.
         e.preventDefault();
@@ -66,6 +118,11 @@ export default function EditorPage() {
         // Capítulo/marcador clásico en el frame actual.
         e.preventDefault();
         s.addChapter();
+      } else if (!mod && e.key === "?") {
+        // Ayuda de atajos (Shift+/). El overlay vive en TopBar; lo alternamos
+        // por evento como hacemos con la licencia.
+        e.preventDefault();
+        window.dispatchEvent(new Event("cutgent:toggle-shortcuts"));
       } else if (!mod && k === "v" && !e.repeat) {
         // Mantener V = dictar una nota por voz (push-to-talk). Solo con el
         // compositor cerrado para no chocar con su propio micrófono.
@@ -145,6 +202,16 @@ export default function EditorPage() {
       <Onboarding />
       <TrialBanner />
       <TopBar />
+      {saveToast && (
+        <div
+          className="pointer-events-none fixed left-1/2 top-3 z-[100] -translate-x-1/2 rounded-full border border-border bg-panel/95 px-3 py-1 text-xs shadow-lg backdrop-blur"
+          role="status"
+        >
+          {saveToast.kind === "saving" && <span className="text-[var(--info)]">{saveToast.msg}</span>}
+          {saveToast.kind === "ok" && <span className="text-accent">✓ {saveToast.msg}</span>}
+          {saveToast.kind === "error" && <span className="text-[var(--danger,#ef4444)]">{saveToast.msg}</span>}
+        </div>
+      )}
       {view === "clipper" ? (
         <div className="min-h-0 flex-1 overflow-hidden">
           <ClipperView />

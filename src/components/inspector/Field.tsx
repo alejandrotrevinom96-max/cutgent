@@ -203,6 +203,19 @@ export function ColorField({
   const current = value ?? fallback;
   const isSet = typeof value === "string" && value.length > 0;
 
+  // Buffer local: arrastrar el selector de color dispara onChange en cada
+  // micro-movimiento; lo mostramos en vivo pero solo COMMITEAMOS al soltar
+  // (onBlur del color, o blur/Enter en el campo de texto) para no spamear
+  // comandos+POST. El buffer se sincroniza con el valor externo.
+  const [draft, setDraft] = useState<string>(current);
+  useEffect(() => {
+    setDraft(current);
+  }, [current]);
+
+  const commit = (raw: string) => {
+    if (raw !== (value ?? fallback)) onChange(raw);
+  };
+
   return (
     <FieldRow label={label} htmlFor={id}>
       <div className="flex items-center gap-2">
@@ -210,8 +223,9 @@ export function ColorField({
           id={id}
           type="color"
           className="h-7 w-9 shrink-0 cursor-pointer rounded border border-border bg-panel-2 p-0.5"
-          value={current}
-          onChange={(e) => onChange(e.target.value)}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={(e) => commit(e.target.value)}
         />
         <input
           type="text"
@@ -297,6 +311,19 @@ export function SliderField({
   step = 0.01,
 }: SliderFieldProps) {
   const id = useId();
+  // Buffer local: arrastrar el slider emite onChange en cada micro-movimiento,
+  // lo que dispararía un comando+POST por cada paso (flood/lag). Mostramos el
+  // valor en vivo desde el buffer y solo COMMITEAMOS al soltar (pointerup),
+  // al confirmar con teclado (keyup) o al perder el foco (blur).
+  const [draft, setDraft] = useState<number>(value);
+  useEffect(() => {
+    setDraft(value);
+  }, [value]);
+
+  const commit = (raw: number) => {
+    if (raw !== value) onChange(raw);
+  };
+
   return (
     <FieldRow label={label} htmlFor={id}>
       <div className="flex items-center gap-2">
@@ -304,14 +331,17 @@ export function SliderField({
           id={id}
           type="range"
           className="min-w-0 flex-1"
-          value={value}
+          value={draft}
           min={min}
           max={max}
           step={step}
-          onChange={(e) => onChange(Number(e.target.value))}
+          onChange={(e) => setDraft(Number(e.target.value))}
+          onPointerUp={(e) => commit(Number((e.target as HTMLInputElement).value))}
+          onKeyUp={(e) => commit(Number((e.target as HTMLInputElement).value))}
+          onBlur={(e) => commit(Number(e.target.value))}
         />
         <span className="w-10 shrink-0 text-right font-mono text-[11px] text-muted">
-          {Number.isInteger(step) ? value : value.toFixed(2)}
+          {Number.isInteger(step) ? draft : draft.toFixed(2)}
         </span>
       </div>
     </FieldRow>

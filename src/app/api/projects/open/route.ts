@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getVersion, openProject } from "@/lib/server-store";
+import { getHistoryState, getVersion, openProject } from "@/lib/server-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     const { id } = await req.json();
     if (!id) return NextResponse.json({ error: "Falta id" }, { status: 400 });
     const document = await openProject(id, req.headers.get("x-client-id"));
-    return NextResponse.json({ ok: true, document, version: getVersion() });
+    return NextResponse.json({ ok: true, document, version: getVersion(), ...getHistoryState() });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : String(err) },

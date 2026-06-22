@@ -10,6 +10,7 @@ import {
   Layers,
   Copy,
   Trash2,
+  Scissors,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useEditor } from "@/lib/store";
@@ -56,6 +57,7 @@ function snapTo(value: number, targets: number[], ppf: number): number {
 
 export function ClipBlock({ clip, locked }: ClipBlockProps) {
   const pixelsPerFrame = useEditor((s) => s.pixelsPerFrame);
+  const currentFrame = useEditor((s) => s.currentFrame);
   const selectedClipIds = useEditor((s) => s.selectedClipIds);
   const selectClip = useEditor((s) => s.selectClip);
   const previewClipLocal = useEditor((s) => s.previewClipLocal);
@@ -78,6 +80,10 @@ export function ClipBlock({ clip, locked }: ClipBlockProps) {
     initialTrim: number;
     rate: number;
     nextTrim: number;
+    /** Pista de origen del clip primario. */
+    sourceTrackId: string;
+    /** Pista destino bajo el cursor (cross-track); null = sin cambio de pista. */
+    targetTrackId: string | null;
   } | null>(null);
 
   // Remueve los listeners de window si el componente se desmonta a mitad de drag.
@@ -111,7 +117,13 @@ export function ClipBlock({ clip, locked }: ClipBlockProps) {
       const ids = useEditor.getState().selectedClipIds;
       const groupIds = mode === "move" && ids.includes(clip.id) && ids.length > 1 ? ids : [clip.id];
       const byId = new Map<string, number>();
-      for (const tr of state.document.tracks) for (const cc of tr.clips) byId.set(cc.id, cc.start);
+      let sourceTrackId = "";
+      for (const tr of state.document.tracks) {
+        for (const cc of tr.clips) {
+          byId.set(cc.id, cc.start);
+          if (cc.id === clip.id) sourceTrackId = tr.id;
+        }
+      }
       const group = groupIds.map((id) => ({ id, initialStart: byId.get(id) ?? clip.start }));
 
       // Objetivos de imán: bordes de clips que NO son del grupo + playhead + inicio.
@@ -137,6 +149,8 @@ export function ClipBlock({ clip, locked }: ClipBlockProps) {
         initialTrim: "trimStart" in clip ? (clip as { trimStart: number }).trimStart : 0,
         rate: "playbackRate" in clip ? (clip as { playbackRate: number }).playbackRate : 1,
         nextTrim: "trimStart" in clip ? (clip as { trimStart: number }).trimStart : 0,
+        sourceTrackId,
+        targetTrackId: null,
       };
 
       const onMove = (ev: PointerEvent) => {
@@ -159,6 +173,25 @@ export function ClipBlock({ clip, locked }: ClipBlockProps) {
           // Mueve todo el grupo con el mismo delta.
           for (const g of d.group) {
             previewClipLocal(g.id, { start: Math.max(0, g.initialStart + d.appliedDelta) });
+          }
+          // Cross-track: solo para movimiento de un único clip (no en grupo).
+          // Detecta la pista bajo el cursor y la marca como destino (feedback).
+          if (d.group.length === 1) {
+            const els = window.document.elementsFromPoint(ev.clientX, ev.clientY);
+            const lane = els.find(
+              (el) => el instanceof HTMLElement && el.dataset.trackId,
+            ) as HTMLElement | undefined;
+            const overId = lane?.dataset.trackId ?? null;
+            // Solo aceptamos la pista destino si su kind encaja con el tipo de clip
+            // (audio→pista audio; video/imagen/texto/forma/sólido→pista media).
+            let dest: string | null = null;
+            if (overId && overId !== d.sourceTrackId) {
+              const destTrack = useEditor.getState().document.tracks.find((t) => t.id === overId);
+              const needKind = clip.type === "audio" ? "audio" : "media";
+              if (destTrack && destTrack.kind === needKind) dest = overId;
+            }
+            d.targetTrackId = dest;
+            useEditor.getState().setDropTargetTrackId(d.targetTrackId);
           }
         } else if (d.mode === "resize-right") {
           const end = snapTo(Math.round(d.initialStart + d.initialDuration + deltaFrames), d.targets, ppf);
@@ -189,11 +222,21 @@ export function ClipBlock({ clip, locked }: ClipBlockProps) {
         cleanupRef.current = null;
         const d = dragRef.current;
         dragRef.current = null;
+        // Limpia el resaltado de pista destino.
+        useEditor.getState().setDropTargetTrackId(null);
         if (!d) return;
 
         // Confirma con el comando adecuado solo si hubo cambio real.
         if (d.mode === "move") {
-          if (d.appliedDelta !== 0) {
+          // Cross-track (solo clip único): commitea start + trackId destino.
+          if (d.targetTrackId && d.group.length === 1) {
+            void runCommand({
+              type: "move_clip",
+              clipId: clip.id,
+              start: Math.max(0, d.initialStart + d.appliedDelta),
+              trackId: d.targetTrackId,
+            });
+          } else if (d.appliedDelta !== 0) {
             void runCommands(
               d.group.map((g) => ({
                 type: "move_clip" as const,
@@ -230,6 +273,7 @@ export function ClipBlock({ clip, locked }: ClipBlockProps) {
       cleanupRef.current = () => {
         window.removeEventListener("pointermove", onMove);
         window.removeEventListener("pointerup", onUp);
+        useEditor.getState().setDropTargetTrackId(null);
       };
     },
     [
@@ -260,6 +304,20 @@ export function ClipBlock({ clip, locked }: ClipBlockProps) {
     },
     [clip.id, runCommand],
   );
+
+  // Cortar (split) en el playhead. Mismo comando que el atajo S/Ctrl+B.
+  const onSplit = useCallback(
+    (e: React.PointerEvent) => {
+      e.stopPropagation();
+      const frame = useEditor.getState().currentFrame;
+      void runCommand({ type: "split_clip", clipId: clip.id, frame, newId: newId("clip") });
+    },
+    [clip.id, runCommand],
+  );
+
+  // El playhead debe caer DENTRO del clip (no en los bordes) para poder cortar;
+  // el comando ignora cortes en los bordes, esto solo afecta la visibilidad.
+  const canSplit = currentFrame > clip.start && currentFrame < clip.start + clip.duration;
 
   return (
     <div
@@ -297,6 +355,16 @@ export function ClipBlock({ clip, locked }: ClipBlockProps) {
             selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
           }`}
         >
+          {canSplit && (
+            <button
+              type="button"
+              onPointerDown={onSplit}
+              className="rounded p-0.5 text-muted hover:bg-panel-2 hover:text-text"
+              title="Cortar en el playhead (S)"
+            >
+              <Scissors size={12} />
+            </button>
+          )}
           <button
             type="button"
             onPointerDown={onDuplicate}
