@@ -1,14 +1,15 @@
 import { readGlb, writeGlb } from "./glb.mjs";
-import { detectSpec } from "./vrm.mjs";
+import { detectSpec, VRM0_TO_NEUTRAL } from "./vrm.mjs";
 import { REQUIRED_EXPRESSIONS } from "./contract.mjs";
 
 // Deformation transfer (the "moat"): copy a donor VRM's ARTIST-QUALITY expression/
 // viseme blendshapes onto a target mesh of DIFFERENT topology — pure Node, headless.
-// Method: align both heads into a common normalized space, build a spatial-hash
-// nearest-neighbour over the donor head, then for each target head vertex resample
-// the donor's per-vertex delta field (inverse-distance weighted over k neighbours)
-// and write it as a target morph target bound to the same VRM expression. Uses real
-// deltas, so quality tracks the donor — not a geometric guess.
+// Reads donors in BOTH VRM 0.x (extensions.VRM.blendShapeMaster, weights 0-100,
+// multi-mesh) and VRM 1.0 (VRMC_vrm expressions, morphTargetBinds). Method: gather
+// the donor's per-vertex delta field per expression across all involved meshes,
+// align donor head -> target head (centroid+radius), spatial-hash kNN, inverse-
+// distance resample onto the target head, write as target morph targets bound to
+// the same VRM expression. Uses real deltas, so quality tracks the donor.
 
 const meshInfo = (json) => { const node = json.nodes.findIndex((n) => n.mesh != null); const prim = json.meshes[json.nodes[node].mesh].primitives[0]; return { node, mesh: json.meshes[json.nodes[node].mesh], prim }; };
 function readVec3(json, bin, accIdx) {
@@ -20,21 +21,44 @@ function readVec3(json, bin, accIdx) {
 }
 const positions = (json, bin) => { const { prim } = meshInfo(json); return readVec3(json, bin, prim.attributes.POSITION); };
 
-// donor expression -> combined per-vertex delta (summing its morphTargetBinds)
-function expressionDeltas(json, bin) {
-  const { prim } = meshInfo(json);
-  const targets = prim.targets || [];
-  const preset = (json.extensions.VRMC_vrm.expressions && json.extensions.VRMC_vrm.expressions.preset) || {};
-  const count = json.accessors[prim.attributes.POSITION].count;
-  const map = new Map();
-  for (const [name, e] of Object.entries(preset)) {
-    const binds = e.morphTargetBinds || [];
-    if (!binds.length) { map.set(name, null); continue; }
-    const d = new Float32Array(count * 3);
-    for (const b of binds) { const tgt = targets[b.index]; if (!tgt) continue; const td = readVec3(json, bin, tgt.POSITION); const w = b.weight == null ? 1 : b.weight; for (let i = 0; i < d.length; i++) d[i] += td[i] * w; }
-    map.set(name, d);
+// donor -> { pos: concatenated vertex cloud of all expression-involved meshes,
+//           deltas: Map<neutralName, Float32Array|null>, multiMesh: boolean }
+function donorField(json, bin) {
+  const spec = detectSpec(json);
+  const groups = []; // {name, binds:[{meshIndex,targetIndex,weight}]}
+  if (spec === "1.0") {
+    const preset = (json.extensions.VRMC_vrm.expressions && json.extensions.VRMC_vrm.expressions.preset) || {};
+    for (const [name, e] of Object.entries(preset)) groups.push({ name, binds: (e.morphTargetBinds || []).map((b) => ({ meshIndex: json.nodes[b.node].mesh, targetIndex: b.index, weight: b.weight == null ? 1 : b.weight })) });
+  } else if (spec === "0.x") {
+    const bsg = (json.extensions.VRM.blendShapeMaster && json.extensions.VRM.blendShapeMaster.blendShapeGroups) || [];
+    for (const g of bsg) {
+      const preset = (g.presetName || "").toLowerCase();
+      const name = (preset && preset !== "unknown" && VRM0_TO_NEUTRAL[preset]) || (g.name ? g.name.toLowerCase() : null);
+      if (!name || !REQUIRED_EXPRESSIONS.includes(name)) continue;
+      groups.push({ name, binds: (g.binds || []).map((b) => ({ meshIndex: b.mesh, targetIndex: b.index, weight: (b.weight == null ? 100 : b.weight) / 100 })) });
+    }
+  } else throw new Error("donor is not a VRM");
+
+  const meshSet = new Set(); for (const g of groups) for (const b of g.binds) meshSet.add(b.meshIndex);
+  const meshList = [...meshSet];
+  const meshPos = new Map(); let N = 0;
+  for (const mi of meshList) { const prim = json.meshes[mi].primitives[0]; const pos = readVec3(json, bin, prim.attributes.POSITION); meshPos.set(mi, { pos, off: N, prim }); N += pos.length / 3; }
+  const cloud = new Float32Array(N * 3);
+  for (const mi of meshList) { const { pos, off } = meshPos.get(mi); cloud.set(pos, off * 3); }
+
+  const deltas = new Map();
+  for (const g of groups) {
+    const d = new Float32Array(N * 3); let any = false;
+    for (const b of g.binds) {
+      const mp = meshPos.get(b.meshIndex); if (!mp) continue;
+      const tgt = mp.prim.targets && mp.prim.targets[b.targetIndex]; if (!tgt) continue;
+      const td = readVec3(json, bin, tgt.POSITION);
+      for (let i = 0; i < td.length; i++) d[mp.off * 3 + i] += td[i] * b.weight; any = true;
+    }
+    if (any && (!deltas.has(g.name) || !deltas.get(g.name))) deltas.set(g.name, d);
+    else if (!deltas.has(g.name)) deltas.set(g.name, any ? d : null);
   }
-  return map;
+  return { pos: cloud, deltas, count: N, multiMesh: meshList.length > 1 };
 }
 
 function headIdx(pos, count) {
@@ -54,17 +78,21 @@ function headStats(pos, idx) {
 export function transferRig(targetBuffer, donorBuffer, opts = {}) {
   const t = readGlb(targetBuffer), d = readGlb(donorBuffer);
   if (detectSpec(t.json) !== "1.0") throw new Error("target must be a VRM 1.0 body base");
-  if (detectSpec(d.json) !== "1.0") throw new Error("donor must be a VRM 1.0 with expression blendshapes");
 
   const tPos = positions(t.json, t.bin), tCount = tPos.length / 3;
-  const dPos = positions(d.json, d.bin), dCount = dPos.length / 3;
-  const dDeltas = expressionDeltas(d.json, d.bin);
+  const D = donorField(d.json, d.bin);
+  const dPos = D.pos, dCount = D.count, dDeltas = D.deltas;
 
-  const tIdx = headIdx(tPos, tCount), dIdx = headIdx(dPos, dCount);
+  const tIdx = headIdx(tPos, tCount);
+  // donor correspondence = vertices that ACTUALLY move in some expression (the rig
+  // region). Robust across donors regardless of mesh layout (face-only vs full body).
+  const active = new Uint8Array(dCount);
+  for (const dd of dDeltas.values()) { if (!dd) continue; for (let i = 0; i < dCount; i++) if (dd[i * 3] || dd[i * 3 + 1] || dd[i * 3 + 2]) active[i] = 1; }
+  let dIdx = []; for (let i = 0; i < dCount; i++) if (active[i]) dIdx.push(i);
+  if (!dIdx.length) dIdx = headIdx(dPos, dCount);
   const ts = headStats(tPos, tIdx), ds = headStats(dPos, dIdx);
-  const scale = ts.r / ds.r; // donor delta -> target scale
+  const scale = ts.r / ds.r;
 
-  // donor head points mapped into TARGET head space, in a spatial hash
   const cell = ts.r / 18 || 0.01;
   const key = (x, y, z) => `${Math.floor(x / cell)},${Math.floor(y / cell)},${Math.floor(z / cell)}`;
   const grid = new Map();
@@ -78,19 +106,11 @@ export function transferRig(targetBuffer, donorBuffer, opts = {}) {
   });
 
   const nearest = (x, y, z, K = 4) => {
-    const cx = Math.floor(x / cell), cy = Math.floor(y / cell), cz = Math.floor(z / cell);
-    const cand = [];
-    for (let r = 1; r <= 4 && cand.length < K; r++) {
-      cand.length = 0;
-      for (let i = -r; i <= r; i++) for (let j = -r; j <= r; j++) for (let l = -r; l <= r; l++) {
-        const arr = grid.get(`${cx + i},${cy + j},${cz + l}`); if (arr) cand.push(...arr);
-      }
-    }
-    return cand.map(({ k, di }) => ({ di, d2: (dAligned[k * 3] - x) ** 2 + (dAligned[k * 3 + 1] - y) ** 2 + (dAligned[k * 3 + 2] - z) ** 2 }))
-      .sort((a, b) => a.d2 - b.d2).slice(0, K);
+    const cx = Math.floor(x / cell), cy = Math.floor(y / cell), cz = Math.floor(z / cell); let cand = [];
+    for (let r = 1; r <= 5 && cand.length < K; r++) { cand = []; for (let i = -r; i <= r; i++) for (let j = -r; j <= r; j++) for (let l = -r; l <= r; l++) { const arr = grid.get(`${cx + i},${cy + j},${cz + l}`); if (arr) cand.push(...arr); } }
+    return cand.map(({ k, di }) => ({ di, d2: (dAligned[k * 3] - x) ** 2 + (dAligned[k * 3 + 1] - y) ** 2 + (dAligned[k * 3 + 2] - z) ** 2 })).sort((a, b) => a.d2 - b.d2).slice(0, K);
   };
 
-  // for each donor expression, resample its delta field onto the target head
   const transferred = new Map();
   for (const [name, dd] of dDeltas) {
     if (!dd) { transferred.set(name, null); continue; }
@@ -105,11 +125,10 @@ export function transferRig(targetBuffer, donorBuffer, opts = {}) {
     transferred.set(name, out);
   }
 
-  // write transferred deltas as target morph targets + bind expressions
-  return writeMorphsAndBind(t, transferred, dCount, tCount, dIdx, opts);
+  return writeMorphsAndBind(t, transferred, tCount, dIdx, { donorSpec: detectSpec(d.json), multiMesh: D.multiMesh });
 }
 
-function writeMorphsAndBind(t, transferred, dCount, tCount, dIdx, opts) {
+function writeMorphsAndBind(t, transferred, tCount, dIdx, meta) {
   const { json, bin, version } = t;
   const { node: meshNode, mesh, prim } = meshInfo(json);
   prim.targets = prim.targets || []; mesh.weights = mesh.weights || [];
@@ -138,6 +157,6 @@ function writeMorphsAndBind(t, transferred, dCount, tCount, dIdx, opts) {
   const missing = REQUIRED_EXPRESSIONS.filter((n) => n !== "neutral" && tIndex[n] == null);
   return {
     buffer: writeGlb({ json, bin: Buffer.concat(chunks), version }),
-    report: { transferred: added, missingFromDonor: missing, targetHeadVerts: dIdx ? undefined : undefined, note: missing.length ? `donor lacked: ${missing.join(", ")}` : "all required expressions transferred from donor" },
+    report: { transferred: added, missingFromDonor: missing, donorSpec: meta.donorSpec, donorMultiMesh: meta.multiMesh, note: missing.length ? `donor lacked: ${missing.join(", ")}` : "all required expressions transferred from donor" },
   };
 }
