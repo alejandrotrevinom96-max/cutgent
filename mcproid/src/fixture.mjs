@@ -201,16 +201,31 @@ export function buildFixtureVrmMeshed() {
   V.forEach((v, i) => { pos.writeFloatLE(v[0], i * 12); pos.writeFloatLE(v[1], i * 12 + 4); pos.writeFloatLE(v[2], i * 12 + 8); });
   const min = [Math.min(...V.map((v) => v[0])), Math.min(...V.map((v) => v[1])), Math.min(...V.map((v) => v[2]))];
   const max = [Math.max(...V.map((v) => v[0])), Math.max(...V.map((v) => v[1])), Math.max(...V.map((v) => v[2]))];
+  // normals: head/front verts face +z (drives front detection); body faces +y
+  const nrm = Buffer.alloc(V.length * 12);
+  V.forEach((v, i) => { const n = i < 2 ? [0, 1, 0] : [0, 0, 1]; nrm.writeFloatLE(n[0], i * 12); nrm.writeFloatLE(n[1], i * 12 + 4); nrm.writeFloatLE(n[2], i * 12 + 8); });
+  // triangles connecting the HEAD verts (2..12) into one component; body verts 0,1
+  // are left disconnected so geodesic from the mouth never reaches them (locality).
+  const tris = [5, 2, 3, 5, 3, 6, 5, 6, 8, 5, 2, 4, 5, 4, 7, 5, 7, 9, 5, 8, 11, 5, 9, 11, 5, 6, 7, 2, 3, 4, 6, 8, 10, 7, 9, 12];
+  const idx = Buffer.alloc(tris.length * 4); tris.forEach((v, i) => idx.writeUInt32LE(v, i * 4));
+  // pack POSITION | NORMAL | indices into the BIN with 4-byte alignment
+  const parts = []; const bufferViews = []; let off = 0;
+  for (const part of [pos, nrm, idx]) { const p = (4 - (off % 4)) % 4; if (p) { parts.push(Buffer.alloc(p, 0)); off += p; } bufferViews.push({ buffer: 0, byteOffset: off, byteLength: part.length }); parts.push(part); off += part.length; }
+  const bin = Buffer.concat(parts);
 
   const json = {
     asset: { version: "2.0", generator: "mcproid/fixtureMeshed" },
     extensionsUsed: ["VRMC_vrm", "VRMC_springBone"],
     scene: 0, scenes: [{ nodes: nodes.map((_, i) => i) }], nodes,
     materials: [{ name: "Body", pbrMetallicRoughness: { baseColorFactor: [0.8, 0.8, 0.8, 1] } }],
-    meshes: [{ primitives: [{ attributes: { POSITION: 0 }, material: 0 }] }],
-    accessors: [{ bufferView: 0, componentType: 5126, count: V.length, type: "VEC3", min, max }],
-    bufferViews: [{ buffer: 0, byteOffset: 0, byteLength: pos.length }],
-    buffers: [{ byteLength: pos.length }],
+    meshes: [{ primitives: [{ attributes: { POSITION: 0, NORMAL: 1 }, indices: 2, material: 0 }] }],
+    accessors: [
+      { bufferView: 0, componentType: 5126, count: V.length, type: "VEC3", min, max },
+      { bufferView: 1, componentType: 5126, count: V.length, type: "VEC3" },
+      { bufferView: 2, componentType: 5125, count: tris.length, type: "SCALAR" },
+    ],
+    bufferViews,
+    buffers: [{ byteLength: bin.length }],
     extensions: {
       VRMC_vrm: {
         specVersion: "1.0",
@@ -221,5 +236,5 @@ export function buildFixtureVrmMeshed() {
       VRMC_springBone: { specVersion: "1.0", colliders: [], colliderGroups: [], springs: [{ name: "hair", joints: [{ node: hairNode, hitRadius: 0.02, stiffness: 1, gravityPower: 0.2, gravityDir: [0, -1, 0], dragForce: 0.4 }] }] },
     },
   };
-  return writeGlb({ json, bin: pos });
+  return writeGlb({ json, bin });
 }

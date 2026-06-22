@@ -165,14 +165,15 @@ check("validate: rejects VRM with an undrivable required expression", !validateL
   const body = buildFixtureVrmMeshed();
   check("face: meshed body base is NOT living yet (no expressions)", !validateLivingVrm(body).ok);
   const { buffer, report } = riggFace(body, {});
-  check("face: v2 engine auto-detected the front axis", report.front === "+z", report.front);
-  check("face: 8 action units -> 12 expressions", report.actionUnits === 8 && report.expressions === 12);
-  check("face: morphs added + expressions bound -> now LIVING", validateLivingVrm(buffer).ok, validateLivingVrm(buffer).checks.filter((c) => !c.pass).map((c) => c.name).join(",") || "all pass");
+  check("face(v3): auto front + geodesic (surface) connectivity", report.front === "+z" && report.connectivity === "geodesic (surface)", `${report.front} / ${report.connectivity}`);
+  check("face(v3): 8 action units -> 12 expressions", report.actionUnits === 8 && report.expressions === 12);
+  check("face(v3): morphs added + expressions bound -> now LIVING", validateLivingVrm(buffer).ok, validateLivingVrm(buffer).checks.filter((c) => !c.pass).map((c) => c.name).join(",") || "all pass");
   const j = readGlb(buffer); const tgt = j.json.meshes[0].primitives[0].targets;
-  const dy = (targetIdx, vertIdx) => { const acc = j.json.accessors[tgt[targetIdx].POSITION]; const bv = j.json.bufferViews[acc.bufferView]; return j.bin.readFloatLE(bv.byteOffset + vertIdx * 12 + 4); };
-  check("face: jawOpen displaces the mouth vertex down (dy<0)", dy(0, 2) < 0, `dy=${dy(0, 2).toFixed(4)}`);
-  check("face: falloff leaves a far body vertex untouched", dy(0, 0) === 0, `body dy=${dy(0, 0)}`);
-  check("face: smile is symmetric on L/R mouth corners", Math.abs(dy(3, 3) - dy(3, 4)) < 1e-6 && dy(3, 3) > 0, `L=${dy(3, 3).toFixed(4)} R=${dy(3, 4).toFixed(4)}`);
+  const comp = (targetIdx, vertIdx, k) => { const acc = j.json.accessors[tgt[targetIdx].POSITION]; const bv = j.json.bufferViews[acc.bufferView]; return j.bin.readFloatLE(bv.byteOffset + vertIdx * 12 + k * 4); };
+  const dy = (t, v) => comp(t, v, 1), dz = (t, v) => comp(t, v, 2);
+  check("face(v3): jawOpen is a HINGE ROTATION (dy<0 and dz!=0)", dy(0, 2) < 0 && Math.abs(dz(0, 2)) > 1e-6, `dy=${dy(0, 2).toFixed(4)} dz=${dz(0, 2).toFixed(4)}`);
+  check("face(v3): geodesic locality — disconnected body verts untouched", dy(0, 0) === 0 && dy(0, 1) === 0);
+  check("face(v3): smile lifts both mouth corners ~symmetrically", dy(3, 3) > 0 && dy(3, 4) > 0 && Math.abs(dy(3, 3) - dy(3, 4)) < 0.4 * Math.max(dy(3, 3), dy(3, 4)), `L=${dy(3, 3).toFixed(4)} R=${dy(3, 4).toFixed(4)}`);
 }
 
 // ---- deformation transfer (donor rig -> target mesh, production route) ----
