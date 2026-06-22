@@ -232,14 +232,13 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
           {/* Stock */}
           <div className="mb-4 border-t border-border" />
           <p className="mb-3 text-[11px] leading-relaxed text-muted">
-            Cutgent usa TUS cuentas. Las llaves se guardan SOLO en tu equipo. Todas son gratis:
-            video/imágenes (Pexels: pexels.com/api · Pixabay: pixabay.com/api/docs) · música
-            (Jamendo: devportal.jamendo.com) · efectos de sonido (Freesound: freesound.org/apiv2/apply).
+            Cutgent usa TUS cuentas. Las llaves se guardan SOLO en tu equipo y todas son gratis.
+            Pulsa «Obtener key ↗» en cada una para crearla.
           </p>
-          <KeyField label="Pexels API key · video/imágenes" status={status?.pexels} value={pexelsKey} onChange={setPexelsKey} />
-          <KeyField label="Pixabay API key · video/imágenes" status={status?.pixabay} value={pixabayKey} onChange={setPixabayKey} />
-          <KeyField label="Jamendo client_id · música" status={status?.jamendo} value={jamendoKey} onChange={setJamendoKey} />
-          <KeyField label="Freesound token · efectos (SFX)" status={status?.freesound} value={freesoundKey} onChange={setFreesoundKey} />
+          <KeyField label="Pexels · video/imágenes" status={status?.pexels} value={pexelsKey} onChange={setPexelsKey} href="https://www.pexels.com/api/" />
+          <KeyField label="Pixabay · video/imágenes" status={status?.pixabay} value={pixabayKey} onChange={setPixabayKey} href="https://pixabay.com/api/docs/" />
+          <KeyField label="Jamendo · música (client_id)" status={status?.jamendo} value={jamendoKey} onChange={setJamendoKey} href="https://devportal.jamendo.com/" />
+          <KeyField label="Freesound · efectos SFX (token)" status={status?.freesound} value={freesoundKey} onChange={setFreesoundKey} href="https://freesound.org/apiv2/apply/" />
           <div className="mb-5 mt-2 flex items-center justify-end gap-2">
             {saved && (
               <span className="flex items-center gap-1 text-xs text-[var(--ok)]">
@@ -340,16 +339,33 @@ function KeyField({
   status,
   value,
   onChange,
+  href,
+  hrefLabel,
 }: {
   label: string;
   status?: KeyStatus;
   value: string;
   onChange: (v: string) => void;
+  href?: string;
+  hrefLabel?: string;
 }) {
   return (
     <label className="mb-3 flex flex-col gap-1">
       <span className="flex items-center justify-between text-[11px] font-medium text-muted">
-        {label}
+        <span className="flex items-center gap-2">
+          {label}
+          {href && (
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="font-normal text-accent underline-offset-2 hover:underline"
+            >
+              {hrefLabel ?? "Obtener key ↗"}
+            </a>
+          )}
+        </span>
         {status?.set && <span className="font-mono text-[10px] text-[var(--ok)]">{status.masked}</span>}
       </span>
       <input

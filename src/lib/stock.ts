@@ -33,6 +33,10 @@ export interface StockResult {
   width?: number;
   height?: number;
   durationSec?: number;
+  /** Autor para atribución (fotógrafo / artista / usuario). */
+  author?: string;
+  /** Licencia: URL del deed CC (Jamendo/Freesound) o nombre (Pexels/Pixabay). */
+  license?: string;
 }
 
 export interface StockSearchResponse {
@@ -41,6 +45,15 @@ export interface StockSearchResponse {
 }
 
 const PER_PAGE = 24;
+
+/** Traduce un status HTTP de proveedor a un mensaje claro (el llamador antepone
+ *  el nombre del proveedor). 429 y 401/403 son los casos que el usuario debe
+ *  entender (rate-limit vs key inválida). */
+function httpErr(status: number): Error {
+  if (status === 429) return new Error("límite de la API alcanzado (429) — reintenta en un momento");
+  if (status === 401 || status === 403) return new Error(`API key inválida o sin permisos (${status})`);
+  return new Error(`respondió ${status}`);
+}
 
 // ---------------------------------------------------------------------------
 // Pexels response shapes (only the fields we use)
@@ -58,6 +71,7 @@ interface PexelsPhoto {
   width?: number;
   height?: number;
   src?: PexelsPhotoSrc;
+  photographer?: string;
 }
 
 interface PexelsPhotosResponse {
@@ -80,6 +94,7 @@ interface PexelsVideo {
   image?: string;
   url?: string;
   video_files?: PexelsVideoFile[];
+  user?: { name?: string };
 }
 
 interface PexelsVideosResponse {
@@ -93,6 +108,7 @@ interface PexelsVideosResponse {
 interface PixabayImageHit {
   id: number;
   tags?: string;
+  user?: string;
   previewURL?: string;
   webformatURL?: string;
   largeImageURL?: string;
@@ -114,6 +130,7 @@ interface PixabayVideoSize {
 interface PixabayVideoHit {
   id: number;
   tags?: string;
+  user?: string;
   duration?: number;
   videos?: {
     large?: PixabayVideoSize;
@@ -160,6 +177,7 @@ function pickPexelsVideoFile(files: PexelsVideoFile[]): PexelsVideoFile | undefi
 export async function searchPexels(
   query: string,
   type: StockKind,
+  page = 1,
 ): Promise<StockResult[]> {
   const apiKey = await getPexelsKey();
   if (!apiKey) throw new Error("Falta la API key de Pexels (Ajustes)");
@@ -168,11 +186,9 @@ export async function searchPexels(
   const q = encodeURIComponent(query);
 
   if (type === "image") {
-    const url = `https://api.pexels.com/v1/search?query=${q}&per_page=${PER_PAGE}`;
+    const url = `https://api.pexels.com/v1/search?query=${q}&per_page=${PER_PAGE}&page=${page}`;
     const res = await fetch(url, { headers });
-    if (!res.ok) {
-      throw new Error(`Pexels respondió ${res.status}`);
-    }
+    if (!res.ok) throw httpErr(res.status);
     const data = (await res.json()) as PexelsPhotosResponse;
     const photos = data.photos ?? [];
     return photos.flatMap((p): StockResult[] => {
@@ -189,17 +205,17 @@ export async function searchPexels(
           downloadUrl,
           width: p.width,
           height: p.height,
+          author: p.photographer,
+          license: "Pexels License",
         },
       ];
     });
   }
 
   // video
-  const url = `https://api.pexels.com/videos/search?query=${q}&per_page=${PER_PAGE}`;
+  const url = `https://api.pexels.com/videos/search?query=${q}&per_page=${PER_PAGE}&page=${page}`;
   const res = await fetch(url, { headers });
-  if (!res.ok) {
-    throw new Error(`Pexels respondió ${res.status}`);
-  }
+  if (!res.ok) throw httpErr(res.status);
   const data = (await res.json()) as PexelsVideosResponse;
   const videos = data.videos ?? [];
   return videos.flatMap((v): StockResult[] => {
@@ -218,6 +234,8 @@ export async function searchPexels(
         width: file?.width ?? v.width,
         height: file?.height ?? v.height,
         durationSec: v.duration,
+        author: v.user?.name,
+        license: "Pexels License",
       },
     ];
   });
@@ -230,6 +248,7 @@ export async function searchPexels(
 export async function searchPixabay(
   query: string,
   type: StockKind,
+  page = 1,
 ): Promise<StockResult[]> {
   const apiKey = await getPixabayKey();
   if (!apiKey) throw new Error("Falta la API key de Pixabay (Ajustes)");
@@ -238,11 +257,9 @@ export async function searchPixabay(
   const q = encodeURIComponent(query);
 
   if (type === "image") {
-    const url = `https://pixabay.com/api/?key=${key}&q=${q}&image_type=photo&per_page=${PER_PAGE}`;
+    const url = `https://pixabay.com/api/?key=${key}&q=${q}&image_type=photo&per_page=${PER_PAGE}&page=${page}`;
     const res = await fetch(url);
-    if (!res.ok) {
-      throw new Error(`Pixabay respondió ${res.status}`);
-    }
+    if (!res.ok) throw httpErr(res.status);
     const data = (await res.json()) as PixabayImageResponse;
     const hits = data.hits ?? [];
     return hits.flatMap((h): StockResult[] => {
@@ -259,17 +276,17 @@ export async function searchPixabay(
           downloadUrl,
           width: h.imageWidth,
           height: h.imageHeight,
+          author: h.user,
+          license: "Pixabay Content License",
         },
       ];
     });
   }
 
   // video
-  const url = `https://pixabay.com/api/videos/?key=${key}&q=${q}&per_page=${PER_PAGE}`;
+  const url = `https://pixabay.com/api/videos/?key=${key}&q=${q}&per_page=${PER_PAGE}&page=${page}`;
   const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`Pixabay respondió ${res.status}`);
-  }
+  if (!res.ok) throw httpErr(res.status);
   const data = (await res.json()) as PixabayVideoResponse;
   const hits = data.hits ?? [];
   return hits.flatMap((h): StockResult[] => {
@@ -288,6 +305,8 @@ export async function searchPixabay(
         width: size?.width,
         height: size?.height,
         durationSec: h.duration,
+        author: h.user,
+        license: "Pixabay Content License",
       },
     ];
   });
@@ -313,18 +332,19 @@ interface JamendoResponse {
   results?: JamendoTrack[];
 }
 
-export async function searchJamendo(query: string): Promise<StockResult[]> {
+export async function searchJamendo(query: string, page = 1): Promise<StockResult[]> {
   const clientId = await getJamendoKey();
   if (!clientId) throw new Error("Falta el client_id de Jamendo (Ajustes)");
 
   const q = encodeURIComponent(query);
+  const offset = (Math.max(1, page) - 1) * PER_PAGE;
   // Jamendo EXIGE el client_id por query string (no admite header). Es server-side
   // y este módulo no loguea URLs; si algún día se añade logging, enmascararlo.
   const url =
     `https://api.jamendo.com/v3.0/tracks/?client_id=${encodeURIComponent(clientId)}` +
-    `&format=json&limit=${PER_PAGE}&search=${q}&audioformat=mp32&order=popularity_total`;
+    `&format=json&limit=${PER_PAGE}&offset=${offset}&search=${q}&audioformat=mp32&order=popularity_total`;
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`Jamendo respondió ${res.status}`);
+  if (!res.ok) throw httpErr(res.status);
 
   const data = (await res.json()) as JamendoResponse;
   if (data.headers?.status && data.headers.status !== "success") {
@@ -348,6 +368,8 @@ export async function searchJamendo(query: string): Promise<StockResult[]> {
         previewUrl: t.image ?? "",
         downloadUrl,
         durationSec: t.duration,
+        author: t.artist_name,
+        license: t.license_ccurl,
       },
     ];
   });
@@ -374,7 +396,7 @@ interface FreesoundResponse {
   detail?: string;
 }
 
-export async function searchFreesound(query: string): Promise<StockResult[]> {
+export async function searchFreesound(query: string, page = 1): Promise<StockResult[]> {
   const token = await getFreesoundKey();
   if (!token) throw new Error("Falta el token de Freesound (Ajustes)");
 
@@ -383,10 +405,10 @@ export async function searchFreesound(query: string): Promise<StockResult[]> {
   const fields = "id,name,previews,duration,username,license,images";
   const url =
     `https://freesound.org/apiv2/search/text/?query=${q}` +
-    `&page_size=${PER_PAGE}&fields=${fields}&sort=score`;
+    `&page=${Math.max(1, page)}&page_size=${PER_PAGE}&fields=${fields}&sort=score`;
   // Token por header (no en la URL) para no filtrarlo en logs.
   const res = await fetch(url, { headers: { Authorization: `Token ${token}` } });
-  if (!res.ok) throw new Error(`Freesound respondió ${res.status}`);
+  if (!res.ok) throw httpErr(res.status);
 
   const data = (await res.json()) as FreesoundResponse;
   const sounds = data.results ?? [];
@@ -404,6 +426,8 @@ export async function searchFreesound(query: string): Promise<StockResult[]> {
         previewUrl,
         downloadUrl,
         durationSec: s.duration,
+        author: s.username,
+        license: s.license,
       },
     ];
   });
@@ -417,6 +441,7 @@ export async function searchStock(
   query: string,
   type: StockKind,
   provider: StockProvider | "all",
+  page = 1,
 ): Promise<StockSearchResponse> {
   const warnings: string[] = [];
   const errMsg = (err: unknown) =>
@@ -444,7 +469,7 @@ export async function searchStock(
         warnings.push("Falta el client_id de Jamendo — añádelo en Ajustes.");
       } else {
         audioTasks.push(
-          searchJamendo(query).catch((err: unknown) => {
+          searchJamendo(query, page).catch((err: unknown) => {
             warnings.push(`Jamendo: ${errMsg(err)}`);
             return [];
           }),
@@ -456,7 +481,7 @@ export async function searchStock(
         warnings.push("Falta el token de Freesound — añádelo en Ajustes.");
       } else {
         audioTasks.push(
-          searchFreesound(query).catch((err: unknown) => {
+          searchFreesound(query, page).catch((err: unknown) => {
             warnings.push(`Freesound: ${errMsg(err)}`);
             return [];
           }),
@@ -482,7 +507,7 @@ export async function searchStock(
       warnings.push("Falta la API key de Pexels — añádela en Ajustes.");
     } else {
       tasks.push(
-        searchPexels(query, type).catch((err: unknown) => {
+        searchPexels(query, type, page).catch((err: unknown) => {
           warnings.push(
             `Pexels: ${err instanceof Error ? err.message : "error desconocido"}`,
           );
@@ -497,7 +522,7 @@ export async function searchStock(
       warnings.push("Falta la API key de Pixabay — añádela en Ajustes.");
     } else {
       tasks.push(
-        searchPixabay(query, type).catch((err: unknown) => {
+        searchPixabay(query, type, page).catch((err: unknown) => {
           warnings.push(
             `Pixabay: ${err instanceof Error ? err.message : "error desconocido"}`,
           );

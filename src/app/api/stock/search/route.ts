@@ -36,8 +36,10 @@ export async function GET(req: NextRequest) {
 
     const type = parseKind(params.get("type"));
     const provider = parseProvider(params.get("provider"));
+    const pageRaw = Number(params.get("page"));
+    const page = Number.isFinite(pageRaw) && pageRaw >= 1 ? Math.floor(pageRaw) : 1;
 
-    const { results, warnings } = await searchStock(q.trim(), type, provider);
+    const { results, warnings } = await searchStock(q.trim(), type, provider, page);
     return NextResponse.json({ results, warnings });
   } catch (err) {
     return NextResponse.json(

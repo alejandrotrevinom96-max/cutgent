@@ -1790,13 +1790,15 @@ server.registerTool(
       query: z.string(),
       type: z.enum(["image", "video", "audio"]).optional(),
       provider: z.enum(["pexels", "pixabay", "jamendo", "freesound", "all"]).optional(),
+      page: z.number().optional(),
     },
   },
   tool(async (args) => {
     const type = args.type ?? "video";
     const provider = args.provider ?? "all";
+    const page = args.page ?? 1;
     const res = await getJson(
-      `/api/stock/search?q=${encodeURIComponent(args.query)}&type=${type}&provider=${provider}`,
+      `/api/stock/search?q=${encodeURIComponent(args.query)}&type=${type}&provider=${provider}&page=${page}`,
     );
     return okJson(res);
   }),

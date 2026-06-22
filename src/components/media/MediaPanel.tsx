@@ -46,6 +46,8 @@ interface StockResult {
   width?: number;
   height?: number;
   durationSec?: number;
+  author?: string;
+  license?: string;
 }
 
 /** Respuesta esperada de /api/stock/search. */
@@ -117,6 +119,9 @@ export function MediaPanel() {
   const [importingId, setImportingId] = useState<string | null>(null);
   // Modo overlay (VFX): los resultados se importan con fusión "screen" a una pista de overlays.
   const [overlayMode, setOverlayMode] = useState(false);
+  // Paginación de stock ("Cargar más").
+  const [stockPage, setStockPage] = useState(1);
+  const [stockLoadingMore, setStockLoadingMore] = useState(false);
 
   // Estado de "Generar con IA" (BYO key)
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
@@ -247,33 +252,48 @@ export function MediaPanel() {
     type?: StockType;
     provider?: StockProvider;
     overlay?: boolean;
+    append?: boolean;
   }): Promise<void> {
+    const append = opts?.append ?? false;
     const q = (opts?.query ?? stockQuery).trim();
-    if (!q || stockSearching) return;
+    if (!q || stockSearching || stockLoadingMore) return;
     const type = opts?.type ?? stockType;
     const provider = opts?.provider ?? stockProvider;
+    const page = append ? stockPage + 1 : 1;
 
-    setOverlayMode(opts?.overlay ?? false);
-    setStockSearching(true);
+    if (append) {
+      setStockLoadingMore(true);
+    } else {
+      setOverlayMode(opts?.overlay ?? false);
+      setStockSearching(true);
+      setStockWarnings([]);
+      setStockResults([]);
+    }
     setStockError(null);
-    setStockWarnings([]);
-    setStockResults([]);
     setStockSearched(true);
 
     try {
-      const params = new URLSearchParams({ q, type, provider });
+      const params = new URLSearchParams({ q, type, provider, page: String(page) });
       const res = await fetch(`/api/stock/search?${params.toString()}`);
       if (!res.ok) {
         setStockError("No se pudo completar la búsqueda. Inténtalo de nuevo.");
         return;
       }
       const data = (await res.json()) as StockSearchResponse;
-      setStockResults(Array.isArray(data.results) ? data.results : []);
-      setStockWarnings(Array.isArray(data.warnings) ? data.warnings : []);
+      const fresh = Array.isArray(data.results) ? data.results : [];
+      setStockResults((prev) => {
+        if (!append) return fresh;
+        // Dedup por id al concatenar páginas (evita keys repetidas de React).
+        const seen = new Set(prev.map((r) => r.id));
+        return [...prev, ...fresh.filter((r) => !seen.has(r.id))];
+      });
+      if (!append) setStockWarnings(Array.isArray(data.warnings) ? data.warnings : []);
+      setStockPage(page);
     } catch {
       setStockError("Error de red al buscar stock. Revisa tu conexión.");
     } finally {
       setStockSearching(false);
+      setStockLoadingMore(false);
     }
   }
 
@@ -626,6 +646,7 @@ export function MediaPanel() {
             No se encontraron resultados. Prueba con otra búsqueda.
           </p>
         ) : stockResults.length > 0 ? (
+          <>
           <div className="grid grid-cols-2 gap-2">
             {stockResults.map((result) => (
               <button
@@ -633,7 +654,7 @@ export function MediaPanel() {
                 type="button"
                 onClick={() => void handleStockImport(result)}
                 disabled={importingId !== null}
-                title={`Importar y añadir: ${result.title}`}
+                title={`Importar: ${result.title}${result.author ? ` — © ${result.author}` : ""}${result.license ? ` · ${result.license}` : ""}`}
                 className="group relative aspect-video overflow-hidden rounded-md border border-border bg-track text-left transition hover:border-accent disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {result.previewUrl ? (
@@ -657,6 +678,7 @@ export function MediaPanel() {
                 {stockType === "audio" && (
                   <span className="pointer-events-none absolute inset-x-0 bottom-0 truncate bg-black/60 px-1 py-0.5 text-[9px] leading-tight text-white">
                     {result.title}
+                    {result.author ? ` · ${result.author}` : ""}
                   </span>
                 )}
                 <span className="pointer-events-none absolute right-1 top-1 rounded bg-black/60 p-0.5 text-white">
@@ -676,6 +698,23 @@ export function MediaPanel() {
               </button>
             ))}
           </div>
+          <button
+            type="button"
+            onClick={() => void handleStockSearch({ append: true })}
+            disabled={stockLoadingMore || stockSearching}
+            className="flex items-center justify-center gap-1.5 rounded-md border border-border bg-panel-2 px-3 py-1.5 text-xs text-muted transition hover:border-accent hover:text-text disabled:opacity-50"
+          >
+            {stockLoadingMore ? (
+              <><Loader2 size={14} className="animate-spin" /> Cargando…</>
+            ) : (
+              "Cargar más"
+            )}
+          </button>
+          <p className="text-[10px] leading-snug text-muted">
+            Pasa el cursor sobre un resultado para ver el autor y la licencia (CC).
+            Si publicas, acredita según corresponda.
+          </p>
+          </>
         ) : null}
       </Section>
 

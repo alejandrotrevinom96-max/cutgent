@@ -189,7 +189,13 @@ const transformFields = {
   /** Uniform scale multiplier (1 = native size). */
   scale: z.number().default(1),
   rotation: z.number().default(0), // degrees
-  opacity: z.number().min(0).max(1).default(1),
+  // Clamp (no min/max estricto): un valor fuera de rango se ajusta a [0,1] en vez
+  // de invalidar el clip entero — update_clip valida el clip resultante y
+  // descartaría TODO el patch (incl. campos válidos) si opacity rechazara.
+  opacity: z
+    .number()
+    .default(1)
+    .transform((v) => (v < 0 ? 0 : v > 1 ? 1 : v)),
   /** Explicit box size in px. If omitted the clip uses its natural size. */
   width: z.number().optional(),
   height: z.number().optional(),
