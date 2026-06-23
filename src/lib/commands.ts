@@ -91,6 +91,15 @@ export const CommandSchema = z.discriminatedUnion("type", [
     property: AnimatablePropertySchema,
     frame: z.number(),
   }),
+  // Reemplaza ATÓMICAMENTE el track entero de una propiedad (vs add_keyframe que
+  // mergea uno). Para escribir curvas completas en un comando (p.ej. tracking por
+  // IA) sin spamear add_keyframe (que mataría undo/SSE/JSON en clips largos).
+  z.object({
+    type: z.literal("set_track_keyframes"),
+    clipId: z.string(),
+    property: AnimatablePropertySchema,
+    keyframes: z.array(KeyframeSchema),
+  }),
 
   z.object({ type: z.literal("add_effect"), clipId: z.string(), effect: EffectSchema }),
   z.object({ type: z.literal("remove_effect"), clipId: z.string(), index: z.number() }),
@@ -402,6 +411,25 @@ export function applyCommand(doc: Project, command: Command): Project {
           ...keyframeTracks[idx],
           keyframes: keyframeTracks[idx].keyframes.filter((k) => k.frame !== command.frame),
         };
+        return { ...c, keyframeTracks };
+      });
+
+    case "set_track_keyframes":
+      return withClip(doc, command.clipId, (c) => {
+        const keyframeTracks = c.keyframeTracks.slice(); // copia: keyframeTracks se comparte por ref
+        const idx = keyframeTracks.findIndex((k) => k.property === command.property);
+        // dedup por frame (last-wins) + sort asc: invariantes que interpKeyframes asume.
+        const byFrame = new Map<number, KeyframeTrack["keyframes"][number]>();
+        for (const kf of command.keyframes) byFrame.set(kf.frame, kf);
+        const keyframes = [...byFrame.values()].sort((a, b) => a.frame - b.frame);
+        if (keyframes.length === 0) {
+          if (idx === -1) return c; // no-op: nada que vaciar → preserva la optimización next===prev
+          keyframeTracks.splice(idx, 1); // track vacío → eliminar el track
+        } else if (idx === -1) {
+          keyframeTracks.push({ property: command.property, keyframes });
+        } else {
+          keyframeTracks[idx] = { property: command.property, keyframes };
+        }
         return { ...c, keyframeTracks };
       });
 
