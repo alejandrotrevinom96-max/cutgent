@@ -21,6 +21,8 @@ export interface ClipDynamics {
   rotation: number;
   opacity: number;
   volume: number;
+  /** % de tamaño de la máscara (0..100), interpolado por keyframes de "maskRadius". */
+  maskRadius: number;
   filter: string;
   clipPath?: string;
 }
@@ -143,6 +145,7 @@ export function getClipDynamics(
     rotation: clip.rotation,
     opacity: clip.opacity,
     volume: "volume" in clip ? (clip as { volume: number }).volume : 1,
+    maskRadius: (clip as { maskRadius?: number }).maskRadius ?? 100,
   };
 
   // 2. keyframe overrides
@@ -209,6 +212,7 @@ export function getClipDynamics(
     rotation: base.rotation,
     opacity: base.opacity * inC.opacityMul * outC.opacityMul,
     volume: base.volume,
+    maskRadius: Math.max(0, Math.min(100, base.maskRadius)),
     filter: filterParts.length ? filterParts.join(" ") : "none",
     clipPath,
   };

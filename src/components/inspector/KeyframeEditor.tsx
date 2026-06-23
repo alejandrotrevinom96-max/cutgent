@@ -37,6 +37,7 @@ const PROP_LABEL: Record<AnimatableProperty, string> = {
   rotation: "Rotación",
   opacity: "Opacidad",
   volume: "Volumen",
+  maskRadius: "Máscara %",
 };
 
 /** Rango Y base por propiedad. */
@@ -47,6 +48,7 @@ const BASE_RANGE: Record<AnimatableProperty, { min: number; max: number }> = {
   rotation: { min: -180, max: 180 },
   opacity: { min: 0, max: 1 },
   volume: { min: 0, max: 1 },
+  maskRadius: { min: 0, max: 100 },
 };
 
 // Geometría del gráfico SVG (coordenadas internas del viewBox).
@@ -75,6 +77,8 @@ function readBaseValue(clip: Clip, property: AnimatableProperty): number {
       return clip.rotation;
     case "opacity":
       return clip.opacity;
+    case "maskRadius":
+      return (clip as { maskRadius?: number }).maskRadius ?? 100;
     case "volume":
       if (clip.type === "video" || clip.type === "audio") return clip.volume;
       return 1;
@@ -87,9 +91,11 @@ function readBaseValue(clip: Clip, property: AnimatableProperty): number {
 
 /** Propiedades disponibles según el tipo de clip (volume solo video/audio). */
 function availableProps(clip: Clip): AnimatableProperty[] {
-  const hasAudio = clip.type === "video" || clip.type === "audio";
   const base: AnimatableProperty[] = ["x", "y", "scale", "rotation", "opacity"];
-  return hasAudio ? [...base, "volume"] : base;
+  if (clip.type === "audio") return [...base, "volume"];
+  // Clips visuales: maskRadius (anima la máscara). Solo video además lleva volumen.
+  const visual: AnimatableProperty[] = [...base, "maskRadius"];
+  return clip.type === "video" ? [...visual, "volume"] : visual;
 }
 
 interface DragState {

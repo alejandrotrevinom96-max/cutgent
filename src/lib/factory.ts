@@ -22,6 +22,7 @@ const baseTransform = () => ({
   effects: [],
   blendMode: "normal" as const,
   mask: "none" as const,
+  maskRadius: 100,
 });
 
 export function createTrack(partial: Partial<Track> = {}): Track {

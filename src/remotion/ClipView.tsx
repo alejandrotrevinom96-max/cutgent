@@ -95,11 +95,14 @@ export const ClipView: React.FC<{
   }
 
   if (clip.mask && clip.mask !== "none") {
+    // maskRadius (0..100) anima la forma por frame: 0 = cerrada, 100 = completa.
+    // Con 100 equivale al comportamiento previo (circle(50%) / ellipse(50% 50%) / 24px).
+    const r = d.maskRadius / 2; // % del semieje (100 → 50% = forma inscrita completa)
     const maskStyle: React.CSSProperties = {};
-    if (clip.mask === "circle") maskStyle.clipPath = "circle(50%)";
-    else if (clip.mask === "ellipse") maskStyle.clipPath = "ellipse(50% 50%)";
+    if (clip.mask === "circle") maskStyle.clipPath = `circle(${r}%)`;
+    else if (clip.mask === "ellipse") maskStyle.clipPath = `ellipse(${r}% ${r}%)`;
     else if (clip.mask === "rounded") {
-      maskStyle.borderRadius = "24px";
+      maskStyle.borderRadius = `${24 * (d.maskRadius / 100)}px`;
       maskStyle.overflow = "hidden";
     }
     inner = <div style={maskStyle}>{inner}</div>;

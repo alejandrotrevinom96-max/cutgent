@@ -35,6 +35,9 @@ export const AnimatablePropertySchema = z.enum([
   "rotation",
   "opacity",
   "volume",
+  // % de tamaño de la máscara (0 = cerrada, 100 = forma completa). Animable →
+  // revelados/cierres y base para roto/matte/tracking por IA (escriben aquí).
+  "maskRadius",
 ]);
 export type AnimatableProperty = z.infer<typeof AnimatablePropertySchema>;
 
@@ -207,6 +210,9 @@ const transformFields = {
   blendMode: BlendModeSchema.default("normal"),
   crop: CropSchema.optional(),
   mask: MaskSchema.default("none"),
+  /** Tamaño de la máscara en % (0 = cerrada, 100 = forma completa). Animable vía
+   *  keyframes de "maskRadius". default 100 = retrocompatible (= comportamiento previo). */
+  maskRadius: z.number().min(0).max(100).default(100),
   /** Corrección de color pro (opcional; undefined = sin grade) */
   colorGrade: ColorGradeSchema.optional(),
 };

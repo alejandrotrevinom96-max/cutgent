@@ -875,7 +875,10 @@ function AnimationEditor({
 /** Propiedades animables disponibles según el tipo de clip (volume solo a/v). */
 function availableKfProps(clip: Clip): AnimatableProperty[] {
   const base: AnimatableProperty[] = ["x", "y", "scale", "rotation", "opacity"];
-  return clip.type === "video" || clip.type === "audio" ? [...base, "volume"] : base;
+  if (clip.type === "audio") return [...base, "volume"];
+  // Clips visuales: maskRadius (anima la máscara). Solo video además lleva volumen.
+  const visual: AnimatableProperty[] = [...base, "maskRadius"];
+  return clip.type === "video" ? [...visual, "volume"] : visual;
 }
 
 const KF_PROP_LABEL: Record<AnimatableProperty, string> = {
@@ -885,6 +888,7 @@ const KF_PROP_LABEL: Record<AnimatableProperty, string> = {
   rotation: "Rotación",
   opacity: "Opacidad",
   volume: "Volumen",
+  maskRadius: "Máscara %",
 };
 
 /** Lee el valor base (sin animar) de una propiedad del clip. */
@@ -900,6 +904,8 @@ function readKfBaseValue(clip: Clip, property: AnimatableProperty): number {
       return clip.rotation;
     case "opacity":
       return clip.opacity;
+    case "maskRadius":
+      return (clip as { maskRadius?: number }).maskRadius ?? 100;
     case "volume":
       return clip.type === "video" || clip.type === "audio" ? clip.volume : 1;
     default: {

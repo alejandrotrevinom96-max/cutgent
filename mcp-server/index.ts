@@ -197,7 +197,7 @@ const EFFECT_TYPES = [
   "invert",
 ] as const;
 
-const ANIMATABLE = ["x", "y", "scale", "rotation", "opacity", "volume"] as const;
+const ANIMATABLE = ["x", "y", "scale", "rotation", "opacity", "volume", "maskRadius"] as const;
 const SHAPE_KINDS = ["rect", "circle", "ellipse", "triangle", "star"] as const;
 const FITS = ["cover", "contain", "fill"] as const;
 
@@ -2069,12 +2069,64 @@ server.registerTool(
   "set_mask",
   {
     title: "Máscara de forma",
-    description: "Aplica una máscara de forma al clip: none, circle, ellipse o rounded.",
-    inputSchema: { clipId: z.string(), mask: z.enum(["none", "circle", "ellipse", "rounded"]) },
+    description:
+      "Aplica una máscara de forma al clip: none, circle, ellipse o rounded. maskRadius (0..100, opcional) fija el tamaño estático; para animar la máscara usa add_keyframe o animate_mask sobre la propiedad 'maskRadius'.",
+    inputSchema: {
+      clipId: z.string(),
+      mask: z.enum(["none", "circle", "ellipse", "rounded"]),
+      maskRadius: z.number().min(0).max(100).optional(),
+    },
   },
   tool(async (args) => {
-    await postCommands([{ type: "update_clip", clipId: args.clipId, patch: { mask: args.mask } }]);
-    return ok(`Máscara de ${args.clipId} = ${args.mask}.`);
+    const patch: Record<string, unknown> = { mask: args.mask };
+    if (args.maskRadius !== undefined) patch.maskRadius = args.maskRadius;
+    await postCommands([{ type: "update_clip", clipId: args.clipId, patch }]);
+    return ok(
+      `Máscara de ${args.clipId} = ${args.mask}${
+        args.maskRadius !== undefined ? ` (radio ${args.maskRadius}%)` : ""
+      }.`,
+    );
+  }),
+);
+
+server.registerTool(
+  "animate_mask",
+  {
+    title: "Animar máscara (revelar / cerrar)",
+    description:
+      "Anima el tamaño de la máscara con dos keyframes de 'maskRadius'. Revelado: from 0 → to 100. Cierre: from 100 → to 0. Si se indica 'mask', primero fija la forma. Frames relativos al inicio del clip.",
+    inputSchema: {
+      clipId: z.string(),
+      mask: z.enum(["circle", "ellipse", "rounded"]).optional(),
+      from: z.number().min(0).max(100).default(0),
+      to: z.number().min(0).max(100).default(100),
+      startFrame: z.number().min(0).default(0),
+      durationFrames: z.number().min(1).default(30),
+      easing: z.enum(EASINGS).optional(),
+    },
+  },
+  tool(async (args) => {
+    const easing = args.easing ?? "ease-out";
+    const cmds: Command[] = [];
+    if (args.mask) {
+      cmds.push({ type: "update_clip", clipId: args.clipId, patch: { mask: args.mask } });
+    }
+    cmds.push({
+      type: "add_keyframe",
+      clipId: args.clipId,
+      property: "maskRadius",
+      keyframe: { frame: args.startFrame, value: args.from, easing },
+    });
+    cmds.push({
+      type: "add_keyframe",
+      clipId: args.clipId,
+      property: "maskRadius",
+      keyframe: { frame: args.startFrame + args.durationFrames, value: args.to, easing },
+    });
+    await postCommands(cmds);
+    return ok(
+      `Máscara de ${args.clipId} animada ${args.from}% → ${args.to}% en ${args.durationFrames}f (desde frame ${args.startFrame}).`,
+    );
   }),
 );
 
