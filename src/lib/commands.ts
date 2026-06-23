@@ -285,7 +285,7 @@ export function applyCommand(doc: Project, command: Command): Project {
         // su default → pérdida silenciosa de datos del usuario).
         const cur = c as unknown as Record<string, unknown>;
         const merged: Record<string, unknown> = { ...patch };
-        for (const k of ["colorGrade", "crop", "animationIn", "animationOut"]) {
+        for (const k of ["colorGrade", "crop", "animationIn", "animationOut", "alphaMatte"]) {
           const pv = patch[k];
           const cv = cur[k];
           if (pv && typeof pv === "object" && !Array.isArray(pv) && cv && typeof cv === "object") {

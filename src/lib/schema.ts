@@ -237,6 +237,11 @@ const transformFields = {
   maskRadius: z.number().min(0).max(100).default(100),
   /** Corrección de color pro (opcional; undefined = sin grade) */
   colorGrade: ColorGradeSchema.optional(),
+  /** Recorte de sujeto por IA (rotoscopía free-form): `src` = WebM con canal alfa
+   *  del sujeto recortado. NO destructivo — el `src` original del clip se conserva;
+   *  el render muestra este recorte en su lugar y quitar el campo revierte.
+   *  undefined = sin recorte (retrocompat). */
+  alphaMatte: z.object({ src: z.string() }).optional(),
 };
 
 const baseClipFields = {

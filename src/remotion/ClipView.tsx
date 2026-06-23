@@ -362,6 +362,41 @@ function renderContent(
     case "video": {
       const w = clip.width ?? canvas.width;
       const h = clip.height ?? canvas.height;
+      const volumeFn =
+        clip.muted
+          ? 0
+          : (f: number) =>
+              clipVolumeAt(clip, f) *
+              trackVolume *
+              audioGain(f, clip.duration, clip.fadeInFrames ?? 0, clip.fadeOutFrames ?? 0);
+      // Recorte de sujeto por IA (alphaMatte): renderiza el WebM-alfa del sujeto en
+      // lugar del original, vía el path `transparent` ya verificado. No destructivo
+      // (clip.src se conserva). Conserva el audio original con un <Audio> aparte
+      // porque el recorte suele venir sin pista de audio.
+      const matteSrc = clip.alphaMatte?.src;
+      if (matteSrc) {
+        return (
+          <>
+            <OffthreadVideo
+              src={matteSrc}
+              startFrom={clip.trimStart}
+              playbackRate={clip.playbackRate}
+              muted
+              transparent
+              onVideoFrame={opts.sampleScope ? (el) => sampleElement(el) : undefined}
+              style={{ width: w, height: h, objectFit: clip.fit }}
+            />
+            {!clip.muted && (
+              <Audio
+                src={clip.src}
+                startFrom={clip.trimStart}
+                playbackRate={clip.playbackRate}
+                volume={volumeFn}
+              />
+            )}
+          </>
+        );
+      }
       // En preview usa el proxy si existe; el render siempre el original.
       const src =
         opts.preview && opts.proxyMap?.[clip.src] ? opts.proxyMap[clip.src] : clip.src;
@@ -371,14 +406,7 @@ function renderContent(
           startFrom={clip.trimStart}
           playbackRate={clip.playbackRate}
           muted={clip.muted}
-          volume={
-            clip.muted
-              ? 0
-              : (f) =>
-                  clipVolumeAt(clip, f) *
-                  trackVolume *
-                  audioGain(f, clip.duration, clip.fadeInFrames ?? 0, clip.fadeOutFrames ?? 0)
-          }
+          volume={volumeFn}
           // .webm = posible canal alfa (p.ej. chroma key). transparent fuerza
           // extracción PNG en el render para conservar la transparencia.
           // Evaluado sobre el src ORIGINAL (el proxy es .mp4 sin alfa).
