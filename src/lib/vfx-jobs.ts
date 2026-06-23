@@ -17,8 +17,9 @@ export interface VfxJob {
   model: string;
   error?: string;
   startedAt?: number;
-  keyframes?: TrackKeyframes; // resultado (informativo)
+  keyframes?: TrackKeyframes; // resultado de tracking (informativo)
   postedProps?: string[]; // propiedades aplicadas al clip (x/y/scale/opacity)
+  matteSrc?: string; // resultado de matting (src del recorte WebM-alfa aplicado)
 }
 
 interface Registry {

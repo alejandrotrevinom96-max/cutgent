@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
     elapsedSec,
     ...(job.postedProps ? { postedProps: job.postedProps } : {}),
     ...(job.keyframes ? { keyframes: job.keyframes } : {}),
+    ...(job.matteSrc ? { matteSrc: job.matteSrc } : {}),
     ...(job.error ? { error: job.error } : {}),
   });
 }

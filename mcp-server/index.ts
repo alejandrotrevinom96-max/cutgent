@@ -2207,6 +2207,24 @@ server.registerTool(
 );
 
 server.registerTool(
+  "matte_subject",
+  {
+    title: "Recortar sujeto (matte IA)",
+    description:
+      "Recorta el sujeto de un clip de video con IA (rotoscopía free-form, fal VEED background removal, BYO FAL_KEY). Devuelve jobId; consulta con vfx_status. Al terminar asigna clip.alphaMatte.src (recorte WebM-alfa) — el clip se renderiza recortado, no destructivo. Usa CUTGENT_MATTE_PROVIDER=mock para prueba sin key.",
+    inputSchema: { clipId: z.string(), model: z.string().optional() },
+  },
+  tool(async (args) => {
+    const res = (await postJson("/api/matte", { clipId: args.clipId, model: args.model })) as
+      | { jobId?: string }
+      | null;
+    const jobId = res?.jobId;
+    if (!jobId) return okJson(res);
+    return ok(`Matte lanzado (recorte IA). jobId=${jobId}. Consulta con vfx_status.`);
+  }),
+);
+
+server.registerTool(
   "make_pip",
   {
     title: "Picture-in-picture",
