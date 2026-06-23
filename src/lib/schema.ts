@@ -101,14 +101,36 @@ export const EffectTypeSchema = z.enum([
   "sepia",
   "hue-rotate",
   "invert",
+  // "AE-lite" (se renderizan con <filter> SVG / overlay, no con CSS filter):
+  "glow",
+  "vignette",
+  "rgb-split",
+  "duotone",
 ]);
 export type EffectType = z.infer<typeof EffectTypeSchema>;
 
+/** Parámetros extra por efecto (todos opcionales → retrocompatible; los 8
+ *  efectos CSS clásicos los ignoran). */
+export const EffectParamsSchema = z
+  .object({
+    threshold: z.number().min(0).max(1).optional(), // glow: umbral de luminancia
+    color: z.string().optional(), // glow: tinte del bloom
+    feather: z.number().min(0).max(100).optional(), // vignette: suavidad del borde
+    angle: z.number().optional(), // rgb-split: ángulo del desplazamiento (grados)
+    shadowColor: z.string().optional(), // duotone: color de sombras
+    highlightColor: z.string().optional(), // duotone: color de altas luces
+  })
+  .optional();
+export type EffectParams = z.infer<typeof EffectParamsSchema>;
+
 export const EffectSchema = z.object({
   type: EffectTypeSchema,
-  /** Meaning depends on type: px for blur, deg for hue-rotate, 0..n multiplier
-   *  for brightness/contrast/saturate, 0..1 for grayscale/sepia/invert. */
+  /** Intensidad principal. Por tipo: px (blur), deg (hue-rotate), 0..n
+   *  (brightness/contrast/saturate), 0..1 (grayscale/sepia/invert),
+   *  0..100 (glow/vignette/duotone), px de offset (rgb-split). */
   value: z.number(),
+  /** Parámetros extra por efecto (opcional). */
+  params: EffectParamsSchema,
 });
 export type Effect = z.infer<typeof EffectSchema>;
 

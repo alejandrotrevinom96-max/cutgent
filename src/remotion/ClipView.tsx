@@ -45,28 +45,33 @@ export const ClipView: React.FC<{
     );
   }
 
+  // Efectos avanzados (filtros SVG glow/rgb/duo + overlay de viñeta), compartidos
+  // por todos los clips visuales.
+  const fx = advancedEffects(clip);
+
   // A solid fills the whole canvas, so it bypasses the centered wrapper
   // (which has no intrinsic size) and applies only opacity/filter/grade.
   if (clip.type === "solid") {
     const g = clip.colorGrade ? colorGradeFilter(clip.id, clip.colorGrade) : null;
-    const filter = g
-      ? `${d.filter && d.filter !== "none" ? `${d.filter} ` : ""}url(#${g.id})`
-      : d.filter;
+    let filter = d.filter && d.filter !== "none" ? d.filter : "";
+    for (const f of [...fx.filters, g]) if (f) filter = filter ? `${filter} url(#${f.id})` : `url(#${f.id})`;
+    if (!filter) filter = "none";
     return (
       <AbsoluteFill style={{ backgroundColor: clip.color, opacity: d.opacity, filter }}>
+        {fx.svgs}
         {g?.svg}
+        {fx.vignette}
       </AbsoluteFill>
     );
   }
 
   const blend = clip.blendMode && clip.blendMode !== "normal" ? clip.blendMode : undefined;
 
-  // Corrección de color pro: filtro SVG combinado con los filtros CSS (efectos).
+  // Filtros SVG combinados con los CSS. Orden: efectos CSS → glow/rgb/duo → grade.
   const grade = clip.colorGrade ? colorGradeFilter(clip.id, clip.colorGrade) : null;
-  let filterStr = d.filter;
-  if (grade) {
-    filterStr = filterStr && filterStr !== "none" ? `${filterStr} url(#${grade.id})` : `url(#${grade.id})`;
-  }
+  let filterStr = d.filter && d.filter !== "none" ? d.filter : "";
+  for (const f of [...fx.filters, grade]) if (f) filterStr = filterStr ? `${filterStr} url(#${f.id})` : `url(#${f.id})`;
+  if (!filterStr) filterStr = "none";
 
   const wrapperStyle: React.CSSProperties = {
     position: "absolute",
@@ -86,6 +91,16 @@ export const ClipView: React.FC<{
     proxyMap,
     sampleScope,
   });
+
+  // Viñeta: overlay dentro del contenido (así la recortan crop/mask, como debe ser).
+  if (fx.vignette) {
+    inner = (
+      <div style={{ position: "relative", display: "inline-block" }}>
+        {inner}
+        {fx.vignette}
+      </div>
+    );
+  }
 
   if (clip.crop) {
     const { top, right, bottom, left } = clip.crop;
@@ -110,6 +125,7 @@ export const ClipView: React.FC<{
 
   return (
     <div style={wrapperStyle}>
+      {fx.svgs}
       {grade?.svg}
       {inner}
     </div>
@@ -177,6 +193,162 @@ function colorGradeFilter(
     ),
   };
 };
+
+// ---------------------------------------------------------------------------
+// Efectos avanzados "AE-lite": glow, RGB-split y duotono se renderizan como
+// <filter> SVG por-clip (mismo patrón que colorGradeFilter); la viñeta es una
+// capa overlay con radial-gradient. Se componen en el filter del wrapper.
+// ---------------------------------------------------------------------------
+
+type SvgFilter = { id: string; svg: React.ReactNode };
+
+/** Recoge los efectos avanzados presentes en el clip: filtros SVG (glow/rgb/duo)
+ *  + los nodos <svg> de defs + la viñeta (overlay). */
+function advancedEffects(clip: Clip): {
+  filters: SvgFilter[];
+  svgs: React.ReactNode;
+  vignette: React.ReactNode | null;
+} {
+  const filters: SvgFilter[] = [];
+  const glow = clip.effects.find((e) => e.type === "glow");
+  if (glow && glow.value > 0) filters.push(glowFilter(clip.id, glow.value, glow.params?.threshold ?? 0.7));
+  const rgb = clip.effects.find((e) => e.type === "rgb-split");
+  if (rgb && rgb.value > 0) filters.push(rgbSplitFilter(clip.id, rgb.value, rgb.params?.angle ?? 0));
+  const duo = clip.effects.find((e) => e.type === "duotone");
+  if (duo && duo.value > 0)
+    filters.push(
+      duotoneFilter(clip.id, duo.value, duo.params?.shadowColor ?? "#1a1a4e", duo.params?.highlightColor ?? "#ff7ac6"),
+    );
+  const vig = clip.effects.find((e) => e.type === "vignette");
+  const vignette = vig && vig.value > 0 ? vignetteOverlay(vig.value, vig.params?.feather ?? 50) : null;
+  return {
+    filters,
+    svgs: filters.length
+      ? filters.map((f) => <React.Fragment key={f.id}>{f.svg}</React.Fragment>)
+      : null,
+    vignette,
+  };
+}
+
+/** Glow / bloom: aísla luces (umbral) → desenfoca → recompone sobre el original. */
+function glowFilter(clipId: string, value: number, threshold: number): SvgFilter {
+  const id = `glow-${clipId}`;
+  const K = 1 / Math.max(0.001, 1 - threshold);
+  const intercept = -threshold * K;
+  const std = value * 0.4; // 0..100 → stdDeviation 0..40px
+  return {
+    id,
+    svg: (
+      <svg width="0" height="0" style={{ position: "absolute" }} aria-hidden>
+        <defs>
+          <filter id={id} x="-30%" y="-30%" width="160%" height="160%" colorInterpolationFilters="sRGB">
+            <feComponentTransfer in="SourceGraphic" result="bright">
+              <feFuncR type="linear" slope={String(K)} intercept={String(intercept)} />
+              <feFuncG type="linear" slope={String(K)} intercept={String(intercept)} />
+              <feFuncB type="linear" slope={String(K)} intercept={String(intercept)} />
+            </feComponentTransfer>
+            <feGaussianBlur in="bright" stdDeviation={String(std)} result="blur" />
+            <feMerge>
+              <feMergeNode in="SourceGraphic" />
+              <feMergeNode in="blur" />
+              <feMergeNode in="blur" />
+            </feMerge>
+          </filter>
+        </defs>
+      </svg>
+    ),
+  };
+}
+
+/** RGB-split / aberración cromática: separa canales y desplaza R y B opuestos. */
+function rgbSplitFilter(clipId: string, value: number, angle: number): SvgFilter {
+  const id = `rgb-${clipId}`;
+  const rad = (angle * Math.PI) / 180;
+  const dx = value * Math.cos(rad);
+  const dy = value * Math.sin(rad);
+  return {
+    id,
+    svg: (
+      <svg width="0" height="0" style={{ position: "absolute" }} aria-hidden>
+        <defs>
+          <filter id={id} x="-20%" y="-20%" width="140%" height="140%" colorInterpolationFilters="sRGB">
+            <feColorMatrix in="SourceGraphic" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="R" />
+            <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="G" />
+            <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="B" />
+            <feOffset in="R" dx={String(dx)} dy={String(dy)} result="Ro" />
+            <feOffset in="B" dx={String(-dx)} dy={String(-dy)} result="Bo" />
+            <feBlend in="Ro" in2="G" mode="screen" result="RG" />
+            <feBlend in="RG" in2="Bo" mode="screen" />
+          </filter>
+        </defs>
+      </svg>
+    ),
+  };
+}
+
+/** Duotono: luminancia → mapa a 2 colores (sombras/altas), mezclado con value. */
+function duotoneFilter(clipId: string, value: number, shadowColor: string, highlightColor: string): SvgFilter {
+  const id = `duo-${clipId}`;
+  const [sR, sG, sB] = hexToRgb01(shadowColor);
+  const [hR, hG, hB] = hexToRgb01(highlightColor);
+  const mix = value / 100;
+  return {
+    id,
+    svg: (
+      <svg width="0" height="0" style={{ position: "absolute" }} aria-hidden>
+        <defs>
+          <filter id={id} colorInterpolationFilters="sRGB">
+            <feColorMatrix
+              in="SourceGraphic"
+              type="matrix"
+              values="0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0 0 0 1 0"
+              result="gray"
+            />
+            <feComponentTransfer in="gray" result="duo">
+              <feFuncR type="table" tableValues={`${sR} ${hR}`} />
+              <feFuncG type="table" tableValues={`${sG} ${hG}`} />
+              <feFuncB type="table" tableValues={`${sB} ${hB}`} />
+              <feFuncA type="table" tableValues="1 1" />
+            </feComponentTransfer>
+            <feComponentTransfer in="duo" result="duoA">
+              <feFuncA type="linear" slope={String(mix)} />
+            </feComponentTransfer>
+            <feMerge>
+              <feMergeNode in="SourceGraphic" />
+              <feMergeNode in="duoA" />
+            </feMerge>
+          </filter>
+        </defs>
+      </svg>
+    ),
+  };
+}
+
+/** Viñeta: capa radial oscura en los bordes (no filtro). */
+function vignetteOverlay(value: number, feather: number): React.ReactNode {
+  const alpha = (value / 100) * 0.85;
+  const inner = 30 + (feather / 100) * 40; // 30..70% transparente al centro
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        pointerEvents: "none",
+        borderRadius: "inherit",
+        background: `radial-gradient(ellipse at center, transparent ${inner}%, rgba(0,0,0,${alpha}) 100%)`,
+      }}
+    />
+  );
+}
+
+/** "#rrggbb" / "#rgb" → [r,g,b] en 0..1 (fallback negro si es inválido). */
+function hexToRgb01(hex: string): [number, number, number] {
+  const h = hex.replace("#", "");
+  const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+  const n = parseInt(full, 16);
+  if (Number.isNaN(n) || full.length !== 6) return [0, 0, 0];
+  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+}
 
 function renderContent(
   clip: Clip,

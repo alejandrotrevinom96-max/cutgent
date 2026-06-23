@@ -73,6 +73,10 @@ const EFFECT_TYPES: EffectType[] = [
   "sepia",
   "hue-rotate",
   "invert",
+  "glow",
+  "vignette",
+  "rgb-split",
+  "duotone",
 ];
 
 /** Valor por defecto sensato al añadir un efecto. */
@@ -90,6 +94,14 @@ const defaultEffectValue = (type: EffectType): number => {
     case "sepia":
     case "invert":
       return 1; // 0..1
+    case "glow":
+      return 40; // 0..100 intensidad del bloom
+    case "vignette":
+      return 50; // 0..100 oscuridad
+    case "rgb-split":
+      return 5; // px de offset
+    case "duotone":
+      return 80; // 0..100 mezcla
     default: {
       const _exhaustive: never = type;
       return _exhaustive;
@@ -1040,6 +1052,10 @@ const EFFECT_LABEL: Record<EffectType, string> = {
   sepia: "Sepia",
   "hue-rotate": "Rotar matiz",
   invert: "Invertir",
+  glow: "Glow",
+  vignette: "Viñeta",
+  "rgb-split": "Aberración RGB",
+  duotone: "Duotono",
 };
 
 function EffectsSection({ clip, clipId }: { clip: Clip; clipId: string }) {

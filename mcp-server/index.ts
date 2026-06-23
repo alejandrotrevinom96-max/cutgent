@@ -195,6 +195,10 @@ const EFFECT_TYPES = [
   "sepia",
   "hue-rotate",
   "invert",
+  "glow",
+  "vignette",
+  "rgb-split",
+  "duotone",
 ] as const;
 
 const ANIMATABLE = ["x", "y", "scale", "rotation", "opacity", "volume", "maskRadius"] as const;
@@ -839,17 +843,27 @@ server.registerTool(
   {
     title: "Añadir efecto",
     description:
-      "Añade un efecto/filtro CSS al clip. value: px (blur), grados (hue-rotate), multiplicador 0..n (brightness/contrast/saturate), 0..1 (grayscale/sepia/invert).",
+      "Añade un efecto al clip. value (intensidad principal): px (blur), grados (hue-rotate), 0..n (brightness/contrast/saturate), 0..1 (grayscale/sepia/invert), 0..100 (glow/vignette/duotone), px de offset (rgb-split). params (opcional): glow{threshold 0..1}, vignette{feather 0..100}, rgb-split{angle grados}, duotone{shadowColor,highlightColor hex}.",
     inputSchema: {
       clipId: z.string(),
       type: z.enum(EFFECT_TYPES),
       value: z.number(),
+      params: z
+        .object({
+          threshold: z.number().min(0).max(1).optional(),
+          color: z.string().optional(),
+          feather: z.number().min(0).max(100).optional(),
+          angle: z.number().optional(),
+          shadowColor: z.string().optional(),
+          highlightColor: z.string().optional(),
+        })
+        .optional(),
     },
   },
   tool(async (args) => {
-    await postCommands([
-      { type: "add_effect", clipId: args.clipId, effect: { type: args.type, value: args.value } },
-    ]);
+    const effect: Record<string, unknown> = { type: args.type, value: args.value };
+    if (args.params) effect.params = args.params;
+    await postCommands([{ type: "add_effect", clipId: args.clipId, effect }]);
     return ok(`Efecto ${args.type}=${args.value} añadido a ${args.clipId}.`);
   }),
 );
