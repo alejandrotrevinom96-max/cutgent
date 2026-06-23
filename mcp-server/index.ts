@@ -869,6 +869,39 @@ server.registerTool(
 );
 
 server.registerTool(
+  "update_effect",
+  {
+    title: "Actualizar efecto",
+    description:
+      "Edita value y/o params de un efecto por posición (index, 0 = primero). Campos del patch opcionales; params se mergea superficialmente con los existentes (editar un color de duotono no borra el otro).",
+    inputSchema: {
+      clipId: z.string(),
+      index: z.number().int().min(0),
+      patch: z.object({
+        value: z.number().optional(),
+        params: z
+          .object({
+            threshold: z.number().min(0).max(1).optional(),
+            color: z.string().optional(),
+            feather: z.number().min(0).max(100).optional(),
+            angle: z.number().optional(),
+            shadowColor: z.string().optional(),
+            highlightColor: z.string().optional(),
+          })
+          .optional(),
+      }),
+    },
+  },
+  tool(async (args) => {
+    if (args.patch.value === undefined && !args.patch.params) {
+      return ok("Indica al menos un value o un parámetro para actualizar.");
+    }
+    await postCommands([{ type: "update_effect", clipId: args.clipId, index: args.index, patch: args.patch }]);
+    return ok(`Efecto #${args.index} de ${args.clipId} actualizado.`);
+  }),
+);
+
+server.registerTool(
   "remove_effect",
   {
     title: "Eliminar efecto",

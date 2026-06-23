@@ -14,6 +14,7 @@ import type {
   Crop,
   Easing,
   Effect,
+  EffectParams,
   EffectType,
   ImageClip,
   Mask,
@@ -1058,6 +1059,41 @@ const EFFECT_LABEL: Record<EffectType, string> = {
   duotone: "Duotono",
 };
 
+// Rango/step del `value` (intensidad) por tipo, y los `params` editables por tipo.
+// Ambos son Record<EffectType, …> → si se añade un efecto al enum y no aquí, falla
+// en compilación (exhaustividad garantizada).
+type ValueMeta = { min: number; max: number; step: number };
+type ParamMeta =
+  | { kind: "slider"; key: "threshold" | "feather" | "angle"; label: string; min: number; max: number; step: number; fallback: number }
+  | { kind: "color"; key: "shadowColor" | "highlightColor"; label: string; fallback: string };
+
+const EFFECT_VALUE_META: Record<EffectType, ValueMeta> = {
+  blur: { min: 0, max: 50, step: 1 },
+  brightness: { min: 0, max: 3, step: 0.05 },
+  contrast: { min: 0, max: 3, step: 0.05 },
+  saturate: { min: 0, max: 3, step: 0.05 },
+  grayscale: { min: 0, max: 1, step: 0.05 },
+  sepia: { min: 0, max: 1, step: 0.05 },
+  "hue-rotate": { min: 0, max: 360, step: 1 },
+  invert: { min: 0, max: 1, step: 0.05 },
+  glow: { min: 0, max: 100, step: 1 },
+  vignette: { min: 0, max: 100, step: 1 },
+  "rgb-split": { min: 0, max: 50, step: 1 },
+  duotone: { min: 0, max: 100, step: 1 },
+};
+
+const EFFECT_PARAMS: Record<EffectType, ParamMeta[]> = {
+  blur: [], brightness: [], contrast: [], saturate: [],
+  grayscale: [], sepia: [], "hue-rotate": [], invert: [],
+  glow: [{ kind: "slider", key: "threshold", label: "Umbral", min: 0, max: 1, step: 0.05, fallback: 0.7 }],
+  vignette: [{ kind: "slider", key: "feather", label: "Suavidad", min: 0, max: 100, step: 1, fallback: 50 }],
+  "rgb-split": [{ kind: "slider", key: "angle", label: "Ángulo", min: 0, max: 360, step: 1, fallback: 0 }],
+  duotone: [
+    { kind: "color", key: "shadowColor", label: "Sombras", fallback: "#1a1a4e" },
+    { kind: "color", key: "highlightColor", label: "Altas", fallback: "#ff7ac6" },
+  ],
+};
+
 function EffectsSection({ clip, clipId }: { clip: Clip; clipId: string }) {
   const runCommand = useEditor((s) => s.runCommand);
   const [type, setType] = useState<EffectType>("blur");
@@ -1069,6 +1105,10 @@ function EffectsSection({ clip, clipId }: { clip: Clip; clipId: string }) {
 
   const removeEffect = (index: number) => {
     runCommand({ type: "remove_effect", clipId, index });
+  };
+
+  const updateEffect = (index: number, patch: { value?: number; params?: EffectParams }) => {
+    runCommand({ type: "update_effect", clipId, index, patch });
   };
 
   return (
@@ -1094,27 +1134,61 @@ function EffectsSection({ clip, clipId }: { clip: Clip; clipId: string }) {
       {clip.effects.length === 0 ? (
         <p className="mt-2 text-xs text-muted">Sin efectos.</p>
       ) : (
-        <ul className="mt-2 space-y-1">
-          {clip.effects.map((effect, index) => (
-            <li
-              key={`${effect.type}-${index}`}
-              className="flex items-center justify-between gap-2 rounded-md border border-border bg-panel-2 px-2 py-1.5 text-xs"
-            >
-              <span className="text-text">{EFFECT_LABEL[effect.type]}</span>
-              <span className="flex items-center gap-2">
-                <span className="font-mono text-muted">{effect.value}</span>
-                <button
-                  type="button"
-                  onClick={() => removeEffect(index)}
-                  className="text-muted hover:text-[var(--danger)]"
-                  title="Eliminar efecto"
-                >
-                  <Trash2 size={13} />
-                </button>
-              </span>
-            </li>
-          ))}
-        </ul>
+        <div className="mt-2 space-y-2">
+          {clip.effects.map((effect, index) => {
+            const vMeta = EFFECT_VALUE_META[effect.type];
+            const params = EFFECT_PARAMS[effect.type];
+            return (
+              <div
+                key={`${effect.type}-${index}`}
+                className="rounded-md border border-border bg-panel-2 px-2 py-2 text-xs"
+              >
+                <div className="mb-1.5 flex items-center justify-between">
+                  <span className="font-medium text-text">{EFFECT_LABEL[effect.type]}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeEffect(index)}
+                    className="text-muted hover:text-[var(--danger)]"
+                    title="Eliminar efecto"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+
+                <SliderField
+                  label="Intensidad"
+                  value={effect.value}
+                  min={vMeta.min}
+                  max={vMeta.max}
+                  step={vMeta.step}
+                  onChange={(v) => updateEffect(index, { value: v })}
+                />
+
+                {params.map((p) =>
+                  p.kind === "slider" ? (
+                    <SliderField
+                      key={p.key}
+                      label={p.label}
+                      value={effect.params?.[p.key] ?? p.fallback}
+                      min={p.min}
+                      max={p.max}
+                      step={p.step}
+                      onChange={(v) => updateEffect(index, { params: { [p.key]: v } as EffectParams })}
+                    />
+                  ) : (
+                    <ColorField
+                      key={p.key}
+                      label={p.label}
+                      value={effect.params?.[p.key] ?? p.fallback}
+                      fallback={p.fallback}
+                      onChange={(col) => updateEffect(index, { params: { [p.key]: col } as EffectParams })}
+                    />
+                  ),
+                )}
+              </div>
+            );
+          })}
+        </div>
       )}
     </Section>
   );

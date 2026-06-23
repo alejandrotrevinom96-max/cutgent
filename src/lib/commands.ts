@@ -4,12 +4,14 @@ import {
   AnimationSchema,
   ClipSchema,
   EasingSchema,
+  EffectParamsSchema,
   EffectSchema,
   KeyframeSchema,
   MarkerSchema,
   ProjectSchema,
   TrackSchema,
   type Clip,
+  type Effect,
   type KeyframeTrack,
   type Project,
   type Track,
@@ -103,6 +105,12 @@ export const CommandSchema = z.discriminatedUnion("type", [
 
   z.object({ type: z.literal("add_effect"), clipId: z.string(), effect: EffectSchema }),
   z.object({ type: z.literal("remove_effect"), clipId: z.string(), index: z.number() }),
+  z.object({
+    type: z.literal("update_effect"),
+    clipId: z.string(),
+    index: z.number().int().min(0),
+    patch: z.object({ value: z.number().optional(), params: EffectParamsSchema }),
+  }),
 
   z.object({ type: z.literal("ripple_delete"), clipId: z.string() }),
   z.object({ type: z.literal("add_marker"), marker: MarkerSchema }),
@@ -440,6 +448,25 @@ export function applyCommand(doc: Project, command: Command): Project {
       return withClip(doc, command.clipId, (c) => {
         const effects = c.effects.slice();
         effects.splice(command.index, 1);
+        return { ...c, effects };
+      });
+
+    case "update_effect":
+      return withClip(doc, command.clipId, (c) => {
+        const { index, patch } = command;
+        if (index < 0 || index >= c.effects.length) return c; // out-of-range = no-op
+        const effects = c.effects.slice();
+        const curr = effects[index];
+        // type es inmutable; params se mergea SUPERFICIAL (editar un color de
+        // duotono no borra el otro). patch.params undefined → conserva los actuales.
+        const merged: Effect = {
+          type: curr.type,
+          value: patch.value !== undefined ? patch.value : curr.value,
+          params: patch.params !== undefined ? { ...(curr.params ?? {}), ...patch.params } : curr.params,
+        };
+        const parsed = EffectSchema.safeParse(merged);
+        if (!parsed.success) return c; // resultado inválido → preserva el estado previo
+        effects[index] = parsed.data;
         return { ...c, effects };
       });
 
