@@ -2145,6 +2145,35 @@ server.registerTool(
 );
 
 server.registerTool(
+  "track_object",
+  {
+    title: "Trackear objeto en video (SAM2)",
+    description:
+      "Lanza tracking automático del objeto de un clip de video/imagen con SAM2 (Replicate, BYO key). Devuelve jobId; consulta con vfx_status. Al terminar aplica keyframes de x/y/scale/opacity al clip (el logo/clip 'sigue' al objeto). Requiere REPLICATE_API_TOKEN en Ajustes (o CUTGENT_TRACK_PROVIDER=mock para prueba sin key).",
+    inputSchema: { clipId: z.string(), model: z.string().optional() },
+  },
+  tool(async (args) => {
+    const res = (await postJson("/api/track", { clipId: args.clipId, model: args.model })) as
+      | { jobId?: string }
+      | null;
+    const jobId = res?.jobId;
+    if (!jobId) return okJson(res);
+    return ok(`Tracking lanzado (SAM2). jobId=${jobId}. Consulta con vfx_status.`);
+  }),
+);
+
+server.registerTool(
+  "vfx_status",
+  {
+    title: "Estado de tracking/VFX",
+    description:
+      "Consulta un job de tracking por jobId: status (tracking|done|error), progress (0..1) y, tras done, qué propiedades se aplicaron (postedProps). Los keyframes ya quedan escritos en el clip.",
+    inputSchema: { jobId: z.string() },
+  },
+  tool(async (args) => okJson(await getJson(`/api/vfx/status?id=${encodeURIComponent(args.jobId)}`))),
+);
+
+server.registerTool(
   "make_pip",
   {
     title: "Picture-in-picture",
