@@ -2634,6 +2634,66 @@ server.registerTool(
 );
 
 server.registerTool(
+  "analyze_audio",
+  {
+    title: "Analizar audio (beats, BPM, onsets, energía)",
+    description:
+      "Detecta tempo (BPM), beats, onsets (transientes) y la envolvente de energía de un clip/pista. 100% local con ffmpeg, sin API key. Devuelve FRAMES — listos para cortar/poner keyframes/efectos AL BEAT. Pasa src o clipId; con clipId los frames se mapean al timeline (start/trimStart/playbackRate). autoMarkers=true crea un marcador por beat (visibles y snappables).",
+    inputSchema: {
+      src: z.string().optional(),
+      clipId: z.string().optional(),
+      fps: z.number().optional(),
+      autoMarkers: z.boolean().optional(),
+    },
+  },
+  tool(async (args) => {
+    const doc = await getDoc();
+    const fps = args.fps ?? doc.fps ?? 30;
+    let src = args.src;
+    const f = args.clipId ? locateClip(doc, args.clipId) : null;
+    if (args.clipId && !f) return ok(`Clip ${args.clipId} no encontrado.`);
+    if (!src && f) src = f.clip.src as string;
+    if (!src) return fail("Indica src o clipId.");
+
+    const res = (await postJson("/api/beats", { src, fps })) as {
+      bpm: number | null;
+      confidence: number;
+      durationSec: number;
+      beats: number[];
+      onsets: number[];
+      energy: number[];
+    };
+
+    // Sin clipId: frames relativos a la fuente, tal cual.
+    if (!f) return okJson(res);
+
+    // Con clipId: mapear frames-de-fuente → frames-de-timeline (igual que auto_cut_silences).
+    const clip = f.clip;
+    const start = clip.start as number;
+    const duration = clip.duration as number;
+    const trim = (clip.trimStart as number) ?? 0;
+    const rate = (clip.playbackRate as number) ?? 1;
+    const toTl = (srcFrame: number) => Math.round(start + (srcFrame - trim) / rate);
+    const within = (tf: number) => tf >= start && tf <= start + duration;
+    const beatsTl = res.beats.map(toTl).filter(within);
+    const onsetsTl = res.onsets.map(toTl).filter(within);
+
+    if (args.autoMarkers && beatsTl.length) {
+      // Lote único (no spamear add_marker).
+      await postCommands(
+        beatsTl.map((frame) => ({
+          type: "add_marker",
+          marker: { id: newId("beat"), frame, label: `Beat${res.bpm ? ` ${res.bpm}` : ""}`, color: "#ef4444" },
+        })),
+      );
+      return ok(`${beatsTl.length} beats @ ${res.bpm ?? "?"} BPM marcados en ${args.clipId}.`);
+    }
+
+    return okJson({ ...res, beats: beatsTl, onsets: onsetsTl, frameSpace: "timeline" });
+  }),
+);
+
+server.registerTool(
   "auto_cut_silences",
   {
     title: "Auto-cortar silencios (jump-cut)",
