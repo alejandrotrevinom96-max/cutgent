@@ -997,6 +997,45 @@ server.registerTool(
 );
 
 server.registerTool(
+  "render_filmstrip",
+  {
+    title: "Hoja de contactos (filmstrip)",
+    description:
+      "Renderiza N frames equiespaciados de un rango (o de un clip con clipId) y los une en UNA imagen tipo hoja de contactos (grid). Devuelve la url; ábrela para PERCIBIR el movimiento/progresión, no frames sueltos. Por defecto cubre todo el proyecto, count=9 (3×3).",
+    inputSchema: {
+      startFrame: z.number().int().min(0).optional(),
+      endFrame: z.number().int().min(0).optional(),
+      clipId: z.string().optional(),
+      count: z.number().int().min(2).max(25).optional(),
+      columns: z.number().int().min(2).max(10).optional(),
+      width: z.number().int().min(80).max(640).optional(),
+      format: z.enum(["jpeg", "png"]).optional(),
+    },
+  },
+  tool(async (args) => {
+    let startFrame = args.startFrame;
+    let endFrame = args.endFrame;
+    if (args.clipId) {
+      const doc = await getDoc();
+      const f = locateClip(doc, args.clipId);
+      if (!f) return fail(`No existe el clip ${args.clipId}.`);
+      startFrame = f.clip.start as number;
+      endFrame = (f.clip.start as number) + (f.clip.duration as number) - 1;
+    }
+    return okJson(
+      await postJson("/api/render/filmstrip", {
+        startFrame,
+        endFrame,
+        count: args.count,
+        columns: args.columns,
+        width: args.width,
+        format: args.format,
+      }),
+    );
+  }),
+);
+
+server.registerTool(
   "export_nle",
   {
     title: "Exportar XML para editor (Premiere / DaVinci Resolve)",
