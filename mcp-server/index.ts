@@ -1036,6 +1036,49 @@ server.registerTool(
 );
 
 server.registerTool(
+  "footage_contact_sheet",
+  {
+    title: "Contact sheet de footage crudo",
+    description:
+      "Muestrea N frames equiespaciados del ARCHIVO de origen (no de la composición) y los une en UNA hoja de contactos con ffmpeg directo (sin Remotion → rápido). Úsalo para VER el material crudo y ELEGIR la mejor toma. Devuelve url: ábrela con Read. Pasa src, assetId o clipId. Default count=12 (4×3).",
+    inputSchema: {
+      src: z.string().optional(),
+      assetId: z.string().optional(),
+      clipId: z.string().optional(),
+      count: z.number().int().min(2).max(36).optional(),
+      columns: z.number().int().min(1).max(10).optional(),
+      width: z.number().int().min(80).max(640).optional(),
+      format: z.enum(["jpeg", "png"]).optional(),
+    },
+  },
+  tool(async (args) => {
+    let src = args.src;
+    if (!src && args.assetId) {
+      const assets = (await getJson("/api/assets")) as Array<{ id: string; src: string }>;
+      const a = Array.isArray(assets) ? assets.find((x) => x.id === args.assetId) : null;
+      if (!a) return fail(`Asset ${args.assetId} no encontrado.`);
+      src = a.src;
+    }
+    if (!src && args.clipId) {
+      const doc = await getDoc();
+      const f = locateClip(doc, args.clipId);
+      if (!f) return fail(`Clip ${args.clipId} no encontrado.`);
+      src = f.clip.src as string;
+    }
+    if (!src) return fail("Indica src, assetId o clipId.");
+    return okJson(
+      await postJson("/api/footage/sheet", {
+        src,
+        count: args.count,
+        columns: args.columns,
+        width: args.width,
+        format: args.format ?? "jpeg",
+      }),
+    );
+  }),
+);
+
+server.registerTool(
   "export_nle",
   {
     title: "Exportar XML para editor (Premiere / DaVinci Resolve)",
