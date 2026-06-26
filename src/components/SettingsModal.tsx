@@ -20,6 +20,7 @@ const TIER_LABEL: Record<string, string> = { early: "Early adopter", standard: "
 
 /** Proveedores sugeridos (un clic los precarga). El usuario puede añadir CUALQUIER otro. */
 const SUGGESTIONS: { name: string; label: string }[] = [
+  { name: "ANTHROPIC_API_KEY", label: "Claude (asistente de IA)" },
   { name: "GEMINI_API_KEY", label: "Google AI Studio" },
   { name: "OPENAI_API_KEY", label: "OpenAI" },
   { name: "HIGGSFIELD_API_KEY", label: "Higgsfield" },

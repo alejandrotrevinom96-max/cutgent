@@ -15,6 +15,7 @@ import { Inspector } from "@/components/inspector/Inspector";
 import { ClipperView } from "@/components/clipper/ClipperView";
 import { Onboarding } from "@/components/Onboarding";
 import { TrialBanner } from "@/components/TrialBanner";
+import { ChatPanel } from "@/components/ChatPanel";
 
 export default function EditorPage() {
   const connect = useEditor((s) => s.connect);
@@ -200,6 +201,7 @@ export default function EditorPage() {
   return (
     <div className="flex h-screen w-screen flex-col bg-bg text-text">
       <Onboarding />
+      <ChatPanel />
       <TrialBanner />
       <TopBar />
       {saveToast && (

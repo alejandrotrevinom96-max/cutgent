@@ -56,26 +56,26 @@ export function Onboarding() {
           <Step
             icon={<Bot size={18} />}
             n={1}
-            title="Conecta tu IA (MCP) — 1 sola vez"
+            title="Habla con tu IA — sin instalar nada"
             body={
               <ol className="mt-1 flex list-none flex-col gap-1.5">
-                {isDesktop ? (
-                  <SubStep>
-                    En el menú de Cutgent (arriba): <b className="text-text">IA / MCP → Copiar config MCP</b> (hay una opción aparte para <b className="text-text">VS Code / Copilot</b>, que usa otro formato). Se copia al portapapeles.
-                  </SubStep>
-                ) : (
-                  <SubStep>
-                    Estás en el navegador (modo dev): la config MCP vive en <span className="font-mono text-[11px]">.mcp.json</span> en la raíz del proyecto. Cópiala.
-                  </SubStep>
-                )}
                 <SubStep>
-                  Abre la config MCP de tu cliente. <b className="text-text">Claude Desktop</b>: Settings ⚙ → Developer → Edit Config. <b className="text-text">Cursor</b>: Settings → MCP. <b className="text-text">Windsurf</b>: <span className="font-mono text-[11px]">~/.codeium/windsurf/mcp_config.json</span>. <b className="text-text">VS Code</b>: <span className="font-mono text-[11px]">.vscode/mcp.json</span>. <b className="text-text">Claude/Gemini CLI</b>: su <span className="font-mono text-[11px]">.mcp.json</span> / <span className="font-mono text-[11px]">settings.json</span>.
+                  Abre el botón <b className="text-text">✨ asistente</b> (abajo a la derecha).
                 </SubStep>
                 <SubStep>
-                  Pégala: si el archivo está <b className="text-text">vacío</b>, pégala como TODO el contenido; si ya tienes <span className="font-mono text-[11px]">mcpServers</span>, añade dentro la entrada <span className="font-mono text-[11px]">&quot;cutgent&quot;</span>. Guarda.
+                  Pega tu <b className="text-text">API key de Claude</b> una sola vez (se guarda solo en tu equipo). <b className="text-text">Sin MCP, sin config, sin reinicio.</b>
                 </SubStep>
-                <SubStep><b className="text-text">Reinicia</b> tu cliente para que cargue el servidor. (Windsurf no lo necesita; VS Code reinicia el servidor solo; Claude Code ya queda registrado por <span className="font-mono text-[11px]">.mcp.json</span>.)</SubStep>
-                <SubStep>Deja <b className="text-text">Cutgent abierto</b>: tu IA controla ESTA ventana. Pídele “conéctate a Cutgent y lista mis pistas”.</SubStep>
+                <SubStep>
+                  Pídele lo que quieras —«añade un título», «pon subtítulos», «corta los silencios»— y lo verás aparecer en vivo.
+                </SubStep>
+                <SubStep>
+                  ¿Avanzado? También puedes manejar Cutgent desde tu propio Claude Desktop / Cursor por <b className="text-text">MCP</b>
+                  {isDesktop ? (
+                    <> (menú <b className="text-text">IA / MCP → Copiar config MCP</b>).</>
+                  ) : (
+                    <> (config en <span className="font-mono text-[11px]">.mcp.json</span>).</>
+                  )}
+                </SubStep>
               </ol>
             }
           />
