@@ -93,9 +93,9 @@
     ],
     "win": {
       "target": [
-        "nsis"
+        "zip"
       ],
-      "artifactName": "Cutgent-Setup-${version}.${ext}"
+      "artifactName": "Cutgent-${version}-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,
