@@ -2776,6 +2776,17 @@ server.registerTool(
 );
 
 server.registerTool(
+  "critique_edit",
+  {
+    title: "Crítica editorial (scorecard accionable)",
+    description:
+      "Analiza el proyecto ACTUAL y devuelve un scorecard 0..100 por dimensión (cadencia, corte-al-beat, dead air, arco de energía, loudness, hook, captions) + findings {dimension, severity, frame, message, fix}. Determinista, 100% local sin key. NO edita: lee el scorecard y aplica los fixes con otras tools, luego re-córrelo para confirmar que subió. input opcional targetLufs (def −14).",
+    inputSchema: { targetLufs: z.number().optional() },
+  },
+  tool(async (args) => okJson(await postJson("/api/critique", { targetLufs: args.targetLufs }))),
+);
+
+server.registerTool(
   "auto_cut_silences",
   {
     title: "Auto-cortar silencios (jump-cut)",
