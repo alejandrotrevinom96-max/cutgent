@@ -2787,6 +2787,38 @@ server.registerTool(
 );
 
 server.registerTool(
+  "record_feedback",
+  {
+    title: "Registrar outcome de una edición (calibra el gusto)",
+    description:
+      "Registra un outcome (0..100) + source para la edición ACTUAL. Si no pasas features, las auto-extrae del scorecard (critique_edit). source: 'predictor' (virality_predictor BYO), 'retention' (audiencia real), 'manual'. NO llama servicios de paga: solo almacena. Registra ANTES de cambiar de proyecto (graba el proyecto vigente). Tras varias entradas, usa feedback_report.",
+    inputSchema: {
+      outcome: z.number().min(0).max(100),
+      source: z.enum(["predictor", "retention", "manual"]),
+      label: z.string().max(80).optional(),
+      note: z.string().optional(),
+      features: z.record(z.number()).optional(),
+      targetLufs: z.number().optional(),
+    },
+  },
+  tool(async (args) => okJson(await postJson("/api/feedback", args))),
+);
+
+server.registerTool(
+  "feedback_report",
+  {
+    title: "Reporte de palancas (correlación features↔outcome)",
+    description:
+      "Correlación de Pearson por dimensión vs los outcomes históricos → ranking de palancas que mueven la aguja. Marca lowConfidence si n<8. Determinista, sin key. Edita enfocando las dimensiones con |r| alto (ignora las lowConfidence o |r|≈0) y re-evalúa.",
+    inputSchema: { projectId: z.string().optional() },
+  },
+  tool(async (args) => {
+    const pid = args.projectId || (await getDoc()).id;
+    return okJson(await getJson(`/api/feedback?projectId=${encodeURIComponent(pid)}`));
+  }),
+);
+
+server.registerTool(
   "auto_cut_silences",
   {
     title: "Auto-cortar silencios (jump-cut)",
