@@ -17,9 +17,13 @@ const srcOf = (c: Clip | null): string | null => (c ? ((c as unknown as { src?: 
 export async function critiqueProject(doc: Project, opts: CritiqueOpts = {}): Promise<Scorecard> {
   const fps = Math.max(1, doc.fps);
   const audioTracks = doc.tracks.filter((t) => t.kind === "audio");
-  const musicClip = selectMusicClip(audioTracks);
-  const voiceClip = selectVoiceClip(audioTracks);
+  const musicClip = selectMusicClip(audioTracks, opts.musicClipId);
+  const voiceClip = selectVoiceClip(audioTracks, opts.voiceClipId, musicClip);
   const degraded: string[] = [];
+  if (opts.musicClipId && musicClip?.id !== opts.musicClipId)
+    degraded.push(`override música '${opts.musicClipId}' no encontrado → heurística`);
+  if (opts.voiceClipId && voiceClip?.id !== opts.voiceClipId)
+    degraded.push(`override voz '${opts.voiceClipId}' no encontrado → heurística`);
 
   let beat: Awaited<ReturnType<typeof analyzeBeats>> | null = null;
   let sil: Awaited<ReturnType<typeof detectSilences>> | null = null;

@@ -40,7 +40,8 @@ export function getVfxJob(id: string): VfxJob | undefined {
   return registry().jobs.get(id);
 }
 
-const DONE_TTL_MS = 10 * 60 * 1000;
+// 15min > el deadline de tracking (~12min): evita "job not found" tras un track lento.
+const DONE_TTL_MS = 15 * 60 * 1000;
 export function updateVfxJob(id: string, patch: Partial<VfxJob>): VfxJob | undefined {
   const jobs = registry().jobs;
   const current = jobs.get(id);

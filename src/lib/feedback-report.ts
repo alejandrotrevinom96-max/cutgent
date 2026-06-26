@@ -28,6 +28,8 @@ export const MIN_CONFIDENT_N = 8;
 export function pearson(xs: number[], ys: number[]): number | null {
   const n = xs.length;
   if (n < 2 || ys.length !== n) return null;
+  // Guard standalone: un NaN/Infinity colaría a través de las sumas y daría r=NaN.
+  if (!xs.every(Number.isFinite) || !ys.every(Number.isFinite)) return null;
   const mx = xs.reduce((a, b) => a + b, 0) / n;
   const my = ys.reduce((a, b) => a + b, 0) / n;
   let sxy = 0,

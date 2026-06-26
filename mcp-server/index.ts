@@ -21,6 +21,7 @@ import { nanoid } from "nanoid";
 import { readFileSync } from "fs";
 import os from "os";
 import path from "path";
+import { generateWiggleKeyframes } from "./wiggle";
 
 // ---------------------------------------------------------------------------
 // Configuración y helpers HTTP
@@ -2780,10 +2781,69 @@ server.registerTool(
   {
     title: "Crítica editorial (scorecard accionable)",
     description:
-      "Analiza el proyecto ACTUAL y devuelve un scorecard 0..100 por dimensión (cadencia, corte-al-beat, dead air, arco de energía, loudness, hook, captions) + findings {dimension, severity, frame, message, fix}. Determinista, 100% local sin key. NO edita: lee el scorecard y aplica los fixes con otras tools, luego re-córrelo para confirmar que subió. input opcional targetLufs (def −14).",
-    inputSchema: { targetLufs: z.number().optional() },
+      "Analiza el proyecto ACTUAL y devuelve un scorecard 0..100 por dimensión (cadencia, corte-al-beat, dead air, arco de energía, loudness, hook, captions) + findings {dimension, severity, frame, message, fix}. Determinista, 100% local sin key. NO edita: lee el scorecard y aplica los fixes con otras tools, luego re-córrelo para confirmar que subió. input opcional targetLufs (def −14). Override opcional musicClipId/voiceClipId para forzar qué pista es música/voz cuando la heurística por nombre falla; si el id no existe cae a la heurística y lo anota en meta.degraded.",
+    inputSchema: {
+      targetLufs: z.number().optional(),
+      musicClipId: z.string().optional(),
+      voiceClipId: z.string().optional(),
+    },
   },
-  tool(async (args) => okJson(await postJson("/api/critique", { targetLufs: args.targetLufs }))),
+  tool(async (args) =>
+    okJson(
+      await postJson("/api/critique", {
+        targetLufs: args.targetLufs,
+        musicClipId: args.musicClipId,
+        voiceClipId: args.voiceClipId,
+      }),
+    ),
+  ),
+);
+
+server.registerTool(
+  "wiggle",
+  {
+    title: "Wiggle / oscilación sinusoidal de una propiedad",
+    description:
+      "Genera una oscilación sinusoidal DETERMINISTA sobre una propiedad animable (x/y/scale/rotation/opacity/volume/maskRadius) y la escribe con set_track_keyframes (reemplazo atómico del track de esa propiedad). value(t) = base + amplitude·sin(2π·frequencyHz·t), con base = el valor actual de la propiedad en el clip (0 si no existe). Unidades de amplitude: px (x/y), factor (scale), grados (rotation), 0..1 (opacity/volume), 0..100 (maskRadius). Mismos args + mismo clip ⇒ mismos keyframes. Da vida orgánica (cámara temblorosa, flote, pulso) sin animar a mano.",
+    inputSchema: {
+      clipId: z.string(),
+      property: z.enum(["x", "y", "scale", "rotation", "opacity", "volume", "maskRadius"]),
+      amplitude: z.number().default(10),
+      frequencyHz: z.number().default(2),
+      durationFrames: z.number().int().positive().optional(),
+      easing: z.enum(["linear", "ease-in", "ease-out", "ease-in-out"]).default("linear"),
+    },
+  },
+  tool(async (args) => {
+    const doc = await getDoc();
+    const found = locateClip(doc, args.clipId);
+    if (!found) return fail(`Clip ${args.clipId} no encontrado.`);
+    const clip = found.clip as unknown as Record<string, unknown>;
+
+    const clipDuration = Number(clip.duration ?? 0);
+    const durationFrames =
+      args.durationFrames && args.durationFrames > 0 ? args.durationFrames : clipDuration;
+    if (durationFrames <= 0) return fail("durationFrames inválido y el clip no tiene duración.");
+    const base = typeof clip[args.property] === "number" ? (clip[args.property] as number) : 0;
+
+    const keyframes = generateWiggleKeyframes({
+      base,
+      amplitude: args.amplitude,
+      frequencyHz: args.frequencyHz,
+      durationFrames,
+      fps: Math.max(1, doc.fps),
+      easing: args.easing,
+    });
+
+    await postCommands([
+      { type: "set_track_keyframes", clipId: args.clipId, property: args.property, keyframes },
+    ]);
+    return okJson({
+      message: `Wiggle: ${args.property} base=${base} ±${args.amplitude} @${args.frequencyHz}Hz sobre ${durationFrames}f`,
+      keyframeCount: keyframes.length,
+      preview: keyframes.slice(0, 5),
+    });
+  }),
 );
 
 server.registerTool(

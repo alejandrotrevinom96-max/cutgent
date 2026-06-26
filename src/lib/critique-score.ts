@@ -41,6 +41,10 @@ export interface Scorecard {
 }
 export interface CritiqueOpts {
   targetLufs?: number;
+  /** Fuerza qué clip de audio es música/voz (por id) cuando la heurística por
+   *  nombre falla. Si el id no existe / no es audio, cae a la heurística. */
+  musicClipId?: string;
+  voiceClipId?: string;
 }
 export interface AudioInputs {
   beat: BeatAnalysis | null;
@@ -66,17 +70,34 @@ function audioClips(tracks: Track[]): { track: Track; clip: Clip }[] {
 }
 const nameOf = (t: Track, c: Clip) => `${c.name ?? ""} ${t.name ?? ""}`;
 
-export function selectMusicClip(tracks: Track[]): Clip | null {
+/** Clip de audio por id en cualquier track; null si no existe o no es audio. */
+function findAudioById(tracks: Track[], id: string): Clip | null {
+  for (const t of tracks) {
+    const c = t.clips.find((c) => c.id === id && c.type === "audio");
+    if (c) return c;
+  }
+  return null;
+}
+
+export function selectMusicClip(tracks: Track[], overrideId?: string): Clip | null {
+  if (overrideId) {
+    const forced = findAudioById(tracks, overrideId);
+    if (forced) return forced; // id no encontrado → cae a la heurística (no devuelve null)
+  }
   const all = audioClips(tracks);
   const byName = all.find((x) => MUSIC_RE.test(nameOf(x.track, x.clip)) && !VOICE_RE.test(nameOf(x.track, x.clip)));
   if (byName) return byName.clip;
   return all.reduce<Clip | null>((m, x) => (!m || x.clip.duration > m.duration ? x.clip : m), null);
 }
-export function selectVoiceClip(tracks: Track[]): Clip | null {
+export function selectVoiceClip(tracks: Track[], overrideId?: string, musicClip?: Clip | null): Clip | null {
+  if (overrideId) {
+    const forced = findAudioById(tracks, overrideId);
+    if (forced) return forced;
+  }
   const all = audioClips(tracks);
   const byName = all.find((x) => VOICE_RE.test(nameOf(x.track, x.clip)));
   if (byName) return byName.clip;
-  const music = selectMusicClip(tracks);
+  const music = musicClip !== undefined ? musicClip : selectMusicClip(tracks);
   const cands = all.filter((x) => x.clip.id !== music?.id);
   if (!cands.length) return null;
   return cands.reduce<Clip | null>((m, x) => (!m || x.clip.duration < m.duration ? x.clip : m), null);

@@ -10,6 +10,7 @@ import {
 import { Circle, Ellipse, Rect, Star, Triangle } from "@remotion/shapes";
 import type { Clip } from "@/lib/schema";
 import { audioGain, clipVolumeAt, getClipDynamics } from "./animation";
+import { hexToRgb01, glowTintValues } from "./glow-util";
 import { sampleElement } from "@/lib/scopes";
 
 /**
@@ -211,7 +212,7 @@ function advancedEffects(clip: Clip): {
 } {
   const filters: SvgFilter[] = [];
   const glow = clip.effects.find((e) => e.type === "glow");
-  if (glow && glow.value > 0) filters.push(glowFilter(clip.id, glow.value, glow.params?.threshold ?? 0.7));
+  if (glow && glow.value > 0) filters.push(glowFilter(clip.id, glow.value, glow.params?.threshold ?? 0.7, glow.params?.color));
   const rgb = clip.effects.find((e) => e.type === "rgb-split");
   if (rgb && rgb.value > 0) filters.push(rgbSplitFilter(clip.id, rgb.value, rgb.params?.angle ?? 0));
   const duo = clip.effects.find((e) => e.type === "duotone");
@@ -230,12 +231,16 @@ function advancedEffects(clip: Clip): {
   };
 }
 
-/** Glow / bloom: aísla luces (umbral) → desenfoca → recompone sobre el original. */
-function glowFilter(clipId: string, value: number, threshold: number): SvgFilter {
+/** Glow / bloom: aísla luces (umbral) → desenfoca → (tinta) → recompone sobre el
+ *  original. Si `color` está, el bloom se tiñe (multiplicando los canales); sin
+ *  color (o hex inválido) cae EXACTO al bloom neutro de siempre (cero regresión). */
+function glowFilter(clipId: string, value: number, threshold: number, color?: string): SvgFilter {
   const id = `glow-${clipId}`;
   const K = 1 / Math.max(0.001, 1 - threshold);
   const intercept = -threshold * K;
   const std = value * 0.4; // 0..100 → stdDeviation 0..40px
+  const tint = glowTintValues(color);
+  const bloomIn = tint ? "tinted" : "blur";
   return {
     id,
     svg: (
@@ -248,10 +253,11 @@ function glowFilter(clipId: string, value: number, threshold: number): SvgFilter
               <feFuncB type="linear" slope={String(K)} intercept={String(intercept)} />
             </feComponentTransfer>
             <feGaussianBlur in="bright" stdDeviation={String(std)} result="blur" />
+            {tint && <feColorMatrix in="blur" type="matrix" values={tint} result="tinted" />}
             <feMerge>
               <feMergeNode in="SourceGraphic" />
-              <feMergeNode in="blur" />
-              <feMergeNode in="blur" />
+              <feMergeNode in={bloomIn} />
+              <feMergeNode in={bloomIn} />
             </feMerge>
           </filter>
         </defs>
@@ -339,15 +345,6 @@ function vignetteOverlay(value: number, feather: number): React.ReactNode {
       }}
     />
   );
-}
-
-/** "#rrggbb" / "#rgb" → [r,g,b] en 0..1 (fallback negro si es inválido). */
-function hexToRgb01(hex: string): [number, number, number] {
-  const h = hex.replace("#", "");
-  const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
-  const n = parseInt(full, 16);
-  if (Number.isNaN(n) || full.length !== 6) return [0, 0, 0];
-  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
 }
 
 function renderContent(

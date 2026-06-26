@@ -41,6 +41,20 @@ export async function POST(req: NextRequest) {
     if (!found) return NextResponse.json({ error: `Clip ${clipId} no encontrado.` }, { status: 400 });
 
     const model = modelArg || process.env.CUTGENT_SAM2_MODEL || "meta/sam-2-video:PINME";
+    // El modelo placeholder ":PINME" no existe en Replicate → fallaría con un error
+    // oscuro a mitad del job. Si el provider lo usa de verdad (requiere key), corta
+    // antes con un mensaje accionable. El provider mock ignora el modelo (no aplica).
+    if (provider.requiredKey && model.includes("PINME")) {
+      return NextResponse.json(
+        {
+          error:
+            "SAM2 sin un modelo pinneado. Define CUTGENT_SAM2_MODEL=\"meta/sam-2-video:<hash>\" " +
+            "(resuelve la versión en tu cuenta de Replicate) o pásalo como 'model'.",
+          unpinnedModel: model,
+        },
+        { status: 400 },
+      );
+    }
     const jobId = newId("track");
     createVfxJob(jobId, { clipId, provider: providerId, model });
     void runTracking(jobId, providerId, clipId, key, model);

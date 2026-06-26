@@ -80,8 +80,14 @@ export async function appendFeedback(
 ): Promise<FeedbackEntry> {
   await ensureLoaded();
   const h = hub();
+  // Descarta features NaN/Infinity al persistir: un valor no-finito envenena la
+  // correlación de Pearson del reporte (silenciosamente) y queda en disco para siempre.
+  const features = Object.fromEntries(
+    Object.entries(entry.features ?? {}).filter(([, v]) => Number.isFinite(v)),
+  );
   const valid: FeedbackEntry = {
     ...entry,
+    features,
     id: entry.id || `fdbk_${nanoid(8)}`,
     ts: entry.ts ?? Date.now(),
     outcome: Math.max(0, Math.min(100, entry.outcome)),
