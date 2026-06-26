@@ -7,7 +7,7 @@ import { createJob, createBatch, updateBatchItem, getJob, getBatch, setBatchStat
 import { bundleRemotion } from "@/lib/remotion-bundle";
 import { SOCIAL_PRESETS, type SocialPreset } from "@/lib/export-formats";
 import { shouldWatermark } from "@/lib/license";
-import { runRender } from "../route";
+import { runRender } from "@/lib/render-run";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
