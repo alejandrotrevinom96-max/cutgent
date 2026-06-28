@@ -7,6 +7,7 @@ const { app, BrowserWindow, shell, Menu, clipboard, dialog, session, ipcMain, sc
 const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
+const { mcpClientTargets, writeMergedConfig } = require("./mcp-merge.cjs");
 
 // Token de sesión: protege el server local (127.0.0.1) para que no lo controle
 // cualquier proceso de la máquina. La UI lo lleva por cookie (automática); el
@@ -48,6 +49,23 @@ function buildVsCodeConfig() {
   return { servers: { cutgent: { type: "stdio", command: c.command, args: c.args, env: c.env } } };
 }
 
+/**
+ * Auto-conexión: detecta los clientes MCP instalados y ESCRIBE (mergea, sin
+ * pisar lo demás) la entrada "cutgent" en su config. El cliente solo tiene que
+ * reiniciar. Devuelve [{client, status:"connected"|"skipped"|"error", file, error?}].
+ * Nunca lanza. La lógica de merge/escritura vive en mcp-merge.cjs (testeable).
+ */
+function connectClients() {
+  const mcpEntry = buildMcpConfig().mcpServers.cutgent;
+  const vscodeEntry = buildVsCodeConfig().servers.cutgent;
+  return mcpClientTargets().map((t) => {
+    const r = writeMergedConfig(t, t.vscode ? vscodeEntry : mcpEntry);
+    if (r.status === "connected") log("[connect]", t.name, "OK ->", r.file);
+    else if (r.status === "error") log("[connect]", t.name, "ERROR:", r.error);
+    return { client: t.name, ...r };
+  });
+}
+
 // Dónde pegar la config genérica (formato mcpServers) según el cliente.
 const MCP_PASTE_HELP =
   "Pega esta config en tu cliente de IA (1 sola vez) y reinícialo:\n\n" +
@@ -77,6 +95,35 @@ function setupMenu() {
     {
       label: "IA / MCP",
       submenu: [
+        {
+          label: "Conectar automáticamente (detecta tu cliente)",
+          click: () => {
+            const results = connectClients();
+            const connected = results.filter((r) => r.status === "connected");
+            const errored = results.filter((r) => r.status === "error");
+            const lines = results.map((r) =>
+              r.status === "connected"
+                ? `✓ ${r.client}`
+                : r.status === "skipped"
+                  ? `– ${r.client} (no instalado)`
+                  : `✗ ${r.client}: ${r.error}`,
+            );
+            dialog.showMessageBox({
+              type: connected.length ? "info" : "warning",
+              title: "Conectar tu IA a Cutgent",
+              message: connected.length
+                ? `Conecté Cutgent a: ${connected.map((r) => r.client).join(", ")}.`
+                : "No detecté ningún cliente de IA para conectar.",
+              detail:
+                lines.join("\n") +
+                (connected.length
+                  ? "\n\nREINICIA esos clientes para terminar (Quit + Reopen; en VS Code: Reload Window). Deja Cutgent ABIERTO."
+                  : "\n\nUsa «Copiar config MCP» y pégala a mano.") +
+                (errored.length ? "\n\nSi un cliente dio error, ciérralo y reintenta." : ""),
+            });
+          },
+        },
+        { type: "separator" },
         {
           label: "Copiar config MCP (Claude · Cursor · Windsurf · Gemini · JetBrains…)",
           click: () => {
@@ -204,6 +251,15 @@ function openPreviewWindow() {
 ipcMain.handle("cutgent:open-preview", () => {
   try { openPreviewWindow(); } catch (e) { log("[preview] error", e && e.message); }
   return true;
+});
+
+ipcMain.handle("cutgent:connect-clients", () => {
+  try {
+    return connectClients();
+  } catch (e) {
+    log("[connect] fatal", e && e.message);
+    return [{ client: "?", status: "error", error: e && e.message ? e.message : String(e) }];
+  }
 });
 
 /**

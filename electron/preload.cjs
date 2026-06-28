@@ -7,4 +7,7 @@ contextBridge.exposeInMainWorld("cutgent", {
   platform: process.platform,
   /** Abre el preview en una ventana aparte (2º monitor). */
   openPreviewWindow: () => ipcRenderer.invoke("cutgent:open-preview"),
+  /** Auto-conecta la config MCP en los clientes de IA instalados. Devuelve
+   *  [{client, status, file, error?}]. Solo disponible en la app de escritorio. */
+  connectClients: () => ipcRenderer.invoke("cutgent:connect-clients"),
 });
