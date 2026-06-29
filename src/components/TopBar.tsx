@@ -18,6 +18,7 @@ import {
   Image as ImageIcon,
   KeyRound,
   Keyboard,
+  Plug,
 } from "lucide-react";
 import { useEditor } from "@/lib/store";
 import { EXPORT_FORMATS, type ExportFormat } from "@/lib/export-formats";
@@ -59,9 +60,18 @@ export function TopBar() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [versionsOpen, setVersionsOpen] = useState(false);
   const [eta, setEta] = useState<number | null>(null);
+  // La auto-conexión MCP (1 clic) solo existe en la app de escritorio (Electron).
+  const [isDesktop, setIsDesktop] = useState(false);
   const settingsBtnRef = useRef<HTMLButtonElement>(null);
   const versionsBtnRef = useRef<HTMLButtonElement>(null);
   const exportBtnRef = useRef<HTMLButtonElement>(null);
+
+  // Detecta la app de escritorio tras montar (evita mismatch de hidratación).
+  useEffect(() => {
+    setIsDesktop(
+      !!(window as unknown as { cutgent?: { connectClients?: unknown } }).cutgent?.connectClients,
+    );
+  }, []);
 
   // Limpia el polling al desmontar.
   useEffect(() => {
@@ -326,6 +336,34 @@ export function TopBar() {
         >
           <Keyboard size={14} />
         </button>
+
+        {isDesktop && (
+          <button
+            type="button"
+            onClick={async () => {
+              const api = (window as unknown as {
+                cutgent?: { connectClients?: () => Promise<{ client: string; status: string; error?: string }[]> };
+              }).cutgent;
+              if (!api?.connectClients) return;
+              try {
+                const results = await api.connectClients();
+                const ok = results.filter((r) => r.status === "connected").map((r) => r.client);
+                window.alert(
+                  ok.length
+                    ? `Conecté Cutgent a: ${ok.join(", ")}.\n\nReinicia esos clientes y háblale a Cutgent desde tu Claude. Deja Cutgent abierto.`
+                    : "No detecté clientes de IA instalados. Abre el menú IA / MCP → Copiar config MCP.",
+                );
+              } catch {
+                window.alert("No se pudo conectar. Abre el menú IA / MCP → Copiar config MCP.");
+              }
+            }}
+            title="Conectar tu IA (Claude Desktop / Cursor…) a Cutgent por MCP — 1 clic"
+            className="flex shrink-0 items-center gap-1.5 rounded-md bg-accent px-3 py-1 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-accent-2"
+          >
+            <Plug size={14} />
+            <span>Conectar IA</span>
+          </button>
+        )}
       </div>
       <SettingsModal open={keysOpen} onClose={() => setKeysOpen(false)} />
       <ShortcutsHelp open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />

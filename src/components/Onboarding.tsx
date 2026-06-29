@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bot, Upload, Wand2, X } from "lucide-react";
+import { Bot, Upload, Wand2, X, Plug } from "lucide-react";
 import { CutgentMark } from "./Logo";
 
 const KEY = "cutgent-onboarded-v1";
@@ -24,6 +24,9 @@ export function Onboarding() {
   }, []);
 
   if (!open) return null;
+
+  // La auto-conexión MCP (1 clic) solo existe en la app de escritorio (Electron).
+  const isDesktop = typeof navigator !== "undefined" && /Electron/i.test(navigator.userAgent);
 
   const close = () => {
     try {
@@ -52,19 +55,47 @@ export function Onboarding() {
           <Step
             icon={<Bot size={18} />}
             n={1}
-            title="Habla con tu IA — sin instalar nada"
+            title="Conecta tu IA — 1 clic"
             body={
-              <ol className="mt-1 flex list-none flex-col gap-1.5">
-                <SubStep>
-                  Abre el botón <b className="text-text">✨ asistente</b> (abajo a la derecha).
-                </SubStep>
-                <SubStep>
-                  Pega tu <b className="text-text">API key de Claude</b> una sola vez (se guarda solo en tu equipo).
-                </SubStep>
-                <SubStep>
-                  Pídele lo que quieras —«añade un título», «pon subtítulos», «corta los silencios»— y lo verás aparecer en vivo.
-                </SubStep>
-              </ol>
+              <>
+                {isDesktop ? (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const api = (window as unknown as {
+                        cutgent?: { connectClients?: () => Promise<{ client: string; status: string }[]> };
+                      }).cutgent;
+                      if (!api?.connectClients) return;
+                      try {
+                        const res = await api.connectClients();
+                        const ok = res.filter((r) => r.status === "connected").map((r) => r.client);
+                        window.alert(
+                          ok.length
+                            ? `Conecté Cutgent a: ${ok.join(", ")}.\n\nReinicia esos clientes y háblale a Cutgent desde tu Claude. Deja Cutgent abierto.`
+                            : "No detecté clientes de IA instalados (Claude Desktop, Cursor…). Usa el menú IA / MCP → Copiar config MCP.",
+                        );
+                      } catch {
+                        window.alert("No se pudo conectar automáticamente. Usa el menú IA / MCP → Copiar config MCP.");
+                      }
+                    }}
+                    className="mb-1 flex items-center gap-2 rounded-md bg-accent px-3 py-2 text-xs font-semibold text-white hover:bg-accent-2"
+                  >
+                    <Plug size={15} /> Conectar mi IA (Claude Desktop / Cursor)
+                  </button>
+                ) : (
+                  <p className="mb-1 text-xs text-muted">
+                    En la app de escritorio, pulsa <b className="text-text">«Conectar IA»</b> (barra superior) para enlazar tu Claude Desktop / Cursor por <b className="text-text">MCP</b> en 1 clic.
+                  </p>
+                )}
+                <ol className="mt-1 flex list-none flex-col gap-1.5">
+                  <SubStep>
+                    Reinicia tu cliente y maneja Cutgent <b className="text-text">hablándole desde tu Claude</b> (deja Cutgent abierto).
+                  </SubStep>
+                  <SubStep>
+                    ¿Sin cliente MCP? Abre el panel <b className="text-text">✨</b> (abajo a la derecha) y pega tu <b className="text-text">API key de Claude</b>.
+                  </SubStep>
+                </ol>
+              </>
             }
           />
           <Step
