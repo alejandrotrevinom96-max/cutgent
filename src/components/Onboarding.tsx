@@ -25,10 +25,6 @@ export function Onboarding() {
 
   if (!open) return null;
 
-  // El menú nativo «IA / MCP» solo existe en la app de escritorio (Electron).
-  // En navegador (dev) mostramos una alternativa basada en .mcp.json.
-  const isDesktop = typeof navigator !== "undefined" && /Electron/i.test(navigator.userAgent);
-
   const close = () => {
     try {
       localStorage.setItem(KEY, "1");
@@ -63,18 +59,10 @@ export function Onboarding() {
                   Abre el botón <b className="text-text">✨ asistente</b> (abajo a la derecha).
                 </SubStep>
                 <SubStep>
-                  Pega tu <b className="text-text">API key de Claude</b> una sola vez (se guarda solo en tu equipo). <b className="text-text">Sin MCP, sin config, sin reinicio.</b>
+                  Pega tu <b className="text-text">API key de Claude</b> una sola vez (se guarda solo en tu equipo).
                 </SubStep>
                 <SubStep>
                   Pídele lo que quieras —«añade un título», «pon subtítulos», «corta los silencios»— y lo verás aparecer en vivo.
-                </SubStep>
-                <SubStep>
-                  ¿Avanzado? También puedes manejar Cutgent desde tu propio Claude Desktop / Cursor por <b className="text-text">MCP</b>
-                  {isDesktop ? (
-                    <> (menú <b className="text-text">IA / MCP → Copiar config MCP</b>).</>
-                  ) : (
-                    <> (config en <span className="font-mono text-[11px]">.mcp.json</span>).</>
-                  )}
                 </SubStep>
               </ol>
             }
